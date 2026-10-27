@@ -1,0 +1,141 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Reusable Hardened Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Pure token check (safe for list queries with zero DB lookups)
+    function isBootstrappedAdmin() {
+      return isSignedIn() &&
+        request.auth.token.email == 'mohamed.m.alhasaneen@gmail.com' &&
+        request.auth.token.email_verified == true;
+    }
+
+    // Full admin check including trusted /admins collection lookup
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isSignedIn() &&
+        request.auth.token.email_verified == true &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Validation Blueprint for Product (synced verbatim with firebase-blueprint.json)
+    function isValidProduct(data) {
+      return data.keys().hasAll([
+          'id', 'name', 'brand', 'category', 'shortDescription', 'description',
+          'price', 'originalPrice', 'discountEnabled', 'inStock', 'isFeatured',
+          'isPublished', 'images', 'specs', 'options', 'authorUid', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'name', 'brand', 'category', 'shortDescription', 'description',
+          'price', 'originalPrice', 'discountEnabled', 'inStock', 'isFeatured',
+          'isPublished', 'images', 'specs', 'options', 'authorUid', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 160 &&
+        data.brand is string && data.brand.size() >= 1 && data.brand.size() <= 80 &&
+        data.category is string && data.category.size() >= 2 && data.category.size() <= 60 &&
+        data.shortDescription is string && data.shortDescription.size() >= 4 && data.shortDescription.size() <= 300 &&
+        data.description is string && data.description.size() >= 4 && data.description.size() <= 3000 &&
+        (data.price is int || data.price is float) && data.price > 0 && data.price <= 1000000 &&
+        (data.originalPrice is int || data.originalPrice is float) && data.originalPrice >= data.price && data.originalPrice <= 1000000 &&
+        data.discountEnabled is bool &&
+        (!data.discountEnabled || data.originalPrice > data.price) &&
+        data.inStock is bool &&
+        data.isFeatured is bool &&
+        data.isPublished is bool &&
+        data.images is list && data.images.size() >= 1 && data.images.size() <= 8 &&
+        data.images[0] is string && data.images[0].size() >= 1 && data.images[0].size() <= 500 &&
+        data.specs is list && data.specs.size() <= 15 &&
+        (data.specs.size() == 0 || (data.specs[0] is string && data.specs[0].size() >= 1 && data.specs[0].size() <= 200)) &&
+        data.options is list && data.options.size() <= 10 &&
+        (data.options.size() == 0 || (data.options[0] is string && data.options[0].size() >= 1 && data.options[0].size() <= 80)) &&
+        data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 && data.authorUid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint for AdminRole
+    function isValidAdminRole(data) {
+      return data.keys().hasAll(['uid', 'grantedBy', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'grantedBy', 'createdAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 128 && data.grantedBy.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.createdAt is timestamp;
+    }
+
+    // Products Catalog Collection
+    match /products/{productId} {
+      allow get: if isValidId(productId) && (existing().isPublished == true || isAdmin());
+      allow list: if existing().isPublished == true || isBootstrappedAdmin();
+
+      allow create: if isSignedIn() &&
+        isValidId(productId) &&
+        isValidProduct(incoming()) &&
+        incoming().id == productId &&
+        incoming().authorUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+
+      allow update: if isSignedIn() &&
+        isValidId(productId) &&
+        isValidProduct(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().authorUid == existing().authorUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'brand', 'category', 'shortDescription', 'description',
+            'price', 'originalPrice', 'discountEnabled', 'inStock', 'isFeatured',
+            'isPublished', 'images', 'specs', 'options', 'updatedAt'
+          ]) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'price', 'originalPrice', 'discountEnabled', 'inStock', 'isFeatured', 'updatedAt'
+          ])
+        ) &&
+        isAdmin();
+
+      allow delete: if isSignedIn() && isValidId(productId) && isAdmin();
+    }
+
+    // Trusted Admin Membership Collection
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isBootstrappedAdmin());
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+        isValidId(adminUid) &&
+        isValidAdminRole(incoming()) &&
+        incoming().uid == adminUid &&
+        incoming().grantedBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        isBootstrappedAdmin();
+
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(adminUid) && isBootstrappedAdmin();
+    }
+  }
+}

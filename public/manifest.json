@@ -1,0 +1,17 @@
+{
+  "name": "المحلاوي ستور | El Mahlawy Store",
+  "short_name": "المحلاوي ستور",
+  "description": "متجر المحلاوي ستور الإلكتروني لعرض المنتجات ومواصفاتها وأسعارها والطلب عبر WhatsApp.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1D4ED8",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

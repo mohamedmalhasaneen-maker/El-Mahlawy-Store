@@ -1,0 +1,6 @@
+{
+  "name": "المحلاوي ستور | El Mahlawy Store",
+  "description": "متجر المحلاوي ستور الإلكتروني لعرض المنتجات ومواصفاتها وأسعارها والطلب عبر WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
