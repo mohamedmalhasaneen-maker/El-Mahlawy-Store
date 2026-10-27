@@ -101,10 +101,10 @@ const TEST_PRODUCTS: Product[] = [
   },
 ];
 
-test('verifyAdminPassword accepts only 123456 and rejects other inputs', () => {
-  assert.equal(verifyAdminPassword('123456'), true);
-  assert.equal(verifyAdminPassword(' 123456 '), true);
-  assert.equal(verifyAdminPassword('12345'), false);
+test('verifyAdminPassword accepts only WQ(8)@opnKLOZ$80@Gh and rejects other inputs', () => {
+  assert.equal(verifyAdminPassword('WQ(8)@opnKLOZ$80@Gh'), true);
+  assert.equal(verifyAdminPassword(' WQ(8)@opnKLOZ$80@Gh '), true);
+  assert.equal(verifyAdminPassword('123456'), false);
   assert.equal(verifyAdminPassword('000000'), false);
   assert.equal(verifyAdminPassword(''), false);
 });

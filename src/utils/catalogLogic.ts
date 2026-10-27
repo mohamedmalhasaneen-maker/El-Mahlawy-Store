@@ -20,7 +20,7 @@ export const MAX_SPECS = 15;
 export const MAX_SPEC_LENGTH = 200;
 export const MAX_OPTIONS = 10;
 export const MAX_OPTION_LENGTH = 80;
-export const ADMIN_ACCESS_PASSWORD = '123456';
+export const ADMIN_ACCESS_PASSWORD = 'WQ(8)@opnKLOZ$80@Gh';
 
 export function verifyAdminPassword(input: string): boolean {
   return (input || '').trim() === ADMIN_ACCESS_PASSWORD;

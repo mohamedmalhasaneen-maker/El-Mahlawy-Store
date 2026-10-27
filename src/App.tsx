@@ -133,20 +133,34 @@ export default function App() {
   }, []);
 
   const handleVerifyAdminPassword = async (candidate: string): Promise<boolean> => {
-    const trimmed = candidate.trim();
+    const trimmed = (candidate || '').trim();
+    if (!trimmed) return false;
+
+    let isValid = false;
     try {
       const res = await fetch('/api/admin/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: trimmed }),
       });
-      if (!res.ok) {
-        return false;
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data?.ok) {
+          isValid = true;
+        }
       }
     } catch {
-      if (!verifyAdminPassword(trimmed)) {
-        return false;
+      // Ignore network error and fall back to local check
+    }
+
+    if (!isValid) {
+      if (verifyAdminPassword(trimmed)) {
+        isValid = true;
       }
+    }
+
+    if (!isValid) {
+      return false;
     }
 
     setAdminPassword(trimmed);

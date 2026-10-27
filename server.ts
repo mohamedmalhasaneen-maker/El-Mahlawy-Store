@@ -21,7 +21,7 @@ if (!fs.existsSync(DATA_DIR)) {
 
 function getExpectedAdminPassword(): string {
   const envPass = (process.env.ADMIN_PASSWORD || '').trim();
-  return envPass || '123456';
+  return envPass || 'WQ(8)@opnKLOZ$80@Gh';
 }
 
 function isAuthorizedAdminRequest(req: Request): boolean {
