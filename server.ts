@@ -50,7 +50,8 @@ const storage = multer.diskStorage({
   },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
-    const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.jpg';
+    const normalizedExt = ['.heic', '.heif', '.avif'].includes(ext) ? '.jpg' : ext;
+    const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'].includes(normalizedExt) ? normalizedExt : '.jpg';
     const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     cb(null, `mahallawy-${uniqueSuffix}${safeExt}`);
   },
@@ -59,10 +60,12 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max per image
+    fileSize: 10 * 1024 * 1024, // 10MB max per image
   },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype && file.mimetype.startsWith('image/')) {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const isImageExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.heif', '.avif', '.bmp'].includes(ext);
+    if ((file.mimetype && file.mimetype.startsWith('image/')) || isImageExt) {
       cb(null, true);
     } else {
       cb(new Error('يُسمح برفع ملفات الصور فقط (JPG, PNG, WEBP).'));
