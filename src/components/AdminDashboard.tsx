@@ -242,29 +242,56 @@ export function AdminDashboard({
 
     try {
       const formData = new FormData();
-      Array.from(fileList)
-        .slice(0, 8)
-        .forEach((file) => {
-          formData.append('images', file);
+      const filesArr = Array.from(fileList).slice(0, 8);
+      filesArr.forEach((file) => {
+        formData.append('images', file);
+      });
+
+      let uploadedUrls: string[] = [];
+
+      try {
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
         });
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = (await response.json()) as { urls?: string[]; error?: string };
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = (await response.json()) as { urls?: string[]; error?: string };
+          if (response.ok && data.urls) {
+            uploadedUrls = data.urls;
+          } else {
+            throw new Error(data.error || 'تعذر رفع الصور المحددة.');
+          }
+        } else {
+          const text = await response.text();
+          console.warn('Non-JSON upload response received:', text.slice(0, 150));
+          throw new Error('تعذر الاتصال بخدمة الرفع (استجابة غير صالحة من السيرفر).');
+        }
+      } catch (apiErr) {
+        console.warn('API upload failed, falling back to local data URL encoding:', apiErr);
+        const base64Promises = filesArr.map((file) => {
+          return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        });
+        uploadedUrls = await Promise.all(base64Promises);
+      }
 
-      if (!response.ok || !data.urls) {
-        throw new Error(data.error || 'تعذر رفع الصور المحددة.');
+      if (uploadedUrls.length === 0) {
+        throw new Error('لم يتم رفع أي صور.');
       }
 
       setForm((prev) => ({
         ...prev,
-        images: [...prev.images, ...(data.urls || [])].slice(0, 8),
+        images: [...prev.images, ...uploadedUrls].slice(0, 8),
       }));
       setFeedback({
         type: 'success',
-        message: `تم رفع ${data.urls.length} صورة بنجاح وحفظ روابطها العامة.`,
+        message: `تم رفع ${uploadedUrls.length} صورة بنجاح.`,
       });
     } catch (err) {
       setFeedback({
