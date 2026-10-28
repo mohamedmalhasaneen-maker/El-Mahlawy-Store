@@ -15,6 +15,8 @@ import {
   updateCloudProduct,
   deleteCloudProduct,
   auth,
+  signOutAdmin,
+  signInAdminWithGoogle,
 } from './lib/firebase';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
@@ -277,11 +279,19 @@ export default function App() {
       return false;
     }
 
-    setAdminPassword(trimmed);
-    setPasswordModalOpen(false);
-    setActiveView('admin');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return true;
+    try {
+      // Ensure we are signed in with Firebase Auth to satisfy Firestore rules
+      await signInAdminWithGoogle();
+      
+      setAdminPassword(trimmed);
+      setPasswordModalOpen(false);
+      setActiveView('admin');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return true;
+    } catch (err) {
+      console.error('Firebase Auth Error:', err);
+      return false;
+    }
   };
 
   const handleAdminButtonClick = () => {
@@ -289,12 +299,13 @@ export default function App() {
     setPasswordModalOpen(true);
   };
 
-  const handleAdminLogout = () => {
+  const handleAdminLogout = async () => {
     setAdminPassword('');
     try {
+      await signOutAdmin();
       sessionStorage.removeItem(ADMIN_SESSION_KEY);
-    } catch {
-      // Ignore storage restrictions
+    } catch (err) {
+      console.error('Sign out error:', err);
     }
     setActiveView('store');
     window.scrollTo({ top: 0, behavior: 'smooth' });
