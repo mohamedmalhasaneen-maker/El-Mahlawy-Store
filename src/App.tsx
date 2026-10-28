@@ -9,6 +9,13 @@ import {
   sanitizeProductPayload,
   verifyAdminPassword,
 } from './utils/catalogLogic';
+import {
+  subscribeToPublishedProducts,
+  createCloudProduct,
+  updateCloudProduct,
+  deleteCloudProduct,
+  auth,
+} from './lib/firebase';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { OffersSection } from './components/OffersSection';
@@ -216,19 +223,18 @@ export default function App() {
         // Keep window.location.origin fallback
       });
 
-    fetch('/api/products')
-      .then((res) => res.json())
-      .then((data: { initialized?: boolean; products?: Product[] }) => {
-        if (Array.isArray(data.products)) {
-          syncLocalCache(data.products);
-        }
-      })
-      .catch(() => {
-        // Keep cached products
-      })
-      .finally(() => {
+    const unsubscribe = subscribeToPublishedProducts(
+      (items) => {
+        syncLocalCache(items);
         setIsLoadingProducts(false);
-      });
+      },
+      (err) => {
+        console.error('Error fetching products:', err);
+        setIsLoadingProducts(false);
+      }
+    );
+
+    return () => unsubscribe();
 
     fetch('/api/settings')
       .then((res) => res.json())
@@ -295,71 +301,16 @@ export default function App() {
   };
 
   const handleSaveProduct = async (input: ProductFormInput, editingId?: string) => {
+    const authorUid = auth.currentUser?.uid || 'admin';
     if (editingId) {
-      const existing = products.find((p) => p.id === editingId);
-      const updated = {
-        ...sanitizeProductPayload(input, editingId, existing?.authorUid || 'admin'),
-        createdAt: existing?.createdAt || new Date().toISOString(),
-      };
-
-      const res = await fetch(`/api/products/${encodeURIComponent(editingId)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': adminPassword,
-        },
-        body: JSON.stringify({ product: updated }),
-      });
-
-      if (res.ok) {
-        const payload = (await res.json()) as { products?: Product[] };
-        if (Array.isArray(payload.products)) {
-          syncLocalCache(payload.products);
-          return;
-        }
-      }
-
-      syncLocalCache(products.map((p) => (p.id === editingId ? updated : p)));
+      await updateCloudProduct(editingId, input, authorUid);
     } else {
-      const created = sanitizeProductPayload(input);
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': adminPassword,
-        },
-        body: JSON.stringify({ product: created }),
-      });
-
-      if (res.ok) {
-        const payload = (await res.json()) as { products?: Product[] };
-        if (Array.isArray(payload.products)) {
-          syncLocalCache(payload.products);
-          return;
-        }
-      }
-
-      syncLocalCache([created, ...products]);
+      await createCloudProduct(input, authorUid);
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
-      method: 'DELETE',
-      headers: {
-        'x-admin-password': adminPassword,
-      },
-    });
-
-    if (res.ok) {
-      const payload = (await res.json()) as { products?: Product[] };
-      if (Array.isArray(payload.products)) {
-        syncLocalCache(payload.products);
-        return;
-      }
-    }
-
-    syncLocalCache(products.filter((p) => p.id !== productId));
+    await deleteCloudProduct(productId);
   };
 
   const discountedProducts = useMemo(() => getDiscountedProducts(products), [products]);
