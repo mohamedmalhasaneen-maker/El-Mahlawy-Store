@@ -20,6 +20,8 @@ import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { MobileStorefront } from './components/mobile/MobileStorefront';
+import { TechBackground } from './components/TechBackground';
+import { useTheme } from './utils/useTheme';
 
 const LOCAL_STORAGE_KEY = 'mahallawy_store_catalog_v1';
 const ADMIN_SESSION_KEY = 'mahallawy_admin_unlocked_v1';
@@ -40,6 +42,7 @@ function loadCachedProducts(): Product[] {
 }
 
 export default function App() {
+  const { theme, toggleTheme, isDark } = useTheme();
   const [activeView, setActiveView] = useState<'store' | 'about' | 'admin'>('store');
   const [products, setProducts] = useState<Product[]>(loadCachedProducts);
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(
@@ -375,7 +378,9 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-white text-[#0B1F3A]">
+    <div className="relative min-h-screen flex flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] transition-colors">
+      <TechBackground isDark={isDark} />
+
       {activeView === 'admin' ? (
         <>
           <div className="hidden md:block">
@@ -390,9 +395,11 @@ export default function App() {
               }}
               onAdminButtonClick={handleAdminButtonClick}
               hasDiscountOffers={discountedProducts.length > 0}
+              isDark={isDark}
+              onToggleTheme={toggleTheme}
             />
           </div>
-          <main className="flex-1">
+          <main className="flex-1 relative z-10">
             <AdminDashboard
               products={products}
               isAuthorized={isAdminUnlocked}
@@ -408,12 +415,14 @@ export default function App() {
           </main>
         </>
       ) : activeView === 'about' ? (
-        <AboutUsPage
-          onBackToStore={() => navigateToView('store')}
-          onAdminButtonClick={handleAdminButtonClick}
-        />
+        <div className="relative z-10">
+          <AboutUsPage
+            onBackToStore={() => navigateToView('store')}
+            onAdminButtonClick={handleAdminButtonClick}
+          />
+        </div>
       ) : (
-        <>
+        <div className="relative z-10">
           {/* Dedicated Rebuilt Mobile Storefront (< 768px) */}
           <MobileStorefront
             products={products}
@@ -426,6 +435,8 @@ export default function App() {
             onSortChange={setSortBy}
             onAdminButtonClick={handleAdminButtonClick}
             onNavigateAbout={() => navigateToView('about')}
+            isDark={isDark}
+            onToggleTheme={toggleTheme}
             publicOrigin={publicOrigin}
             initialProductId={sharedProductId}
             onConsumeInitialProduct={clearSharedProductParam}
@@ -444,6 +455,8 @@ export default function App() {
               }}
               onAdminButtonClick={handleAdminButtonClick}
               hasDiscountOffers={discountedProducts.length > 0}
+              isDark={isDark}
+              onToggleTheme={toggleTheme}
             />
 
             <main className="flex-1">
@@ -467,18 +480,18 @@ export default function App() {
               <section
                 id="products-section"
                 aria-labelledby="catalog-heading"
-                className="py-12 sm:py-16 bg-white"
+                className="py-12 sm:py-16 bg-white dark:bg-[#071326]"
               >
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                   {/* Catalog Header & Controls */}
                   <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 mb-8">
                     <div>
-                      <p className="text-xs sm:text-sm font-bold text-[#0284C7] mb-1">
+                      <p className="text-xs sm:text-sm font-bold text-[#0284C7] dark:text-[#38BDF8] mb-1">
                         أحدث المنتجات والأجهزة المتاحة
                       </p>
                       <h2
                         id="catalog-heading"
-                        className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A]"
+                        className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]"
                       >
                         منتجات المحلاوي ستور
                       </h2>
@@ -492,7 +505,7 @@ export default function App() {
                             البحث داخل قسم المنتجات
                           </label>
                           <Search
-                            className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0284C7]"
+                            className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]"
                             aria-hidden="true"
                           />
                           <input
@@ -501,7 +514,7 @@ export default function App() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="ابحث باسم المنتج أو المواصفات..."
-                            className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] pr-10 pl-3 py-2 text-xs sm:text-sm text-[#0B1F3A] focus:bg-white focus:outline-2 focus:outline-[#1D4ED8]"
+                            className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] pr-10 pl-3 py-2 text-xs sm:text-sm text-[#0B1F3A] dark:text-[#F0F9FF] placeholder:text-slate-400 focus:bg-white dark:focus:bg-[#081830] focus:outline-2 focus:outline-[#1D4ED8]"
                           />
                         </div>
 
@@ -510,14 +523,14 @@ export default function App() {
                             ترتيب المنتجات
                           </label>
                           <ArrowUpDown
-                            className="pointer-events-none absolute right-3.5 h-4 w-4 text-[#1D4ED8]"
+                            className="pointer-events-none absolute right-3.5 h-4 w-4 text-[#1D4ED8] dark:text-[#38BDF8]"
                             aria-hidden="true"
                           />
                           <select
                             id="catalog-sort-select"
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value as SortOption)}
-                            className="min-h-[44px] w-full sm:w-auto rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] pr-9 pl-4 py-2 text-xs sm:text-sm font-bold text-[#0F294A] focus:bg-white focus:outline-2 focus:outline-[#1D4ED8] cursor-pointer"
+                            className="min-h-[44px] w-full sm:w-auto rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] pr-9 pl-4 py-2 text-xs sm:text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE] focus:bg-white dark:focus:bg-[#081830] focus:outline-2 focus:outline-[#1D4ED8] cursor-pointer"
                           >
                             <option value={SortOption.NEWEST}>الأحدث إضافة</option>
                             <option value={SortOption.PRICE_ASC}>السعر: من الأقل للأعلى</option>
@@ -531,13 +544,13 @@ export default function App() {
 
                   {/* Product Cards Grid or Empty State */}
                   {filteredProducts.length === 0 ? (
-                    <div className="rounded-3xl bg-[#F2FAFF] border border-[#D8EEFB] p-10 sm:p-14 text-center">
+                    <div className="rounded-3xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-10 sm:p-14 text-center">
                       {searchQuery.trim() ? (
                         <>
-                          <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] mb-2">
+                          <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2">
                             لم نجد منتجات تطابق بحثك الحالي
                           </p>
-                          <p className="text-xs sm:text-sm text-slate-600 mb-5">
+                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-5">
                             جرّب البحث بكلمة أخرى أو استعرض كافة منتجات المحلاوي ستور.
                           </p>
                           <button
@@ -551,10 +564,10 @@ export default function App() {
                         </>
                       ) : (
                         <>
-                          <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] mb-2">
+                          <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2">
                             يتم تحديث قائمة المنتجات والأجهزة الحديثة باستمرار
                           </p>
-                          <p className="text-xs sm:text-sm text-slate-600 mb-5 max-w-lg mx-auto">
+                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-5 max-w-lg mx-auto">
                             تواصل معنا مباشرة عبر واتساب الأعمال للاستفسار عن أحدث الموديلات
                             والأسعار والتوافر في المحلاوي ستور.
                           </p>
@@ -598,7 +611,7 @@ export default function App() {
               publicOrigin={publicOrigin}
             />
           </div>
-        </>
+        </div>
       )}
 
       {/* Admin Password Modal triggered by Admin Panel button (Desktop & Mobile) */}

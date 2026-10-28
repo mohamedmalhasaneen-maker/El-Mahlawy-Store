@@ -119,10 +119,10 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative flex max-h-[94vh] sm:max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white border border-[#CBE7FA] shadow-2xl">
+      <div className="relative flex max-h-[94vh] sm:max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white dark:bg-[#081A33] border border-[#CBE7FA] dark:border-[#1E3F73] shadow-2xl">
         {/* Top Modal Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-[#E2F1FC] px-5 py-3.5 bg-[#F8FCFF] shrink-0">
-          <p className="text-xs sm:text-sm font-semibold text-[#0284C7] truncate">
+        <div className="flex items-center justify-between gap-4 border-b border-[#E2F1FC] dark:border-[#1E3F73] px-5 py-3.5 bg-[#F8FCFF] dark:bg-[#0E264A] shrink-0">
+          <p className="text-xs sm:text-sm font-semibold text-[#0284C7] dark:text-[#38BDF8] truncate">
             {product.brand}
             {product.category && product.category.trim() !== 'عام' ? ` · ${product.category}` : ''}
           </p>
@@ -130,7 +130,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
             type="button"
             onClick={onClose}
             aria-label="إغلاق تفاصيل المنتج"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-[#CBE7FA] text-[#0B1F3A] hover:bg-[#F2FAFF] transition-colors cursor-pointer"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0B1F3A] dark:text-[#F0F9FF] hover:bg-[#F2FAFF] dark:hover:bg-[#153460] transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -141,7 +141,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 lg:gap-8 items-start">
             {/* Right Column (RTL): Multi-Image Gallery */}
             <div className="lg:col-span-6">
-              <div className="relative overflow-hidden rounded-2xl bg-[#F2FAFF] border border-[#D8EEFB]">
+              <div className="relative overflow-hidden rounded-2xl bg-[#F2FAFF] dark:bg-[#081830] border border-[#D8EEFB] dark:border-[#1E3F73]">
                 {hasDiscount && (
                   <span className="absolute top-4 right-4 z-20 rounded-lg bg-[#1D4ED8] px-3 py-1 text-xs font-extrabold text-white">
                     خصم <bdi className="font-num">{discountPct}%</bdi>
@@ -152,7 +152,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                   src={images[activeImageIndex]}
                   alt={`${product.name} - صورة ${activeImageIndex + 1}`}
                   showPedestalHalo={true}
-                  containerClassName="aspect-square max-h-[420px] w-full p-3"
+                  containerClassName="aspect-square max-h-[420px] w-full p-3 bg-[#F2FAFF] dark:bg-[#081830]"
                   className=""
                 />
 
@@ -164,7 +164,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                         setActiveImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))
                       }
                       aria-label="الصورة السابقة"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 border border-[#CBE7FA] text-[#0B1F3A] shadow-sm hover:bg-[#F2FAFF] cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 dark:bg-[#0E264A]/95 border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0B1F3A] dark:text-[#F0F9FF] shadow-sm hover:bg-[#F2FAFF] dark:hover:bg-[#153460] cursor-pointer"
                     >
                       <ChevronRight className="h-5 w-5" aria-hidden="true" />
                     </button>
@@ -174,7 +174,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                         setActiveImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))
                       }
                       aria-label="الصورة التالية"
-                      className="absolute left-3 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 border border-[#CBE7FA] text-[#0B1F3A] shadow-sm hover:bg-[#F2FAFF] cursor-pointer"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 dark:bg-[#0E264A]/95 border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0B1F3A] dark:text-[#F0F9FF] shadow-sm hover:bg-[#F2FAFF] dark:hover:bg-[#153460] cursor-pointer"
                     >
                       <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                     </button>
@@ -197,10 +197,10 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                       aria-selected={activeImageIndex === idx}
                       aria-label={`عرض الصورة رقم ${idx + 1}`}
                       onClick={() => setActiveImageIndex(idx)}
-                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 p-1.5 bg-[#F2FAFF] transition-colors cursor-pointer ${
+                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 p-1.5 bg-[#F2FAFF] dark:bg-[#081830] transition-colors cursor-pointer ${
                         activeImageIndex === idx
-                          ? 'border-[#1D4ED8] bg-white'
-                          : 'border-[#D8EEFB] opacity-75 hover:opacity-100'
+                          ? 'border-[#1D4ED8] bg-white dark:bg-[#0E264A]'
+                          : 'border-[#D8EEFB] dark:border-[#1E3F73] opacity-75 hover:opacity-100'
                       }`}
                     >
                       <img
@@ -220,7 +220,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
               <div className="flex items-center gap-2 text-xs font-bold mb-2">
                 <span
                   className={
-                    product.inStock ? 'text-[#0284C7]' : 'text-amber-700'
+                    product.inStock ? 'text-[#0284C7] dark:text-[#38BDF8]' : 'text-amber-700 dark:text-amber-400'
                   }
                 >
                   {product.inStock
@@ -231,19 +231,19 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
 
               <h2
                 id="product-modal-title"
-                className="text-xl sm:text-2xl font-extrabold text-[#0B1F3A] leading-snug mb-4"
+                className="text-xl sm:text-2xl font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] leading-snug mb-4"
               >
                 {product.name}
               </h2>
 
               {/* Price Showcase Block */}
-              <div className="rounded-2xl bg-[#F2FAFF] border border-[#D8EEFB] p-4 mb-5">
+              <div className="rounded-2xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-4 mb-5">
                 <div className="flex flex-wrap items-baseline justify-between gap-3">
                   <div className="flex items-baseline gap-2.5">
-                    <span className="font-num text-2xl sm:text-3xl font-extrabold text-[#1D4ED8]">
+                    <span className="font-num text-2xl sm:text-3xl font-extrabold text-[#1D4ED8] dark:text-[#38BDF8]">
                       {formatPriceEgp(product.price)}
                     </span>
-                    <span className="text-sm font-bold text-[#0F294A]">جنيه مصري</span>
+                    <span className="text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE]">جنيه مصري</span>
 
                     {hasDiscount && (
                       <span className="font-num text-sm sm:text-base text-slate-400 line-through mr-1">
@@ -253,7 +253,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                   </div>
 
                   {hasDiscount && (
-                    <span className="text-xs sm:text-sm font-bold text-[#0284C7]">
+                    <span className="text-xs sm:text-sm font-bold text-[#0284C7] dark:text-[#38BDF8]">
                       توفير <bdi className="font-num">{formatPriceEgp(savings)}</bdi> ج.م (
                       <bdi className="font-num">{discountPct}%</bdi>)
                     </span>
@@ -264,7 +264,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
               {/* Selectable Options / Variants */}
               {product.options.length > 0 && (
                 <div className="mb-5">
-                  <span className="block text-xs sm:text-sm font-bold text-[#0B1F3A] mb-2">
+                  <span className="block text-xs sm:text-sm font-bold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2">
                     اختيار الموديل / اللون:
                   </span>
                   <div className="flex flex-wrap gap-2">
@@ -278,7 +278,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                           className={`min-h-[40px] rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold border transition-colors cursor-pointer ${
                             active
                               ? 'bg-[#1D4ED8] text-white border-[#1D4ED8]'
-                              : 'bg-white text-[#0F294A] border-[#CBE7FA] hover:bg-[#F2FAFF]'
+                              : 'bg-white dark:bg-[#081830] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#F2FAFF] dark:hover:bg-[#153460]'
                           }`}
                         >
                           {opt}
@@ -292,24 +292,24 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
               {/* Quantity & Spec Sheet Download Row */}
               <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs sm:text-sm font-bold text-[#0B1F3A]">الكمية:</span>
-                  <div className="inline-flex items-center rounded-xl border border-[#CBE7FA] bg-[#F2FAFF] p-1">
+                  <span className="text-xs sm:text-sm font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">الكمية:</span>
+                  <div className="inline-flex items-center rounded-xl border border-[#CBE7FA] dark:border-[#1E3F73] bg-[#F2FAFF] dark:bg-[#0E264A] p-1">
                     <button
                       type="button"
                       onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                       aria-label="تقليل الكمية"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#0B1F3A] hover:bg-[#E2F3FE] cursor-pointer"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white dark:bg-[#081830] text-[#0B1F3A] dark:text-[#F0F9FF] hover:bg-[#E2F3FE] dark:hover:bg-[#153460] cursor-pointer"
                     >
                       <Minus className="h-4 w-4" aria-hidden="true" />
                     </button>
-                    <span className="font-num min-w-[2.25rem] text-center text-sm font-extrabold text-[#0B1F3A]">
+                    <span className="font-num min-w-[2.25rem] text-center text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]">
                       {quantity}
                     </span>
                     <button
                       type="button"
                       onClick={() => setQuantity((q) => Math.min(20, q + 1))}
                       aria-label="زيادة الكمية"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#0B1F3A] hover:bg-[#E2F3FE] cursor-pointer"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white dark:bg-[#081830] text-[#0B1F3A] dark:text-[#F0F9FF] hover:bg-[#E2F3FE] dark:hover:bg-[#153460] cursor-pointer"
                     >
                       <Plus className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -319,16 +319,16 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                 <button
                   type="button"
                   onClick={handleDownloadSpecs}
-                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-white border border-[#CBE7FA] hover:bg-[#F2FAFF] px-3 py-1.5 text-xs font-bold text-[#0F294A] transition-colors cursor-pointer"
+                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#F2FAFF] dark:hover:bg-[#153460] px-3 py-1.5 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE] transition-colors cursor-pointer"
                 >
                   {downloadedSheet ? (
                     <>
-                      <Check className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                      <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                       <span>تم تحميل بطاقة المواصفات</span>
                     </>
                   ) : (
                     <>
-                      <Download className="h-4 w-4 text-[#0284C7]" aria-hidden="true" />
+                      <Download className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]" aria-hidden="true" />
                       <span>تحميل بطاقة المواصفات</span>
                     </>
                   )}
@@ -337,8 +337,8 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
 
               {/* Detailed Description */}
               <div className="mb-5">
-                <h3 className="text-sm font-extrabold text-[#0B1F3A] mb-1.5">الوصف التفصيلي</h3>
-                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+                <h3 className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-1.5">الوصف التفصيلي</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
                   {product.description}
                 </p>
               </div>
@@ -346,16 +346,16 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
               {/* Specifications & Features */}
               {product.specs.length > 0 && (
                 <div className="mb-4">
-                  <h3 className="text-sm font-extrabold text-[#0B1F3A] mb-2.5">
+                  <h3 className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2.5">
                     المواصفات والمميزات
                   </h3>
-                  <ul className="divide-y divide-[#E8F4FD] rounded-2xl border border-[#D8EEFB] bg-[#FAFDFF] px-4">
+                  <ul className="divide-y divide-[#E8F4FD] dark:divide-[#1E3F73] rounded-2xl border border-[#D8EEFB] dark:border-[#1E3F73] bg-[#FAFDFF] dark:bg-[#081830] px-4">
                     {product.specs.map((spec, idx) => (
                       <li
                         key={`${spec}-${idx}`}
-                        className="py-2.5 text-xs sm:text-sm text-[#0F294A] flex items-start gap-2"
+                        className="py-2.5 text-xs sm:text-sm text-[#0F294A] dark:text-[#E0F2FE] flex items-start gap-2"
                       >
-                        <span className="font-num text-[#0284C7] font-bold">
+                        <span className="font-num text-[#0284C7] dark:text-[#38BDF8] font-bold">
                           {String(idx + 1).padStart(2, '0')}.
                         </span>
                         <span>{spec}</span>
@@ -365,8 +365,8 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                 </div>
               )}
 
-              <div className="flex items-center gap-2 text-xs text-slate-500 pt-1">
-                <Truck className="h-4 w-4 text-[#0284C7] shrink-0" aria-hidden="true" />
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-1">
+                <Truck className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8] shrink-0" aria-hidden="true" />
                 <span>{STORE_INFO.shippingSummary}</span>
               </div>
             </div>
@@ -374,10 +374,10 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
         </div>
 
         {/* Sticky Non-Overlapping Footer CTA Bar */}
-        <div className="border-t border-[#D8EEFB] bg-white px-5 py-3.5 sm:px-7 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+        <div className="border-t border-[#D8EEFB] dark:border-[#1E3F73] bg-white dark:bg-[#081A33] px-5 py-3.5 sm:px-7 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
           <div className="hidden sm:block">
-            <span className="text-xs text-slate-500 block">الإجمالي التقديري للطلب</span>
-            <span className="font-num text-lg font-extrabold text-[#0B1F3A]">
+            <span className="text-xs text-slate-500 dark:text-slate-400 block">الإجمالي التقديري للطلب</span>
+            <span className="font-num text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]">
               {formatPriceEgp(product.price * quantity)} ج.م
             </span>
           </div>
@@ -396,3 +396,4 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
     </div>
   );
 }
+

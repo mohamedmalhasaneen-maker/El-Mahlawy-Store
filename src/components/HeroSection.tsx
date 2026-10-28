@@ -236,48 +236,48 @@ export function HeroSection({
       </div>
 
       {/* Soft Harmonious Value & Partnership Strip */}
-      <div className="bg-[#F2FAFF] border-b border-[#D8EEFB]">
+      <div className="bg-[#F2FAFF] dark:bg-[#081830] border-b border-[#D8EEFB] dark:border-[#163663]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 text-xs sm:text-sm text-[#0F294A]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 text-xs sm:text-sm text-[#0F294A] dark:text-[#E0F2FE]">
             <div className="flex items-center gap-3 py-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white border border-[#CBE7FA] text-[#1D4ED8]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#1D4ED8] dark:text-[#38BDF8]">
                 <Layers className="h-4 w-4" aria-hidden="true" />
               </span>
               <div>
-                <p className="font-bold text-[#0B1F3A]">أحدث المنتجات والموديلات</p>
-                <p className="text-xs text-slate-600">استعراض شامل للأجهزة المتاحة</p>
+                <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">أحدث المنتجات والموديلات</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300">استعراض شامل للأجهزة المتاحة</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 py-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white border border-[#CBE7FA] text-[#0284C7]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8]">
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
               </span>
               <div>
-                <p className="font-bold text-[#0B1F3A]">صور ومواصفات واضحة</p>
-                <p className="text-xs text-slate-600">تعرف على الإمكانيات لاختيار الأنسب</p>
+                <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">صور ومواصفات واضحة</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300">تعرف على الإمكانيات لاختيار الأنسب</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 py-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white border border-[#CBE7FA] text-[#1D4ED8]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#1D4ED8] dark:text-[#38BDF8]">
                 <MessageCircle className="h-4 w-4" aria-hidden="true" />
               </span>
               <div>
-                <p className="font-bold text-[#0B1F3A]">تواصل عبر واتساب الأعمال</p>
-                <p className="text-xs text-slate-600">للاستفسار عن الأسعار والتوافر فورًا</p>
+                <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">تواصل عبر واتساب الأعمال</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300">للاستفسار عن الأسعار والتوافر فورًا</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 py-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white border border-[#CBE7FA] text-[#0284C7]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8]">
                 <Cpu className="h-4 w-4" aria-hidden="true" />
               </span>
               <div>
-                <p className="font-bold text-[#0B1F3A]">
+                <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">
                   شريك النجاح <bdi>{PARTNER_INFO.partnerName}</bdi>
                 </p>
-                <p className="text-xs text-slate-600">أنظمة ذكية وتركيبات ودعم فني</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300">أنظمة ذكية وتركيبات ودعم فني</p>
               </div>
             </div>
           </div>

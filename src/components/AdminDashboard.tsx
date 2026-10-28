@@ -288,51 +288,63 @@ export function AdminDashboard({
     if (!fileList || fileList.length === 0) return;
     setUploadingImages(true);
     setFeedback(null);
+    const newImageUrls: string[] = [];
+    const errors: string[] = [];
 
-    try {
-      const formData = new FormData();
-      const filesArr = Array.from(fileList).slice(0, 15);
-      filesArr.forEach((file) => {
-        formData.append('images', file);
-      });
+    for (const file of Array.from(fileList).slice(0, 15)) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'elmahlawy-store');
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+        const response = await fetch('https://api.cloudinary.com/v1_1/obvb7rtp/image/upload', {
+          method: 'POST',
+          body: formData,
+        });
 
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        const text = await response.text();
-        console.warn('Non-JSON upload response received:', text.slice(0, 150));
-        throw new Error('تعذر الاتصال بخدمة الرفع السحابي (استجابة غير صالحة من السيرفر).');
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          throw new Error('تعذر تحليل استجابة خادم التخزين (استجابة غير صالحة).');
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error?.message || `فشل رفع الصورة: ${response.statusText}`);
+        }
+
+        if (data.secure_url) {
+          newImageUrls.push(data.secure_url);
+        } else {
+          throw new Error('لم يتم الحصول على رابط آمن للصورة من خادم التخزين.');
+        }
+      } catch (err) {
+        errors.push(`خطأ في رفع "${file.name}": ${err instanceof Error ? err.message : 'حدث خطأ غير معروف'}`);
       }
+    }
 
-      const data = (await response.json()) as { urls?: string[]; error?: string };
-      if (!response.ok || !data.urls || data.urls.length === 0) {
-        throw new Error(data.error || 'تعذر رفع الصور المحددة إلى خادم التخزين.');
-      }
-
+    if (newImageUrls.length > 0) {
       setForm((prev) => ({
         ...prev,
-        images: [...prev.images, ...(data.urls || [])].slice(0, 15),
+        images: [...prev.images, ...newImageUrls].slice(0, 15),
       }));
       setFeedback({
         type: 'success',
-        message: `تم رفع ${data.urls.length} صورة بنجاح إلى التخزين السحابي.`,
+        message: `تم رفع ${newImageUrls.length} صورة بنجاح. ${errors.length > 0 ? ` (فشلت ${errors.length} صور).` : ''}`,
       });
-    } catch (err) {
+    } else if (errors.length > 0) {
       setFeedback({
         type: 'error',
-        message: err instanceof Error ? err.message : 'حدث خطأ أثناء رفع الصور.',
+        message: errors[0],
       });
-    } finally {
-      setUploadingImages(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    }
+
+    setUploadingImages(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
+
 
   const handleAddImageUrl = () => {
     const trimmed = imageUrlDraft.trim();

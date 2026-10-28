@@ -101,14 +101,14 @@ const INFINITY_SERVICES_LIST = [
 
 export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPageProps) {
   return (
-    <div className="min-h-screen bg-white text-[#0B1F3A] flex flex-col">
+    <div className="min-h-screen bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] flex flex-col">
       {/* Top Standalone Header Bar */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#D8EEFB]">
+      <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#081A33]/95 backdrop-blur-md border-b border-[#D8EEFB] dark:border-[#163663]">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <button
             type="button"
             onClick={onBackToStore}
-            className="inline-flex items-center gap-2 text-sm sm:text-base font-extrabold text-[#0B1F3A] hover:text-[#1D4ED8] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 text-sm sm:text-base font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] hover:text-[#1D4ED8] dark:hover:text-[#38BDF8] transition-colors cursor-pointer"
           >
             <img
               src="/logo.png"
@@ -116,15 +116,15 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
               className="h-9 w-9 rounded-xl object-contain shadow-xs bg-white"
             />
             <span>
-              {STORE_INFO.storeName} <span className="text-[#0284C7]">|</span>{' '}
-              <bdi className="text-[#1E3A8A]">{STORE_INFO.storeSubtitle}</bdi>
+              {STORE_INFO.storeName} <span className="text-[#0284C7] dark:text-[#38BDF8]">|</span>{' '}
+              <bdi className="text-[#1E3A8A] dark:text-[#7DD3FC]">{STORE_INFO.storeSubtitle}</bdi>
             </span>
           </button>
 
           <button
             type="button"
             onClick={onBackToStore}
-            className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#F2FAFF] hover:bg-[#E2F3FE] border border-[#CBE7FA] px-4 py-2 text-xs sm:text-sm font-extrabold text-[#1D4ED8] transition-colors cursor-pointer"
+            className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] hover:bg-[#E2F3FE] dark:hover:bg-[#153460] border border-[#CBE7FA] dark:border-[#1E3F73] px-4 py-2 text-xs sm:text-sm font-extrabold text-[#1D4ED8] dark:text-[#38BDF8] transition-colors cursor-pointer"
           >
             <ArrowRight className="h-4 w-4" />
             <span>العودة إلى الصفحة الرئيسية</span>
