@@ -365,7 +365,7 @@ export function SiteAndAboutSection({
         <button
           type="submit"
           disabled={savingSiteConfig}
-          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 disabled:opacity-55 border border-[#D4AF37]/70 px-6 py-3 text-sm font-extrabold text-white transition-colors whitespace-nowrap cursor-pointer"
+          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] disabled:opacity-55 border border-[#D4AF37]/70 px-6 py-3 text-sm font-extrabold text-white transition-colors whitespace-nowrap cursor-pointer"
         >
           {savingSiteConfig ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

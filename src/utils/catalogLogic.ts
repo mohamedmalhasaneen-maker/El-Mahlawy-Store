@@ -160,6 +160,166 @@ export function computeDiscountPricing(
   };
 }
 
+export interface ProductDiscountDraft {
+  basePriceDraft: string;
+  discountEnabled: boolean;
+  discountType: DiscountType;
+  discountValueDraft: string;
+  finalPriceDraft: string;
+  discountStartDate: string;
+  discountEndDate: string;
+}
+
+export function deriveInitialDiscountDraft(
+  product?: Product,
+  options?: { enableDiscount?: boolean }
+): ProductDiscountDraft {
+  if (!product) {
+    const enabled = Boolean(options?.enableDiscount);
+    return {
+      basePriceDraft: '',
+      discountEnabled: enabled,
+      discountType: 'percentage',
+      discountValueDraft: enabled ? '10' : '',
+      finalPriceDraft: '',
+      discountStartDate: '',
+      discountEndDate: '',
+    };
+  }
+
+  const base = roundCurrency(
+    product.originalPrice && product.originalPrice > 0 ? product.originalPrice : product.price
+  );
+  const currentPrice = roundCurrency(product.price);
+  const storedType: DiscountType = product.discountType === 'fixed' ? 'fixed' : 'percentage';
+
+  if (!product.discountEnabled || !(base > currentPrice) || !(currentPrice > 0)) {
+    return {
+      basePriceDraft: base > 0 ? String(base) : '',
+      discountEnabled: false,
+      discountType: storedType,
+      discountValueDraft:
+        product.discountValue && product.discountValue > 0
+          ? String(roundCurrency(product.discountValue))
+          : '',
+      finalPriceDraft: base > 0 ? String(base) : '',
+      discountStartDate: product.discountStartDate || '',
+      discountEndDate: product.discountEndDate || '',
+    };
+  }
+
+  let resolvedType: DiscountType = storedType;
+  let resolvedValue: number;
+
+  if (product.discountValue && product.discountValue > 0) {
+    resolvedValue = roundCurrency(product.discountValue);
+  } else {
+    const exactPct = roundCurrency(((base - currentPrice) / base) * 100);
+    const pctPrice = roundCurrency(base - roundCurrency(base * (exactPct / 100)));
+    if (storedType !== 'fixed' && exactPct > 0 && exactPct < 100 && pctPrice === currentPrice) {
+      resolvedType = 'percentage';
+      resolvedValue = exactPct;
+    } else {
+      resolvedType = 'fixed';
+      resolvedValue = roundCurrency(base - currentPrice);
+    }
+  }
+
+  return {
+    basePriceDraft: String(base),
+    discountEnabled: true,
+    discountType: resolvedType,
+    discountValueDraft: String(resolvedValue),
+    finalPriceDraft: String(currentPrice),
+    discountStartDate: product.discountStartDate || '',
+    discountEndDate: product.discountEndDate || '',
+  };
+}
+
+export interface PreparedProductSubmission {
+  valid: boolean;
+  errors: string[];
+  candidate: ProductFormInput;
+}
+
+export function prepareProductFormSubmission(
+  form: ProductFormInput,
+  draft: ProductDiscountDraft
+): PreparedProductSubmission {
+  const parsedBase = roundCurrency(Number(draft.basePriceDraft));
+  const normalizedCategory = (form.category || '').trim() || 'عام';
+
+  if (!draft.discountEnabled) {
+    const candidate: ProductFormInput = {
+      ...form,
+      category: normalizedCategory,
+      originalPrice: parsedBase,
+      price: parsedBase,
+      discountEnabled: false,
+      discountType: 'percentage',
+      discountValue: 0,
+      discountStartDate: '',
+      discountEndDate: '',
+    };
+    const validation = validateProductInput(candidate);
+    return {
+      valid: validation.valid,
+      errors: validation.errors,
+      candidate,
+    };
+  }
+
+  const extraErrors: string[] = [];
+  const trimmedFinal = draft.finalPriceDraft.trim();
+  if (trimmedFinal !== '' && Number.isFinite(parsedBase) && parsedBase > 0) {
+    const parsedFinal = roundCurrency(Number(trimmedFinal));
+    if (!Number.isFinite(parsedFinal) || parsedFinal <= 0) {
+      extraErrors.push('يرجى إدخال سعر نهائي بعد الخصم أكبر من صفر.');
+    } else if (parsedFinal >= parsedBase) {
+      extraErrors.push('السعر النهائي بعد الخصم يجب أن يكون أقل من السعر الأساسي للمنتج.');
+    }
+  }
+
+  const trimmedDiscountVal = draft.discountValueDraft.trim();
+  const numericDiscountVal =
+    trimmedDiscountVal === '' ? 0 : roundCurrency(Number(trimmedDiscountVal));
+
+  const discountCalc = computeDiscountPricing({
+    basePrice: parsedBase,
+    discountEnabled: true,
+    discountType: draft.discountType,
+    discountValue: numericDiscountVal,
+    discountStartDate: draft.discountStartDate,
+    discountEndDate: draft.discountEndDate,
+  });
+
+  const candidate: ProductFormInput = {
+    ...form,
+    category: normalizedCategory,
+    originalPrice: discountCalc.originalPrice,
+    price: discountCalc.valid ? discountCalc.price : parsedBase,
+    discountEnabled: true,
+    discountType: draft.discountType,
+    discountValue: Number.isFinite(numericDiscountVal) ? Math.max(0, numericDiscountVal) : 0,
+    discountStartDate: draft.discountStartDate.trim(),
+    discountEndDate: draft.discountEndDate.trim(),
+  };
+
+  const productValidation = validateProductInput(candidate);
+  const mergedErrors: string[] = [];
+  for (const err of [...extraErrors, ...discountCalc.errors, ...productValidation.errors]) {
+    if (!mergedErrors.includes(err)) {
+      mergedErrors.push(err);
+    }
+  }
+
+  return {
+    valid: extraErrors.length === 0 && discountCalc.valid && productValidation.valid,
+    errors: mergedErrors,
+    candidate,
+  };
+}
+
 export type DiscountSelectableProduct = Pick<
   Product,
   'discountEnabled' | 'originalPrice' | 'price' | 'discountStartDate' | 'discountEndDate'

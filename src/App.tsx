@@ -13,6 +13,9 @@ import {
   DiscountQuickUpdatePayload,
   User,
   auth,
+  db,
+  doc,
+  runTransaction,
   checkUserIsCloudAdmin,
   createCloudProduct,
   deleteCloudProduct,
@@ -93,7 +96,12 @@ function resolveInitialView(): 'store' | 'about' | 'developer' {
 
 export default function App() {
   const { isDark, toggleTheme } = useTheme();
-  const [activeView, setActiveView] = useState<'store' | 'about' | 'developer'>(resolveInitialView);
+  const [activeView, setActiveView] = useState<'store' | 'about' | 'developer'>(() => {
+    const initial = resolveInitialView();
+    // Entry should never be 'about' per user request
+    if (initial === 'about') return 'store';
+    return initial;
+  });
   const [products, setProducts] = useState<Product[]>(loadCachedProducts);
   const [adminProducts, setAdminProducts] = useState<Product[] | null>(null);
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(
@@ -120,6 +128,16 @@ export default function App() {
 
   // Sync URL hash <-> activeView
   useEffect(() => {
+    // Force reset to home if the entry was #about to satisfy "entry should be home" request
+    if (typeof window !== 'undefined' && window.location.hash.toLowerCase() === '#about') {
+      try {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        setActiveView('store');
+      } catch {
+        // Ignore iframe history restrictions
+      }
+    }
+
     const syncViewWithUrl = () => {
       setActiveView(resolveInitialView());
     };
@@ -235,6 +253,27 @@ export default function App() {
       }
     }
   }, [sharedProductId, products]);
+
+  // Increment visitor count
+  useEffect(() => {
+    const incrementVisitorCount = async () => {
+      const statsRef = doc(db, 'meta', 'visitors');
+      try {
+        await runTransaction(db, async (transaction) => {
+          const sfDoc = await transaction.get(statsRef);
+          if (!sfDoc.exists()) {
+            transaction.set(statsRef, { id: 'visitors', count: 1 });
+          } else {
+            const newCount = (sfDoc.data().count || 0) + 1;
+            transaction.update(statsRef, { count: newCount });
+          }
+        });
+      } catch (e) {
+        console.error("Error incrementing visitor count", e);
+      }
+    };
+    incrementVisitorCount();
+  }, []);
 
   // Subscribe to public published products and cloud SiteConfig
   useEffect(() => {
@@ -448,7 +487,10 @@ export default function App() {
               isCloudAdmin={isCloudAdmin}
               onRefreshAuth={handleRefreshAuth}
               onLogout={handleDeveloperLogout}
-              onBackToStore={() => navigateToView('store')}
+              onBackToStore={async () => {
+                await handleDeveloperLogout();
+                navigateToView('store');
+              }}
               onSaveProduct={handleSaveProduct}
               onDeleteProduct={handleDeleteProduct}
               onSaveProductDiscount={handleSaveProductDiscount}

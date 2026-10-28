@@ -13,6 +13,7 @@ import {
   isAuthorizedDeveloperUser,
   isPermanentAuthSessionInvalidError,
   resolveDeveloperAccessState,
+  safelyInstallGlobalFetchWrapper,
   sanitizeDiagnosticText,
   translateDeveloperAuthError,
   validateDeveloperLoginInput,
@@ -342,5 +343,87 @@ test('security audit: frontend codebase contains no public sign-up APIs and no h
       false,
       `Hardcoded ADMIN_PASSWORD constant found in ${filePath}`
     );
+    assert.equal(
+      /\b(window|globalThis|self)\.fetch\s*=[^=]/.test(content),
+      false,
+      `Unsafe direct fetch assignment found in ${filePath}; use safelyInstallGlobalFetchWrapper instead`
+    );
   }
 });
+
+test('safelyInstallGlobalFetchWrapper handles getter-only, inherited, and locked non-configurable fetch descriptors without throwing', async () => {
+  // 1. Exact preview iframe scenario: own getter-only property (`set: undefined`, `configurable: true`)
+  let getterInvocations = 0;
+  const baseFetch: typeof fetch = async () => {
+    getterInvocations += 1;
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  };
+
+  const getterOnlyWindow: Record<string, unknown> = {};
+  Object.defineProperty(getterOnlyWindow, 'fetch', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      return baseFetch;
+    },
+  });
+
+  // Confirm direct assignment in strict mode WOULD throw the exact reported TypeError
+  assert.throws(() => {
+    (getterOnlyWindow as { fetch: unknown }).fetch = baseFetch;
+  }, TypeError);
+
+  let wrapperCalls = 0;
+  const firstInstall = safelyInstallGlobalFetchWrapper(getterOnlyWindow, (boundNative) => {
+    return async (input, init) => {
+      wrapperCalls += 1;
+      return boundNative(input, init);
+    };
+  });
+
+  assert.equal(firstInstall.installedOnGlobal, true);
+  assert.equal(typeof firstInstall.resilientFetch, 'function');
+
+  const installedFn = getterOnlyWindow.fetch as typeof fetch;
+  const res = await installedFn('https://example.com/ping');
+  assert.equal(res.status, 200);
+  assert.equal(wrapperCalls, 1);
+  assert.equal(getterInvocations, 1);
+
+  // Idempotent second call must not double-wrap
+  const secondInstall = safelyInstallGlobalFetchWrapper(getterOnlyWindow, (boundNative) => {
+    return async (input, init) => {
+      wrapperCalls += 100;
+      return boundNative(input, init);
+    };
+  });
+  assert.equal(secondInstall.installedOnGlobal, true);
+  await (getterOnlyWindow.fetch as typeof fetch)('https://example.com/ping2');
+  assert.equal(wrapperCalls, 2);
+
+  // 2. Prototype-inherited getter-only fetch (e.g., Window.prototype)
+  const protoWithGetterOnlyFetch: Record<string, unknown> = {};
+  Object.defineProperty(protoWithGetterOnlyFetch, 'fetch', {
+    configurable: true,
+    get: () => baseFetch,
+  });
+  const inheritedWindow = Object.create(protoWithGetterOnlyFetch) as Record<string, unknown>;
+  const protoInstall = safelyInstallGlobalFetchWrapper(inheritedWindow, (boundNative) => boundNative);
+  assert.equal(protoInstall.installedOnGlobal, true);
+  assert.equal(typeof inheritedWindow.fetch, 'function');
+
+  // 3. Locked non-configurable getter-only fetch (`configurable: false`, `set: undefined`)
+  const lockedWindow: Record<string, unknown> = {};
+  Object.defineProperty(lockedWindow, 'fetch', {
+    configurable: false,
+    enumerable: true,
+    get: () => baseFetch,
+  });
+  const lockedInstall = safelyInstallGlobalFetchWrapper(lockedWindow, (boundNative) =>
+    createFirebaseAuthResilientFetch(boundNative)
+  );
+  assert.equal(lockedInstall.installedOnGlobal, false);
+  assert.equal(typeof lockedInstall.resilientFetch, 'function');
+  assert.equal(lockedWindow.fetch, baseFetch);
+});
+

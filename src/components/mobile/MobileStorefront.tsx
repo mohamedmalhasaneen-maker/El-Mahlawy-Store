@@ -439,6 +439,7 @@ export function MobileStorefront({
                   product={product}
                   onOpenDetails={(p) => setDetailsProduct(p)}
                   onOrderProduct={(p) => setOrderProduct(p)}
+                  publicOrigin={publicOrigin}
                 />
               ))}
             </div>

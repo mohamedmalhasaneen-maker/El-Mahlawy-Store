@@ -324,6 +324,97 @@ export function createFirebaseAuthResilientFetch(
   };
 }
 
+const WRAPPED_RESILIENT_FETCHES = new WeakSet<object>();
+
+export interface GlobalFetchInstallResult {
+  installedOnGlobal: boolean;
+  resilientFetch: typeof fetch | null;
+}
+
+/**
+ * Safely installs a fetch wrapper onto a global object (such as `window`) without using
+ * direct `=` assignment when `fetch` is defined as a getter-only accessor property
+ * (which otherwise throws `TypeError: Cannot set property fetch of #<Window> which has only a getter`
+ * in strict ES modules, e.g. inside instrumented preview iframes).
+ */
+export function safelyInstallGlobalFetchWrapper(
+  targetGlobal: Record<string, unknown> | null | undefined,
+  wrapFetch: (boundNativeFetch: typeof fetch) => typeof fetch
+): GlobalFetchInstallResult {
+  if (
+    !targetGlobal ||
+    (typeof targetGlobal !== 'object' && typeof targetGlobal !== 'function')
+  ) {
+    return { installedOnGlobal: false, resilientFetch: null };
+  }
+
+  let rawFetch: unknown;
+  try {
+    rawFetch = targetGlobal.fetch;
+  } catch {
+    return { installedOnGlobal: false, resilientFetch: null };
+  }
+
+  if (typeof rawFetch !== 'function') {
+    return { installedOnGlobal: false, resilientFetch: null };
+  }
+
+  if (WRAPPED_RESILIENT_FETCHES.has(rawFetch)) {
+    return {
+      installedOnGlobal: true,
+      resilientFetch: rawFetch as typeof fetch,
+    };
+  }
+
+  const rawFn = rawFetch as typeof fetch;
+  const boundNativeFetch: typeof fetch =
+    typeof rawFn.bind === 'function'
+      ? (rawFn.bind(targetGlobal) as typeof fetch)
+      : ((input: RequestInfo | URL, init?: RequestInit) => rawFn(input, init));
+
+  const resilientFetch = wrapFetch(boundNativeFetch);
+  WRAPPED_RESILIENT_FETCHES.add(resilientFetch);
+
+  try {
+    const ownDescriptor = Object.getOwnPropertyDescriptor(targetGlobal, 'fetch');
+
+    if (!ownDescriptor || ownDescriptor.configurable) {
+      if (!ownDescriptor && !Object.isExtensible(targetGlobal)) {
+        return { installedOnGlobal: false, resilientFetch };
+      }
+
+      let activeFetch: typeof fetch = resilientFetch;
+      Object.defineProperty(targetGlobal, 'fetch', {
+        configurable: true,
+        enumerable: ownDescriptor?.enumerable ?? true,
+        get: () => activeFetch,
+        set: (nextFetch: unknown) => {
+          if (typeof nextFetch === 'function') {
+            activeFetch = nextFetch as typeof fetch;
+          }
+        },
+      });
+      return { installedOnGlobal: true, resilientFetch };
+    }
+
+    if ('writable' in ownDescriptor && ownDescriptor.writable) {
+      Object.defineProperty(targetGlobal, 'fetch', {
+        value: resilientFetch,
+      });
+      return { installedOnGlobal: true, resilientFetch };
+    }
+
+    if (typeof ownDescriptor.set === 'function') {
+      ownDescriptor.set.call(targetGlobal, resilientFetch);
+      return { installedOnGlobal: true, resilientFetch };
+    }
+
+    return { installedOnGlobal: false, resilientFetch };
+  } catch {
+    return { installedOnGlobal: false, resilientFetch };
+  }
+}
+
 export function normalizeDeveloperEmail(email: string | null | undefined): string {
   return (email ?? '').trim().toLowerCase();
 }

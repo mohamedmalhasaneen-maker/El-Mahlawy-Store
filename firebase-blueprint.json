@@ -287,6 +287,16 @@
         }
       },
       "required": ["id"]
+    },
+    "VisitorStats": {
+      "title": "VisitorStats",
+      "description": "Public store visitor statistics.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "count": { "type": "number" }
+      },
+      "required": ["id", "count"]
     }
   },
   "firestore": {
@@ -305,6 +315,10 @@
     "/test/{probeId}": {
       "schema": "ConnectionProbe",
       "description": "Read-only connectivity health probe document (/test/connection); writes and list queries are strictly forbidden."
+    },
+    "/meta/{statId}": {
+      "schema": "VisitorStats",
+      "description": "Public store visitor statistics document (/meta/visitors) readable by all and incrementable by any client."
     }
   }
 }

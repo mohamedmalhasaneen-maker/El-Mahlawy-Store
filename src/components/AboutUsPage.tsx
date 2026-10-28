@@ -136,7 +136,7 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
                 <>
                   {' '}
                   <span className="text-[#D4AF37]">|</span>{' '}
-                  <bdi className="text-[#C62828]">{siteConfig.storeSubtitle}</bdi>
+                  <bdi className="text-[#0F4C5C]">{siteConfig.storeSubtitle}</bdi>
                 </>
               ) : null}
             </span>
@@ -155,9 +155,9 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
 
       <main className="flex-1 space-y-0">
         {/* HERO BANNER */}
-        <section className="bg-gradient-to-r from-[#0B0B0B] via-[#2A0505] to-[#0B0B0B] text-white py-12 sm:py-16 px-4 border-b border-[#D4AF37]">
+        <section className="bg-gradient-to-r from-[#0B0B0B] via-[#082E38] to-[#0B0B0B] text-white py-12 sm:py-16 px-4 border-b border-[#D4AF37]">
           <div className="mx-auto max-w-5xl text-center space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[#C62828]/20 px-4 py-1.5 text-xs font-extrabold text-[#D4AF37] border border-[#D4AF37]/50">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#0F4C5C]/20 px-4 py-1.5 text-xs font-extrabold text-[#D4AF37] border border-[#D4AF37]/50">
               <Sparkles className="h-4 w-4 text-[#D4AF37]" />
               <span>من نحن | About Us</span>
             </div>
@@ -174,7 +174,7 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
               <button
                 type="button"
                 onClick={onBackToStore}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-900 text-white px-5 py-2.5 text-xs sm:text-sm font-extrabold shadow-lg border border-[#D4AF37] transition-colors cursor-pointer"
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] text-white px-5 py-2.5 text-xs sm:text-sm font-extrabold shadow-lg border border-[#D4AF37] transition-colors cursor-pointer"
               >
                 <Home className="h-4 w-4" />
                 <span>الرئيسية</span>
@@ -188,7 +188,7 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
             {/* Header Badge & Title */}
             <div className="max-w-3xl space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-lg bg-[#C62828]/10 border border-[#D4AF37] px-3 py-1 text-xs font-bold text-[#D4AF37]">
+              <div className="inline-flex items-center gap-2 rounded-lg bg-[#0F4C5C]/10 border border-[#D4AF37] px-3 py-1 text-xs font-bold text-[#D4AF37]">
                 <Package className="h-3.5 w-3.5" />
                 <span>المتجر الرسمي</span>
               </div>
@@ -273,7 +273,7 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
               </div>
 
               {/* Store Direct Contact Card */}
-              <div className="rounded-2xl bg-[#C62828] text-white p-5 space-y-3 flex flex-col justify-between shadow-xs border border-[#D4AF37]">
+              <div className="rounded-2xl bg-[#0F4C5C] text-white p-5 space-y-3 flex flex-col justify-between shadow-xs border border-[#D4AF37]">
                 <div>
                   <p className="text-xs font-extrabold text-[#D4AF37] mb-1">
                     تواصل معنا
@@ -322,7 +322,7 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
         <section className="bg-[#0B0B0B] py-12 sm:py-16 border-b border-[#D4AF37]/30">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
             <div className="max-w-3xl space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-lg bg-[#C62828]/10 border border-[#D4AF37] px-3 py-1 text-xs font-bold text-[#D4AF37]">
+              <div className="inline-flex items-center gap-2 rounded-lg bg-[#0F4C5C]/10 border border-[#D4AF37] px-3 py-1 text-xs font-bold text-[#D4AF37]">
                 <Award className="h-3.5 w-3.5" />
                 <span>شركاء النجاح | <bdi>{siteConfig.partnerName}</bdi></span>
               </div>
@@ -394,7 +394,7 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-[#C62828] border border-[#D4AF37] text-white p-5 space-y-3 shadow-xs flex flex-col justify-between">
+              <div className="rounded-2xl bg-[#0F4C5C] border border-[#D4AF37] text-white p-5 space-y-3 shadow-xs flex flex-col justify-between">
                 <div className="space-y-2">
                   <p className="text-xs font-extrabold text-[#D4AF37]">
                     تواصل مع <bdi>{siteConfig.partnerName}</bdi>
@@ -446,10 +446,10 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
         </section>
 
         {/* 3. OUR VISION SECTION */}
-        <section className="bg-gradient-to-br from-[#0B0B0B] via-[#2A0505] to-[#0B0B0B] text-white py-12 sm:py-16 border-t border-[#D4AF37]">
+        <section className="bg-gradient-to-br from-[#0B0B0B] via-[#082E38] to-[#0B0B0B] text-white py-12 sm:py-16 border-t border-[#D4AF37]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8 text-center">
             <div className="max-w-3xl space-y-3 mx-auto">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#C62828]/20 px-4 py-1.5 text-xs font-extrabold text-[#D4AF37] border border-[#D4AF37]/50">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#0F4C5C]/20 px-4 py-1.5 text-xs font-extrabold text-[#D4AF37] border border-[#D4AF37]/50">
                 <Award className="h-4 w-4 text-[#D4AF37]" />
                 <span>رؤيتنا | Vision</span>
               </div>
@@ -465,7 +465,7 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
               <button
                 type="button"
                 onClick={onBackToStore}
-                className="inline-flex min-h-[50px] items-center justify-center gap-3 rounded-2xl bg-[#C62828] hover:bg-red-900 text-white active:scale-95 px-8 py-3 text-sm sm:text-base font-extrabold shadow-xl border border-[#D4AF37] transition-all cursor-pointer"
+                className="inline-flex min-h-[50px] items-center justify-center gap-3 rounded-2xl bg-[#0F4C5C] hover:bg-[#0A3D4A] text-white active:scale-95 px-8 py-3 text-sm sm:text-base font-extrabold shadow-xl border border-[#D4AF37] transition-all cursor-pointer"
               >
                 <ArrowRight className="h-5 w-5" />
                 <span>العودة للمتجر</span>
@@ -476,7 +476,7 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
       </main>
 
       {/* Footer */}
-      <Footer onAdminButtonClick={onAdminButtonClick} showAboutSection={false} />
+      <Footer onAdminButtonClick={onAdminButtonClick} showAboutSection={false} isDark={true} />
     </div>
   );
 }

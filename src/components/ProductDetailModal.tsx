@@ -7,12 +7,14 @@ import {
   MessageCircle,
   Minus,
   Plus,
+  Share2,
   Truck,
   X,
 } from 'lucide-react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { Product } from '../types/store';
 import {
+  buildProductShareUrl,
   buildWhatsAppOrderUrl,
   calculateDiscountPercent,
   calculateSavingsAmount,
@@ -36,6 +38,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
   const [selectedOption, setSelectedOption] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [downloadedSheet, setDownloadedSheet] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (product) {
@@ -43,6 +46,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
       setSelectedOption(product.options[0] || '');
       setQuantity(1);
       setDownloadedSheet(false);
+      setCopied(false);
     }
   }, [product]);
 
@@ -80,6 +84,34 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
     storeName: siteConfig.storeName,
     storeSubtitle: siteConfig.storeSubtitle,
   });
+
+  const shareUrl = buildProductShareUrl(product.id, publicOrigin);
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: product.name,
+          text: product.shortDescription || product.description,
+          url: shareUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch {
+          // Ignore
+        }
+      }
+    }
+  };
 
   const handleDownloadSpecs = () => {
     const content = [
@@ -305,7 +337,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                 </div>
               )}
 
-              {/* Quantity & Spec Sheet Download Row */}
+              {/* Quantity & Actions Row */}
               <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                 <div className="flex items-center gap-3">
                   <span className="text-xs sm:text-sm font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">
@@ -334,29 +366,53 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleDownloadSpecs}
-                  className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#F2FAFF] dark:hover:bg-[#153460] px-3 py-1.5 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE] transition-colors cursor-pointer"
-                >
-                  {downloadedSheet ? (
-                    <>
-                      <Check
-                        className="h-4 w-4 text-emerald-600 dark:text-emerald-400"
-                        aria-hidden="true"
-                      />
-                      <span>تم تحميل بطاقة المواصفات</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download
-                        className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]"
-                        aria-hidden="true"
-                      />
-                      <span>تحميل بطاقة المواصفات</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                      copied
+                        ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-white dark:bg-[#0E264A] border-[#CBE7FA] dark:border-[#1E3F73] text-[#0F294A] dark:text-[#E0F2FE] hover:bg-[#F2FAFF] dark:hover:bg-[#153460]'
+                    }`}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                        <span>تم النسخ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]" aria-hidden="true" />
+                        <span>مشاركة</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadSpecs}
+                    className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#F2FAFF] dark:hover:bg-[#153460] px-3 py-1.5 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE] transition-colors cursor-pointer"
+                  >
+                    {downloadedSheet ? (
+                      <>
+                        <Check
+                          className="h-4 w-4 text-emerald-600 dark:text-emerald-400"
+                          aria-hidden="true"
+                        />
+                        <span>تم التحميل</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download
+                          className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]"
+                          aria-hidden="true"
+                        />
+                        <span>المواصفات</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Detailed Description */}

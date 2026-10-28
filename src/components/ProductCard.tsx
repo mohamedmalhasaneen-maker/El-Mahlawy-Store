@@ -1,7 +1,9 @@
-import { Eye, MessageCircle } from 'lucide-react';
+import { Eye, MessageCircle, Share2, Check } from 'lucide-react';
+import { useState } from 'react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { Product } from '../types/store';
 import {
+  buildProductShareUrl,
   buildWhatsAppOrderUrl,
   calculateDiscountPercent,
   formatPriceEgp,
@@ -18,6 +20,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCardProps) {
   const siteConfig = useSiteConfig();
+  const [copied, setCopied] = useState(false);
   const hasDiscount = isDiscountActive(product);
   const effectivePrice = getEffectiveProductPrice(product);
   const discountPct = hasDiscount
@@ -33,6 +36,35 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
     storeName: siteConfig.storeName,
     storeSubtitle: siteConfig.storeSubtitle,
   });
+
+  const shareUrl = buildProductShareUrl(product.id, publicOrigin);
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: product.name,
+          text: product.shortDescription || product.description,
+          url: shareUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch {
+          // Ignore
+        }
+      }
+    }
+  };
 
   const showCategory = Boolean(product.category && product.category.trim() !== 'عام');
 
@@ -57,6 +89,24 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
                 غير متوفر حاليًا
               </span>
             )}
+
+            {/* Quick Share Button in Image Area */}
+            <button
+              type="button"
+              onClick={handleShare}
+              title="مشاركة الرابط"
+              className={`absolute bottom-3 left-3 z-20 flex h-9 w-9 items-center justify-center rounded-xl border shadow-sm transition-all duration-200 active:scale-90 cursor-pointer ${
+                copied
+                  ? 'bg-emerald-500 border-emerald-500 text-white'
+                  : 'bg-white/90 dark:bg-[#0E264A]/90 border-white dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8] hover:bg-white dark:hover:bg-[#1E3F73]'
+              }`}
+            >
+              {copied ? (
+                <Check className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Share2 className="h-4 w-4" aria-hidden="true" />
+              )}
+            </button>
 
             <ProductImage
               src={product.images[0]}

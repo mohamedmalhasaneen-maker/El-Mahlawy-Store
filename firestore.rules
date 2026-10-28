@@ -322,5 +322,16 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if false;
     }
+
+    // Public Visitor Stats (/meta/visitors)
+    match /meta/{statId} {
+      allow get: if statId == 'visitors';
+      allow list: if false;
+      allow create: if statId == 'visitors' && incoming().id == 'visitors' && incoming().count == 1;
+      allow update: if statId == 'visitors' &&
+                       request.resource.data.count == resource.data.count + 1 &&
+                       request.resource.data.id == 'visitors';
+      allow delete: if false;
+    }
   }
 }

@@ -416,7 +416,7 @@ export function PhonesWhatsAppSection({
               <button
                 type="button"
                 onClick={handleConfirmDraft}
-                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-[#C62828] hover:bg-red-800 px-4 py-2 text-xs font-extrabold text-white cursor-pointer"
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-[#0F4C5C] hover:bg-[#0A3D4A] px-4 py-2 text-xs font-extrabold text-white cursor-pointer"
               >
                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>تأكيد الرقم في القائمة</span>
@@ -470,7 +470,7 @@ export function PhonesWhatsAppSection({
                     type="button"
                     onClick={() => setConfirmDeleteIdx(idx)}
                     aria-label={`حذف رقم ${ch.label}`}
-                    className="inline-flex min-h-[38px] items-center gap-1 rounded-lg bg-[#C62828]/15 hover:bg-[#C62828] border border-[#C62828]/50 px-3 py-1.5 text-xs font-bold text-red-200 hover:text-white cursor-pointer"
+                    className="inline-flex min-h-[38px] items-center gap-1 rounded-lg bg-[#0F4C5C]/15 hover:bg-[#0F4C5C] border border-[#0F4C5C]/50 px-3 py-1.5 text-xs font-bold text-[#A0D2EB] hover:text-white cursor-pointer"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                     <span>حذف</span>
@@ -487,7 +487,7 @@ export function PhonesWhatsAppSection({
         <button
           type="submit"
           disabled={savingSiteConfig}
-          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 disabled:opacity-55 border border-[#D4AF37]/70 px-6 py-3 text-sm font-extrabold text-white transition-colors whitespace-nowrap cursor-pointer"
+          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] disabled:opacity-55 border border-[#D4AF37]/70 px-6 py-3 text-sm font-extrabold text-white transition-colors whitespace-nowrap cursor-pointer"
         >
           {savingSiteConfig ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -518,7 +518,7 @@ export function PhonesWhatsAppSection({
           aria-label="تأكيد حذف رقم التواصل"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4"
         >
-          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#C62828] p-6 space-y-4 text-gray-100">
+          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#0F4C5C] p-6 space-y-4 text-gray-100">
             <h3 className="text-base font-extrabold text-white">تأكيد حذف رقم التواصل</h3>
             <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
               هل تريد حذف «{configDraft.contactChannels[confirmDeleteIdx]?.label}»؟ تذكّر الضغط على
@@ -541,7 +541,7 @@ export function PhonesWhatsAppSection({
                   );
                   setConfirmDeleteIdx(null);
                 }}
-                className="min-h-[42px] rounded-xl bg-[#C62828] hover:bg-red-800 px-5 py-2 text-xs font-extrabold text-white cursor-pointer"
+                className="min-h-[42px] rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] px-5 py-2 text-xs font-extrabold text-white cursor-pointer"
               >
                 حذف الرقم
               </button>

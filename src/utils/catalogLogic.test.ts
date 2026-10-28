@@ -10,6 +10,7 @@ import {
   calculateDiscountPercent,
   calculateSavingsAmount,
   computeDiscountPricing,
+  deriveInitialDiscountDraft,
   filterAndSortProducts,
   findProductByShareParam,
   formatPriceEgp,
@@ -17,6 +18,7 @@ import {
   getDiscountScheduleStatus,
   getEffectiveProductPrice,
   isDiscountActive,
+  prepareProductFormSubmission,
   resolvePublicImageUrl,
   sanitizeProductPayload,
   validateProductInput,
@@ -385,3 +387,133 @@ test('resolvePublicImageUrl, WhatsApp order builder, share links, and catalog fi
   assert.ok(links.shareText.includes('800 ج.م'));
   assert.ok(findProductByShareParam(TEST_PRODUCTS, 'prod-charger-2'));
 });
+
+test('deriveInitialDiscountDraft initializes add-product and edit-product discount drafts without price drift', () => {
+  const freshDefault = deriveInitialDiscountDraft();
+  assert.equal(freshDefault.discountEnabled, false);
+  assert.equal(freshDefault.discountType, 'percentage');
+  assert.equal(freshDefault.basePriceDraft, '');
+
+  const freshWithDiscount = deriveInitialDiscountDraft(undefined, { enableDiscount: true });
+  assert.equal(freshWithDiscount.discountEnabled, true);
+  assert.equal(freshWithDiscount.discountType, 'percentage');
+  assert.equal(freshWithDiscount.discountValueDraft, '10');
+
+  // Legacy product with price 2450 & originalPrice 3150 (exact pct 22.22% would yield 2450.07, so fixed 700 preserves 2450)
+  const legacyDraft = deriveInitialDiscountDraft(TEST_PRODUCTS[0]);
+  assert.equal(legacyDraft.discountEnabled, true);
+  assert.equal(legacyDraft.basePriceDraft, '3150');
+  assert.equal(legacyDraft.finalPriceDraft, '2450');
+  assert.equal(legacyDraft.discountType, 'fixed');
+  assert.equal(legacyDraft.discountValueDraft, '700');
+
+  // Product with exact clean percentage (800 from 1000 = 20%)
+  const cleanPctDraft = deriveInitialDiscountDraft(TEST_PRODUCTS[3]);
+  assert.equal(cleanPctDraft.discountEnabled, true);
+  assert.equal(cleanPctDraft.discountType, 'percentage');
+  assert.equal(cleanPctDraft.discountValueDraft, '20');
+  assert.equal(cleanPctDraft.finalPriceDraft, '800');
+});
+
+test('prepareProductFormSubmission persists discount settings from Upload & Add New Product form and blocks invalid discounts', () => {
+  const baseForm = {
+    name: 'جهاز تسجيل هيك فيجن 8 قنوات',
+    brand: 'Hikvision',
+    category: 'أنظمة مراقبة',
+    shortDescription: 'دقة عالية مع دعم الموبايل',
+    description: 'يدعم 8 كاميرات بدقة 5 ميجابكسل.',
+    price: 0,
+    originalPrice: 0,
+    discountEnabled: true,
+    discountType: 'percentage' as const,
+    discountValue: 15,
+    discountStartDate: '2026-10-01',
+    discountEndDate: '2026-12-31',
+    inStock: true,
+    isFeatured: true,
+    isPublished: true,
+    images: ['https://res.cloudinary.com/obvb7rtp/image/upload/v1/dvr.jpg'],
+    specs: ['8 قنوات'],
+    options: [],
+  };
+
+  // 15% percentage discount on new product upload
+  const pctSubmission = prepareProductFormSubmission(baseForm, {
+    basePriceDraft: '2000',
+    discountEnabled: true,
+    discountType: 'percentage',
+    discountValueDraft: '15',
+    finalPriceDraft: '1700',
+    discountStartDate: '2026-10-01',
+    discountEndDate: '2026-12-31',
+  });
+  assert.equal(pctSubmission.valid, true);
+  assert.equal(pctSubmission.candidate.originalPrice, 2000);
+  assert.equal(pctSubmission.candidate.price, 1700);
+  assert.equal(pctSubmission.candidate.discountEnabled, true);
+  assert.equal(pctSubmission.candidate.discountType, 'percentage');
+  assert.equal(pctSubmission.candidate.discountValue, 15);
+  assert.equal(pctSubmission.candidate.discountStartDate, '2026-10-01');
+  assert.equal(pctSubmission.candidate.discountEndDate, '2026-12-31');
+
+  // Fixed amount discount on new product upload
+  const fixedSubmission = prepareProductFormSubmission(baseForm, {
+    basePriceDraft: '2000',
+    discountEnabled: true,
+    discountType: 'fixed',
+    discountValueDraft: '350',
+    finalPriceDraft: '1650',
+    discountStartDate: '',
+    discountEndDate: '',
+  });
+  assert.equal(fixedSubmission.valid, true);
+  assert.equal(fixedSubmission.candidate.originalPrice, 2000);
+  assert.equal(fixedSubmission.candidate.price, 1650);
+  assert.equal(fixedSubmission.candidate.discountType, 'fixed');
+  assert.equal(fixedSubmission.candidate.discountValue, 350);
+
+  // Disabled discount resets selling price cleanly to base price
+  const noDiscountSubmission = prepareProductFormSubmission(baseForm, {
+    basePriceDraft: '1500',
+    discountEnabled: false,
+    discountType: 'percentage',
+    discountValueDraft: '25',
+    finalPriceDraft: '1500',
+    discountStartDate: '2026-10-01',
+    discountEndDate: '2026-12-31',
+  });
+  assert.equal(noDiscountSubmission.valid, true);
+  assert.equal(noDiscountSubmission.candidate.discountEnabled, false);
+  assert.equal(noDiscountSubmission.candidate.price, 1500);
+  assert.equal(noDiscountSubmission.candidate.originalPrice, 1500);
+  assert.equal(noDiscountSubmission.candidate.discountValue, 0);
+  assert.equal(noDiscountSubmission.candidate.discountStartDate, '');
+  assert.equal(noDiscountSubmission.candidate.discountEndDate, '');
+
+  // Invalid discount value (empty/zero while discountEnabled = true) must fail explicitly, never silently drop discount
+  const missingDiscountVal = prepareProductFormSubmission(baseForm, {
+    basePriceDraft: '2000',
+    discountEnabled: true,
+    discountType: 'percentage',
+    discountValueDraft: '',
+    finalPriceDraft: '',
+    discountStartDate: '',
+    discountEndDate: '',
+  });
+  assert.equal(missingDiscountVal.valid, false);
+  assert.ok(missingDiscountVal.errors.length > 0);
+
+  // Final price >= base price while discountEnabled = true must fail explicitly
+  const badFinalPrice = prepareProductFormSubmission(baseForm, {
+    basePriceDraft: '2000',
+    discountEnabled: true,
+    discountType: 'fixed',
+    discountValueDraft: '0',
+    finalPriceDraft: '2100',
+    discountStartDate: '',
+    discountEndDate: '',
+  });
+  assert.equal(badFinalPrice.valid, false);
+  assert.ok(badFinalPrice.errors.some((e) => e.includes('أقل من السعر الأساسي')));
+});
+

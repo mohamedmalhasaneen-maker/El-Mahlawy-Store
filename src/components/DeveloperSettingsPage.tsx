@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowRight,
+  Calendar,
   Check,
   CheckCircle2,
   Edit3,
@@ -20,7 +21,6 @@ import {
   Package,
   Percent,
   Phone,
-  Plus,
   RefreshCw,
   RotateCcw,
   Search,
@@ -47,16 +47,20 @@ import {
   resolveDeveloperAccessState,
   validateDeveloperLoginInput,
 } from '../utils/developerAuth';
-import { Product, ProductFormInput } from '../types/store';
+import { DiscountType, Product, ProductFormInput } from '../types/store';
 import {
+  ProductDiscountDraft,
   calculateDiscountPercent,
+  calculateSavingsAmount,
+  computeDiscountPricing,
+  deriveInitialDiscountDraft,
   formatPriceEgp,
   getDiscountScheduleStatus,
   getEffectiveProductPrice,
   isDiscountActive,
+  prepareProductFormSubmission,
   roundCurrency,
   sanitizeProductPayload,
-  validateProductInput,
 } from '../utils/catalogLogic';
 import { SiteConfig, validateSiteConfigInput } from '../utils/siteConfig';
 import { DiscountModal } from './DiscountModal';
@@ -68,6 +72,7 @@ import { DeveloperSectionId, OverviewSection } from './developer/OverviewSection
 import { PhonesWhatsAppSection } from './developer/PhonesWhatsAppSection';
 import { SiteAndAboutSection } from './developer/SiteAndAboutSection';
 import { SocialLinksSection } from './developer/SocialLinksSection';
+import { Footer } from './Footer';
 
 interface DeveloperSettingsPageProps {
   products: Product[];
@@ -77,7 +82,7 @@ interface DeveloperSettingsPageProps {
   isCloudAdmin: boolean;
   onRefreshAuth: (options?: { reloadFromServer?: boolean }) => Promise<void>;
   onLogout: () => Promise<void>;
-  onBackToStore: () => void;
+  onBackToStore: () => void | Promise<void>;
   onSaveProduct: (input: ProductFormInput, editingId?: string) => Promise<void>;
   onDeleteProduct: (productId: string) => Promise<void>;
   onSaveProductDiscount: (
@@ -157,6 +162,9 @@ export function DeveloperSettingsPage({
   const [editingProductId, setEditingProductId] = useState<string | undefined>(undefined);
   const [productForm, setProductForm] = useState<ProductFormInput>(EMPTY_PRODUCT_FORM);
   const [basePriceDraft, setBasePriceDraft] = useState<string>('');
+  const [discountValueDraft, setDiscountValueDraft] = useState<string>('');
+  const [finalPriceDraft, setFinalPriceDraft] = useState<string>('');
+  const [isDraggingFiles, setIsDraggingFiles] = useState<boolean>(false);
   const [isProductFormDirty, setIsProductFormDirty] = useState<boolean>(false);
   const [imageUrlInput, setImageUrlInput] = useState<string>('');
   const [specInput, setSpecInput] = useState<string>('');
@@ -260,6 +268,10 @@ export function DeveloperSettingsPage({
       setProductViewMode('list');
       setEditingProductId(undefined);
       setProductForm(EMPTY_PRODUCT_FORM);
+      setBasePriceDraft('');
+      setDiscountValueDraft('');
+      setFinalPriceDraft('');
+      setIsDraggingFiles(false);
       setIsProductFormDirty(false);
       setDiscountModalProduct(null);
       setConfirmDeleteProduct(null);
@@ -421,7 +433,7 @@ export function DeveloperSettingsPage({
             <button
               type="button"
               onClick={onBackToStore}
-              className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#141414] hover:bg-[#1E1E1E] border border-[#D4AF37]/50 px-4 py-2 text-xs sm:text-sm font-bold text-[#D4AF37] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#0B0B0B] hover:bg-[#1A1A1A] border border-[#D4AF37]/50 px-4 py-2 text-xs sm:text-sm font-bold text-[#D4AF37] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
               <span>العودة للمتجر</span>
@@ -431,9 +443,9 @@ export function DeveloperSettingsPage({
 
         {/* Centered RTL Login Gate */}
         <main className="flex-1 flex items-center justify-center px-4 py-10 sm:py-14">
-          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#D4AF37]/40 p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="w-full max-w-md rounded-2xl bg-[#0B0B0B] border border-[#D4AF37]/40 p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="flex items-start gap-3.5">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/50 text-[#D4AF37]">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#050505] border border-[#D4AF37]/50 text-[#D4AF37]">
                 <KeyRound className="h-6 w-6" aria-hidden="true" />
               </span>
               <div>
@@ -453,7 +465,7 @@ export function DeveloperSettingsPage({
                 className={`flex items-start gap-2.5 rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold border ${
                   authFeedback.type === 'success'
                     ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-200'
-                    : 'bg-[#C62828]/15 border-[#C62828] text-red-200'
+                    : 'bg-[#0F4C5C]/15 border-[#0F4C5C] text-[#A0D2EB]'
                 }`}
               >
                 {authFeedback.type === 'success' ? (
@@ -463,7 +475,7 @@ export function DeveloperSettingsPage({
                   />
                 ) : (
                   <AlertCircle
-                    className="h-4 w-4 text-[#EF5350] shrink-0 mt-0.5"
+                    className="h-4 w-4 text-[#38BDF8] shrink-0 mt-0.5"
                     aria-hidden="true"
                   />
                 )}
@@ -472,7 +484,7 @@ export function DeveloperSettingsPage({
             )}
 
             {isUnverifiedDeveloper ? (
-              <div className="space-y-4 rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/40 p-4">
+              <div className="space-y-4 rounded-xl bg-[#050505] border border-[#D4AF37]/40 p-4">
                 <p className="text-xs sm:text-sm text-gray-200 leading-relaxed">
                   تم التحقق من كلمة المرور للحساب{' '}
                   <bdi className="font-bold text-[#D4AF37]">{currentUser?.email}</bdi>، ويتبقى فقط
@@ -484,7 +496,7 @@ export function DeveloperSettingsPage({
                     type="button"
                     disabled={authPending}
                     onClick={handleSendVerificationEmail}
-                    className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white border border-[#D4AF37]/50 cursor-pointer disabled:opacity-50"
+                    className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white border border-[#D4AF37]/50 cursor-pointer disabled:opacity-50"
                   >
                     <Mail className="h-4 w-4" aria-hidden="true" />
                     <span>إرسال رابط تفعيل البريد</span>
@@ -501,7 +513,7 @@ export function DeveloperSettingsPage({
                         setAuthPending(false);
                       }
                     }}
-                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#141414] hover:bg-[#1E1E1E] border border-[#D4AF37]/40 px-4 py-2.5 text-xs sm:text-sm font-bold text-[#D4AF37] cursor-pointer disabled:opacity-50"
+                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#0B0B0B] hover:bg-[#1A1A1A] border border-[#D4AF37]/40 px-4 py-2.5 text-xs sm:text-sm font-bold text-[#D4AF37] cursor-pointer disabled:opacity-50"
                   >
                     <RefreshCw className="h-4 w-4" aria-hidden="true" />
                     <span>تم التفعيل — دخول اللوحة</span>
@@ -516,8 +528,8 @@ export function DeveloperSettingsPage({
                 </button>
               </div>
             ) : isWrongAccount ? (
-              <div className="space-y-4 rounded-xl bg-[#0B0B0B] border border-[#C62828] p-4">
-                <p className="text-xs sm:text-sm text-red-200 leading-relaxed">
+              <div className="space-y-4 rounded-xl bg-[#050505] border border-[#0F4C5C] p-4">
+                <p className="text-xs sm:text-sm text-[#A0D2EB] leading-relaxed">
                   الحساب الحالي{' '}
                   <bdi className="font-bold text-white">
                     {currentUser?.email || currentUser?.uid}
@@ -527,7 +539,7 @@ export function DeveloperSettingsPage({
                 <button
                   type="button"
                   onClick={handleSecureLogout}
-                  className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white border border-[#D4AF37]/50 cursor-pointer"
+                  className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white border border-[#D4AF37]/50 cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" aria-hidden="true" />
                   <span>تسجيل الخروج</span>
@@ -554,7 +566,7 @@ export function DeveloperSettingsPage({
                       if (authFeedback?.type === 'error') setAuthFeedback(null);
                     }}
                     placeholder="name@gmail.com"
-                    className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/35 px-4 py-2.5 text-sm font-semibold text-white text-left placeholder:text-gray-600 focus:outline-none focus:border-[#D4AF37]"
+                    className="w-full min-h-[46px] rounded-xl bg-[#050505] border border-[#D4AF37]/35 px-4 py-2.5 text-sm font-semibold text-white text-left placeholder:text-gray-600 focus:outline-none focus:border-[#D4AF37]"
                   />
                 </div>
 
@@ -588,7 +600,7 @@ export function DeveloperSettingsPage({
                         if (authFeedback?.type === 'error') setAuthFeedback(null);
                       }}
                       placeholder="••••••••••••"
-                      className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/35 pl-12 pr-4 py-2.5 text-sm font-semibold text-white text-left placeholder:text-gray-600 focus:outline-none focus:border-[#D4AF37]"
+                      className="w-full min-h-[46px] rounded-xl bg-[#050505] border border-[#D4AF37]/35 pl-12 pr-4 py-2.5 text-sm font-semibold text-white text-left placeholder:text-gray-600 focus:outline-none focus:border-[#D4AF37]"
                     />
                     <button
                       type="button"
@@ -608,7 +620,7 @@ export function DeveloperSettingsPage({
                 <button
                   type="submit"
                   disabled={authPending}
-                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 disabled:opacity-55 px-5 py-3 text-sm font-extrabold text-white border border-[#D4AF37]/70 transition-colors cursor-pointer"
+                  className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] disabled:opacity-55 px-5 py-3 text-sm font-extrabold text-white border border-[#D4AF37]/70 transition-colors cursor-pointer"
                 >
                   {authPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -628,10 +640,19 @@ export function DeveloperSettingsPage({
   // ============================================================================
   // PRODUCT MANAGEMENT HANDLERS (AUTHENTICATED ADMIN)
   // ============================================================================
-  const openAddProductForm = () => {
+  const openAddProductForm = (options?: { enableDiscount?: boolean }) => {
+    const initialDraft = deriveInitialDiscountDraft(undefined, options);
     setEditingProductId(undefined);
-    setProductForm(EMPTY_PRODUCT_FORM);
-    setBasePriceDraft('');
+    setProductForm({
+      ...EMPTY_PRODUCT_FORM,
+      discountEnabled: initialDraft.discountEnabled,
+      discountType: initialDraft.discountType,
+      discountValue: initialDraft.discountValueDraft ? Number(initialDraft.discountValueDraft) : 0,
+    });
+    setBasePriceDraft(initialDraft.basePriceDraft);
+    setDiscountValueDraft(initialDraft.discountValueDraft);
+    setFinalPriceDraft(initialDraft.finalPriceDraft);
+    setIsDraggingFiles(false);
     setImageUrlInput('');
     setSpecInput('');
     setOptionInput('');
@@ -643,6 +664,7 @@ export function DeveloperSettingsPage({
   };
 
   const openEditProductForm = (product: Product) => {
+    const initialDraft = deriveInitialDiscountDraft(product);
     const base =
       product.originalPrice && product.originalPrice > 0 ? product.originalPrice : product.price;
     setEditingProductId(product.id);
@@ -654,12 +676,12 @@ export function DeveloperSettingsPage({
       shortDescription: product.shortDescription,
       description: product.description,
       price: product.price,
-      originalPrice: base,
-      discountEnabled: product.discountEnabled,
-      discountType: product.discountType || 'percentage',
-      discountValue: product.discountValue || 0,
-      discountStartDate: product.discountStartDate || '',
-      discountEndDate: product.discountEndDate || '',
+      originalPrice: roundCurrency(base),
+      discountEnabled: initialDraft.discountEnabled,
+      discountType: initialDraft.discountType,
+      discountValue: initialDraft.discountValueDraft ? Number(initialDraft.discountValueDraft) : 0,
+      discountStartDate: initialDraft.discountStartDate,
+      discountEndDate: initialDraft.discountEndDate,
       inStock: product.inStock,
       isFeatured: product.isFeatured,
       isPublished: product.isPublished,
@@ -667,7 +689,10 @@ export function DeveloperSettingsPage({
       specs: [...product.specs],
       options: [...product.options],
     });
-    setBasePriceDraft(String(roundCurrency(base)));
+    setBasePriceDraft(initialDraft.basePriceDraft);
+    setDiscountValueDraft(initialDraft.discountValueDraft);
+    setFinalPriceDraft(initialDraft.finalPriceDraft);
+    setIsDraggingFiles(false);
     setImageUrlInput('');
     setSpecInput('');
     setOptionInput('');
@@ -682,6 +707,9 @@ export function DeveloperSettingsPage({
     setEditingProductId(undefined);
     setProductForm(EMPTY_PRODUCT_FORM);
     setBasePriceDraft('');
+    setDiscountValueDraft('');
+    setFinalPriceDraft('');
+    setIsDraggingFiles(false);
     setIsProductFormDirty(false);
     setProductViewMode('list');
   };
@@ -689,35 +717,174 @@ export function DeveloperSettingsPage({
   const handleBasePriceChange = (raw: string) => {
     setBasePriceDraft(raw);
     setIsProductFormDirty(true);
-    const num = roundCurrency(Number(raw));
-    setProductForm((prev) => {
-      if (!Number.isFinite(num) || num <= 0) {
-        return { ...prev, price: 0, originalPrice: 0 };
-      }
-      if (!prev.discountEnabled) {
-        return { ...prev, price: num, originalPrice: num };
-      }
-      // Recalculate discounted selling price against updated base price
-      if (prev.discountType === 'fixed' && prev.discountValue && prev.discountValue < num) {
-        const nextPrice = roundCurrency(num - prev.discountValue);
-        return { ...prev, originalPrice: num, price: nextPrice };
-      }
-      if (
-        prev.discountType === 'percentage' &&
-        prev.discountValue &&
-        prev.discountValue > 0 &&
-        prev.discountValue < 100
-      ) {
-        const savings = roundCurrency(num * (prev.discountValue / 100));
-        const nextPrice = roundCurrency(num - savings);
-        return { ...prev, originalPrice: num, price: nextPrice > 0 ? nextPrice : num };
-      }
-      return {
-        ...prev,
-        originalPrice: num,
-        price: prev.price > 0 && prev.price < num ? prev.price : num,
-      };
+    const parsedBase = roundCurrency(Number(raw));
+    if (!Number.isFinite(parsedBase) || parsedBase <= 0) {
+      setFinalPriceDraft('');
+      setProductForm((prev) => ({ ...prev, price: 0, originalPrice: 0 }));
+      return;
+    }
+
+    if (!productForm.discountEnabled) {
+      setFinalPriceDraft(String(parsedBase));
+      setProductForm((prev) => ({ ...prev, price: parsedBase, originalPrice: parsedBase }));
+      return;
+    }
+
+    const activeType: DiscountType = productForm.discountType === 'fixed' ? 'fixed' : 'percentage';
+    const numericDiscount =
+      discountValueDraft.trim() === '' ? 0 : roundCurrency(Number(discountValueDraft));
+    const calc = computeDiscountPricing({
+      basePrice: parsedBase,
+      discountEnabled: true,
+      discountType: activeType,
+      discountValue: numericDiscount,
+      discountStartDate: productForm.discountStartDate,
+      discountEndDate: productForm.discountEndDate,
     });
+    setFinalPriceDraft(calc.valid ? String(calc.price) : '');
+    setProductForm((prev) => ({
+      ...prev,
+      originalPrice: parsedBase,
+      price: calc.valid ? calc.price : parsedBase,
+    }));
+  };
+
+  const handleSelectDiscountMode = (mode: 'none' | 'percentage' | 'fixed') => {
+    setIsProductFormDirty(true);
+    const parsedBase = roundCurrency(Number(basePriceDraft));
+    const validBase = Number.isFinite(parsedBase) && parsedBase > 0 ? parsedBase : 0;
+
+    if (mode === 'none') {
+      setFinalPriceDraft(validBase > 0 ? String(validBase) : '');
+      setProductForm((prev) => ({
+        ...prev,
+        discountEnabled: false,
+        price: validBase,
+        originalPrice: validBase,
+      }));
+      return;
+    }
+
+    let nextDiscountStr = discountValueDraft.trim();
+    const prevType: DiscountType = productForm.discountType === 'fixed' ? 'fixed' : 'percentage';
+
+    if (productForm.discountEnabled && prevType !== mode && validBase > 0) {
+      const currentCalc = computeDiscountPricing({
+        basePrice: validBase,
+        discountEnabled: true,
+        discountType: prevType,
+        discountValue: nextDiscountStr === '' ? 0 : roundCurrency(Number(nextDiscountStr)),
+        discountStartDate: productForm.discountStartDate,
+        discountEndDate: productForm.discountEndDate,
+      });
+      if (currentCalc.valid && currentCalc.savings > 0) {
+        if (mode === 'fixed') {
+          nextDiscountStr = String(currentCalc.savings);
+        } else {
+          const pct = roundCurrency((currentCalc.savings / validBase) * 100);
+          nextDiscountStr = pct > 0 && pct < 100 ? String(pct) : '10';
+        }
+      } else {
+        nextDiscountStr = mode === 'percentage' ? '10' : '';
+      }
+    } else if (!productForm.discountEnabled && nextDiscountStr === '') {
+      if (mode === 'percentage') {
+        nextDiscountStr = '10';
+      } else if (validBase > 1) {
+        nextDiscountStr = String(roundCurrency(validBase * 0.1));
+      }
+    }
+
+    setDiscountValueDraft(nextDiscountStr);
+    const numericVal = nextDiscountStr === '' ? 0 : roundCurrency(Number(nextDiscountStr));
+    const nextCalc = computeDiscountPricing({
+      basePrice: validBase,
+      discountEnabled: true,
+      discountType: mode,
+      discountValue: numericVal,
+      discountStartDate: productForm.discountStartDate,
+      discountEndDate: productForm.discountEndDate,
+    });
+
+    setFinalPriceDraft(validBase > 0 && nextCalc.valid ? String(nextCalc.price) : '');
+    setProductForm((prev) => ({
+      ...prev,
+      discountEnabled: true,
+      discountType: mode,
+      discountValue: Number.isFinite(numericVal) ? Math.max(0, numericVal) : 0,
+      originalPrice: validBase,
+      price: validBase > 0 && nextCalc.valid ? nextCalc.price : validBase,
+    }));
+  };
+
+  const handleDiscountValueChange = (raw: string, explicitType?: DiscountType) => {
+    setDiscountValueDraft(raw);
+    setIsProductFormDirty(true);
+    const activeType: DiscountType =
+      explicitType ?? (productForm.discountType === 'fixed' ? 'fixed' : 'percentage');
+    const parsedBase = roundCurrency(Number(basePriceDraft));
+    const validBase = Number.isFinite(parsedBase) && parsedBase > 0 ? parsedBase : 0;
+    const numericVal = raw.trim() === '' ? 0 : roundCurrency(Number(raw));
+
+    const calc = computeDiscountPricing({
+      basePrice: validBase,
+      discountEnabled: true,
+      discountType: activeType,
+      discountValue: numericVal,
+      discountStartDate: productForm.discountStartDate,
+      discountEndDate: productForm.discountEndDate,
+    });
+
+    setFinalPriceDraft(validBase > 0 && calc.valid ? String(calc.price) : '');
+    setProductForm((prev) => ({
+      ...prev,
+      discountEnabled: true,
+      discountType: activeType,
+      discountValue: Number.isFinite(numericVal) ? Math.max(0, numericVal) : 0,
+      originalPrice: validBase,
+      price: validBase > 0 && calc.valid ? calc.price : validBase,
+    }));
+  };
+
+  const handleFinalPriceChange = (raw: string) => {
+    setFinalPriceDraft(raw);
+    setIsProductFormDirty(true);
+    const parsedBase = roundCurrency(Number(basePriceDraft));
+    const validBase = Number.isFinite(parsedBase) && parsedBase > 0 ? parsedBase : 0;
+
+    if (raw.trim() === '') {
+      setDiscountValueDraft('');
+      setProductForm((prev) => ({
+        ...prev,
+        discountEnabled: true,
+        discountValue: 0,
+        originalPrice: validBase,
+        price: validBase,
+      }));
+      return;
+    }
+
+    const parsedFinal = roundCurrency(Number(raw));
+    if (validBase > 0 && Number.isFinite(parsedFinal) && parsedFinal > 0 && parsedFinal < validBase) {
+      const savings = roundCurrency(validBase - parsedFinal);
+      setDiscountValueDraft(String(savings));
+      setProductForm((prev) => ({
+        ...prev,
+        discountEnabled: true,
+        discountType: 'fixed',
+        discountValue: savings,
+        originalPrice: validBase,
+        price: parsedFinal,
+      }));
+    } else {
+      setDiscountValueDraft('0');
+      setProductForm((prev) => ({
+        ...prev,
+        discountEnabled: true,
+        originalPrice: validBase,
+        price: validBase,
+      }));
+    }
   };
 
   const handleUploadCloudinaryFiles = async (fileList: FileList | null) => {
@@ -810,34 +977,76 @@ export function DeveloperSettingsPage({
     setIsProductFormDirty(true);
   };
 
-  const buildCandidateProductInput = (): ProductFormInput => {
-    const parsedBase = roundCurrency(Number(basePriceDraft));
-    const hasValidActiveDiscount =
-      productForm.discountEnabled &&
-      productForm.price > 0 &&
-      parsedBase > productForm.price;
-
-    return {
-      ...productForm,
-      category: (productForm.category || '').trim() || 'عام',
-      originalPrice: parsedBase,
-      price: hasValidActiveDiscount ? roundCurrency(productForm.price) : parsedBase,
-      discountEnabled: hasValidActiveDiscount,
-    };
+  const currentDiscountDraft: ProductDiscountDraft = {
+    basePriceDraft,
+    discountEnabled: productForm.discountEnabled,
+    discountType: productForm.discountType === 'fixed' ? 'fixed' : 'percentage',
+    discountValueDraft,
+    finalPriceDraft,
+    discountStartDate: productForm.discountStartDate || '',
+    discountEndDate: productForm.discountEndDate || '',
   };
 
+  const livePricingCalc = (() => {
+    const parsedBase = roundCurrency(Number(basePriceDraft));
+    const validBase = Number.isFinite(parsedBase) && parsedBase > 0 ? parsedBase : 0;
+    const numericVal =
+      discountValueDraft.trim() === '' ? 0 : roundCurrency(Number(discountValueDraft));
+    const calc = computeDiscountPricing({
+      basePrice: validBase,
+      discountEnabled: productForm.discountEnabled,
+      discountType: currentDiscountDraft.discountType,
+      discountValue: numericVal,
+      discountStartDate: currentDiscountDraft.discountStartDate,
+      discountEndDate: currentDiscountDraft.discountEndDate,
+    });
+
+    let inlineError: string | null = null;
+    if (productForm.discountEnabled && basePriceDraft.trim() !== '') {
+      const trimmedFinal = finalPriceDraft.trim();
+      if (trimmedFinal !== '' && validBase > 0) {
+        const parsedFinal = roundCurrency(Number(trimmedFinal));
+        if (!Number.isFinite(parsedFinal) || parsedFinal <= 0) {
+          inlineError = 'يرجى إدخال سعر نهائي بعد الخصم أكبر من صفر.';
+        } else if (parsedFinal >= validBase) {
+          inlineError = 'السعر النهائي بعد الخصم يجب أن يكون أقل من السعر الأساسي للمنتج.';
+        }
+      }
+      if (!inlineError && !calc.valid && calc.errors[0]) {
+        inlineError = calc.errors[0];
+      }
+    }
+
+    const scheduleStatus =
+      calc.valid && productForm.discountEnabled && validBase > 0
+        ? getDiscountScheduleStatus({
+            discountEnabled: true,
+            originalPrice: calc.originalPrice,
+            price: calc.price,
+            discountStartDate: currentDiscountDraft.discountStartDate,
+            discountEndDate: currentDiscountDraft.discountEndDate,
+          })
+        : 'disabled';
+
+    return {
+      calc,
+      validBase,
+      inlineError,
+      scheduleStatus,
+    };
+  })();
+
   const handleOpenLivePreview = () => {
-    const candidate = buildCandidateProductInput();
-    const validation = validateProductInput(candidate);
-    if (!validation.valid) {
+    const prepared = prepareProductFormSubmission(productForm, currentDiscountDraft);
+    if (!prepared.valid) {
       setGlobalBanner({
         type: 'error',
-        message: validation.errors[0],
+        message: prepared.errors[0] || 'يرجى مراجعة بيانات المنتج وإعدادات الخصم.',
       });
       return;
     }
     const sanitized = sanitizeProductPayload(
-      candidate,
+      prepared.candidate,
       editingProductId || 'preview-item',
       currentUser?.uid || 'admin'
     );
@@ -856,29 +1065,32 @@ export function DeveloperSettingsPage({
       return;
     }
 
-    const candidate = buildCandidateProductInput();
-    const validation = validateProductInput(candidate);
-    if (!validation.valid) {
+    const prepared = prepareProductFormSubmission(productForm, currentDiscountDraft);
+    if (!prepared.valid) {
       setGlobalBanner({
         type: 'error',
-        message: validation.errors[0],
+        message: prepared.errors[0] || 'يرجى مراجعة بيانات المنتج وإعدادات الخصم.',
       });
       return;
     }
 
     setSavingProduct(true);
     try {
-      await onSaveProduct(candidate, editingProductId);
+      await onSaveProduct(prepared.candidate, editingProductId);
       setIsProductFormDirty(false);
       setProductViewMode('list');
       setEditingProductId(undefined);
       setProductForm(EMPTY_PRODUCT_FORM);
       setBasePriceDraft('');
+      setDiscountValueDraft('');
+      setFinalPriceDraft('');
       setGlobalBanner({
         type: 'success',
         message: editingProductId
-          ? `تم حفظ تعديلات المنتج «${candidate.name.trim()}» في قاعدة البيانات السحابية بنجاح.`
-          : `تمت إضافة المنتج «${candidate.name.trim()}» وحفظه سحابيًا بنجاح.`,
+          ? `تم حفظ تعديلات المنتج «${prepared.candidate.name.trim()}» وإعدادات الخصم في قاعدة البيانات السحابية بنجاح.`
+          : prepared.candidate.discountEnabled
+            ? `تم رفع وإضافة المنتج «${prepared.candidate.name.trim()}» مع تفعيل الخصم وحفظه سحابيًا بنجاح.`
+            : `تم رفع وإضافة المنتج «${prepared.candidate.name.trim()}» وحفظه سحابيًا بنجاح.`,
       });
     } catch (err) {
       setGlobalBanner({
@@ -1101,7 +1313,7 @@ export function DeveloperSettingsPage({
             <button
               type="button"
               onClick={handleSecureLogout}
-              className="inline-flex min-h-[40px] items-center gap-1.5 sm:gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 border border-[#D4AF37]/50 px-2.5 sm:px-3.5 py-2 text-xs font-extrabold text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex min-h-[40px] items-center gap-1.5 sm:gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/50 px-2.5 sm:px-3.5 py-2 text-xs font-extrabold text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="hidden sm:inline">تسجيل الخروج</span>
@@ -1150,7 +1362,7 @@ export function DeveloperSettingsPage({
                       }}
                       className={`w-full min-h-[48px] rounded-xl px-3.5 py-2.5 flex items-center gap-3 text-right transition-colors cursor-pointer border ${
                         active
-                          ? 'bg-[#C62828] text-white border-[#D4AF37]'
+                          ? 'bg-[#0F4C5C] text-white border-[#D4AF37]'
                           : 'bg-[#0B0B0B] text-gray-300 border-white/10 hover:border-[#D4AF37]/40'
                       }`}
                     >
@@ -1170,11 +1382,11 @@ export function DeveloperSettingsPage({
 
             <button
               type="button"
-              onClick={openAddProductForm}
-              className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-[#D4AF37] text-[#0B0B0B] px-4 py-2.5 text-xs font-extrabold cursor-pointer"
+              onClick={() => openAddProductForm()}
+              className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-[#D4AF37] text-[#0B0B0B] px-4 py-2.5 text-xs font-extrabold whitespace-nowrap cursor-pointer"
             >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span>إضافة منتج جديد</span>
+              <Upload className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>رفع وإضافة منتج جديد</span>
             </button>
           </div>
         </div>
@@ -1187,11 +1399,11 @@ export function DeveloperSettingsPage({
           <div className="space-y-6">
             <button
               type="button"
-              onClick={openAddProductForm}
-              className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 border border-[#D4AF37]/70 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors whitespace-nowrap cursor-pointer"
+              onClick={() => openAddProductForm()}
+              className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/70 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors whitespace-nowrap cursor-pointer"
             >
-              <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
-              <span>إضافة منتج جديد</span>
+              <Upload className="h-4 w-4 text-[#D4AF37] shrink-0" aria-hidden="true" />
+              <span>رفع وإضافة منتج جديد</span>
             </button>
 
             <nav aria-label="أقسام إعدادات المطور" className="space-y-2">
@@ -1243,14 +1455,14 @@ export function DeveloperSettingsPage({
               className={`flex items-start justify-between gap-3 rounded-xl px-4 py-3.5 text-xs sm:text-sm font-semibold border ${
                 globalBanner.type === 'success'
                   ? 'bg-emerald-950/45 border-emerald-500/50 text-emerald-200'
-                  : 'bg-[#C62828]/15 border-[#C62828] text-red-200'
+                  : 'bg-[#0F4C5C]/15 border-[#0F4C5C] text-[#A0D2EB]'
               }`}
             >
               <div className="flex items-start gap-2.5">
                 {globalBanner.type === 'success' ? (
                   <CheckCircle2 className="h-4.5 w-4.5 text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
                 ) : (
-                  <AlertCircle className="h-4.5 w-4.5 text-[#EF5350] shrink-0 mt-0.5" aria-hidden="true" />
+                  <AlertCircle className="h-4.5 w-4.5 text-[#0F4C5C] shrink-0 mt-0.5" aria-hidden="true" />
                 )}
                 <span>{globalBanner.message}</span>
               </div>
@@ -1278,7 +1490,7 @@ export function DeveloperSettingsPage({
                 setActiveTab(sec);
                 setGlobalBanner(null);
               }}
-              onAddNewProduct={openAddProductForm}
+              onAddNewProduct={() => openAddProductForm()}
               onEditProduct={openEditProductForm}
               onConfigureDiscount={(prod) => setDiscountModalProduct(prod)}
             />
@@ -1292,10 +1504,16 @@ export function DeveloperSettingsPage({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#D4AF37]/25">
                 <div>
                   <h2 id="dev-products-heading" className="text-xl sm:text-2xl font-extrabold text-white">
-                    إدارة المنتجات
+                    {productViewMode === 'form'
+                      ? editingProductId
+                        ? 'تعديل المنتج وإعدادات الخصم'
+                        : 'الرفع وإضافة منتج جديد'
+                      : 'إدارة المنتجات'}
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-400 mt-1">
-                    إضافة وتعديل وحذف المنتجات، ورفع الصور السحابية، والتحكم في الظهور والتوفر والخصومات.
+                    {productViewMode === 'form'
+                      ? 'ارفع صور المنتج السحابية، حدد السعر الأساسي وإعدادات الخصم والمواصفات ثم احفظه ليظهر في المتجر فورًا.'
+                      : 'إضافة وتعديل وحذف المنتجات، ورفع الصور السحابية، والتحكم في الظهور والتوفر والخصومات.'}
                   </p>
                 </div>
 
@@ -1306,17 +1524,17 @@ export function DeveloperSettingsPage({
                       onClick={handleCancelProductEdits}
                       className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#141414] hover:bg-[#1E1E1E] border border-[#D4AF37]/40 px-4 py-2 text-xs sm:text-sm font-bold text-[#D4AF37] whitespace-nowrap cursor-pointer"
                     >
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
                       <span>العودة لقائمة المنتجات</span>
                     </button>
                   ) : (
                     <button
                       type="button"
-                      onClick={openAddProductForm}
-                      className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 border border-[#D4AF37]/70 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white whitespace-nowrap cursor-pointer"
+                      onClick={() => openAddProductForm()}
+                      className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/70 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white whitespace-nowrap cursor-pointer"
                     >
-                      <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
-                      <span>إضافة منتج جديد</span>
+                      <Upload className="h-4 w-4 text-[#D4AF37] shrink-0" aria-hidden="true" />
+                      <span>رفع وإضافة منتج جديد</span>
                     </button>
                   )}
                 </div>
@@ -1381,11 +1599,11 @@ export function DeveloperSettingsPage({
                       </p>
                       <button
                         type="button"
-                        onClick={openAddProductForm}
-                        className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 border border-[#D4AF37]/60 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white cursor-pointer"
+                        onClick={() => openAddProductForm()}
+                        className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/60 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white whitespace-nowrap cursor-pointer"
                       >
-                        <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
-                        <span>إضافة أول منتج</span>
+                        <Upload className="h-4 w-4 text-[#D4AF37] shrink-0" aria-hidden="true" />
+                        <span>رفع وإضافة أول منتج</span>
                       </button>
                     </div>
                   ) : (
@@ -1431,7 +1649,7 @@ export function DeveloperSettingsPage({
                                   <span aria-hidden="true">·</span>
                                   <span
                                     className={
-                                      product.inStock ? 'text-gray-300' : 'text-red-400 font-semibold'
+                                      product.inStock ? 'text-gray-300' : 'text-[#0F4C5C] font-semibold'
                                     }
                                   >
                                     {product.inStock ? 'متوفر' : 'غير متوفر'}
@@ -1532,7 +1750,7 @@ export function DeveloperSettingsPage({
                                 type="button"
                                 onClick={() => setConfirmDeleteProduct(product)}
                                 aria-label={`حذف المنتج ${product.name}`}
-                                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-[#C62828]/15 hover:bg-[#C62828] border border-[#C62828]/60 px-3 py-2 text-xs font-bold text-red-200 hover:text-white transition-colors whitespace-nowrap cursor-pointer"
+                                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-[#0F4C5C]/15 hover:bg-[#0F4C5C] border border-[#0F4C5C]/60 px-3 py-2 text-xs font-bold text-[#A0D2EB] hover:text-white transition-colors whitespace-nowrap cursor-pointer"
                               >
                                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                                 <span>حذف</span>
@@ -1545,124 +1763,36 @@ export function DeveloperSettingsPage({
                   )}
                 </div>
               ) : (
-                /* ADD / EDIT PRODUCT FORM */
+                /* UPLOAD & ADD / EDIT PRODUCT FORM WITH INTEGRATED DISCOUNT SETTINGS */
                 <form
                   onSubmit={handleProductFormSubmit}
                   className="rounded-2xl bg-[#141414] border border-[#D4AF37]/30 p-5 sm:p-7 space-y-6"
                 >
-                  <div className="flex items-center justify-between gap-2 pb-4 border-b border-white/10">
-                    <h3 className="text-base sm:text-lg font-extrabold text-[#D4AF37]">
-                      {editingProductId ? 'تعديل بيانات المنتج الحالي' : 'إضافة منتج جديد إلى المتجر'}
-                    </h3>
-                    <span className="text-xs text-gray-400">الحقول المسبوقة بـ * مطلوبة</span>
-                  </div>
-
-                  {/* Primary Fields: Name & Base Price */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                    <div className="md:col-span-8">
-                      <label
-                        htmlFor="prod-name-input"
-                        className="block text-xs font-bold text-[#D4AF37] mb-1.5"
-                      >
-                        اسم المنتج *
-                      </label>
-                      <input
-                        id="prod-name-input"
-                        type="text"
-                        required
-                        maxLength={160}
-                        value={productForm.name}
-                        onChange={(e) => {
-                          setProductForm((prev) => ({ ...prev, name: e.target.value }));
-                          setIsProductFormDirty(true);
-                        }}
-                        placeholder="مثال: كاميرا مراقبة ذكية خارجية بدقة 5 ميجابكسل"
-                        className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/35 px-4 py-2.5 text-sm font-semibold text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
-                      />
-                    </div>
-
-                    <div className="md:col-span-4">
-                      <label
-                        htmlFor="prod-base-price-input"
-                        className="block text-xs font-bold text-[#D4AF37] mb-1.5"
-                      >
-                        السعر الأساسي (ج.م) *
-                      </label>
-                      <input
-                        id="prod-base-price-input"
-                        type="number"
-                        required
-                        min="0.01"
-                        max="1000000"
-                        step="0.01"
-                        dir="ltr"
-                        value={basePriceDraft}
-                        onChange={(e) => handleBasePriceChange(e.target.value)}
-                        placeholder="1250"
-                        className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/35 px-4 py-2.5 text-sm font-bold text-white text-right tabular-nums placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
-                      />
-                      {productForm.discountEnabled && productForm.price > 0 && (
-                        <p className="text-[11px] text-emerald-400 mt-1 tabular-nums">
-                          الخصم مفعّل: يُباع حاليًا بسعر {formatPriceEgp(productForm.price)} ج.م
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Optional Category & Brand */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-white/10">
                     <div>
-                      <label
-                        htmlFor="prod-category-input"
-                        className="block text-xs font-bold text-gray-300 mb-1.5"
-                      >
-                        التصنيف / القسم (اختياري)
-                      </label>
-                      <input
-                        id="prod-category-input"
-                        type="text"
-                        maxLength={60}
-                        value={productForm.category}
-                        onChange={(e) => {
-                          setProductForm((prev) => ({ ...prev, category: e.target.value }));
-                          setIsProductFormDirty(true);
-                        }}
-                        placeholder="مثال: كاميرات المراقبة، ستالايت، صوتيات، عام..."
-                        className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
-                      />
+                      <h3 className="text-base sm:text-lg font-extrabold text-[#D4AF37]">
+                        {editingProductId
+                          ? 'تعديل بيانات المنتج والصور وإعدادات الخصم'
+                          : 'بيانات الرفع وإضافة منتج جديد'}
+                      </h3>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        الحقول المسبوقة بـ * مطلوبة — يمكنك تفعيل الخصم وتحديد نسبته أو سعره المخفّض مباشرة من هذه الصفحة.
+                      </p>
                     </div>
-
-                    <div>
-                      <label
-                        htmlFor="prod-brand-input"
-                        className="block text-xs font-bold text-gray-300 mb-1.5"
-                      >
-                        الماركة / العلامة التجارية (اختياري)
-                      </label>
-                      <input
-                        id="prod-brand-input"
-                        type="text"
-                        maxLength={80}
-                        value={productForm.brand}
-                        onChange={(e) => {
-                          setProductForm((prev) => ({ ...prev, brand: e.target.value }));
-                          setIsProductFormDirty(true);
-                        }}
-                        placeholder="مثال: Hikvision, Dahua, Prifix..."
-                        className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
-                      />
-                    </div>
+                    <span className="text-xs font-semibold text-gray-400 whitespace-nowrap shrink-0">
+                      مزامنة سحابية فورية
+                    </span>
                   </div>
 
-                  {/* Cloud Image Upload Section */}
-                  <div className="space-y-3 pt-2 border-t border-white/10">
+                  {/* 1. Cloud Image Upload Section */}
+                  <div className="space-y-3.5">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <span className="block text-xs font-bold text-[#D4AF37]">
-                          صور المنتج السحابية (Cloudinary) *
+                        <span className="block text-xs sm:text-sm font-extrabold text-[#D4AF37]">
+                          1. رفع صور المنتج السحابية (Cloudinary) *
                         </span>
-                        <span className="text-[11px] text-gray-400">
-                          ارفع صورة واحدة أو أكثر (حتى 15 صورة). أول صورة هي الصورة الرئيسية في المتجر.
+                        <span className="text-[11px] sm:text-xs text-gray-400">
+                          ارفع صورة واحدة أو أكثر (حتى 15 صورة). أول صورة تظهر كصورة رئيسية للمنتج في المتجر.
                         </span>
                       </div>
 
@@ -1678,17 +1808,59 @@ export function DeveloperSettingsPage({
                         type="button"
                         disabled={uploadingImages}
                         onClick={() => fileInputRef.current?.click()}
-                        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 disabled:opacity-55 border border-[#D4AF37]/60 px-4 py-2 text-xs font-extrabold text-white whitespace-nowrap cursor-pointer"
+                        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] disabled:opacity-55 border border-[#D4AF37]/60 px-4 py-2 text-xs font-extrabold text-white whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         {uploadingImages ? (
-                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                          <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden="true" />
                         ) : (
-                          <Upload className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
+                          <Upload className="h-4 w-4 text-[#D4AF37] shrink-0" aria-hidden="true" />
                         )}
                         <span>
-                          {uploadingImages ? 'جاري الرفع إلى Cloudinary...' : 'رفع صور من جهازك'}
+                          {uploadingImages ? 'جاري الرفع إلى Cloudinary...' : 'اختيار ورفع صور من جهازك'}
                         </span>
                       </button>
+                    </div>
+
+                    {/* Drag-and-Drop Upload Target */}
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (!uploadingImages) setIsDraggingFiles(true);
+                      }}
+                      onDragLeave={() => setIsDraggingFiles(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDraggingFiles(false);
+                        if (!uploadingImages && e.dataTransfer?.files?.length) {
+                          void handleUploadCloudinaryFiles(e.dataTransfer.files);
+                        }
+                      }}
+                      onClick={() => {
+                        if (!uploadingImages) fileInputRef.current?.click();
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if ((e.key === 'Enter' || e.key === ' ') && !uploadingImages) {
+                          e.preventDefault();
+                          fileInputRef.current?.click();
+                        }
+                      }}
+                      aria-label="منطقة سحب وإفلات صور المنتج للرفع السحابي"
+                      className={`rounded-xl border border-dashed px-4 py-5 text-center transition-colors cursor-pointer ${
+                        isDraggingFiles
+                          ? 'bg-[#1E1E1E] border-[#D4AF37]'
+                          : 'bg-[#0B0B0B] border-white/20 hover:border-[#D4AF37]/60'
+                      }`}
+                    >
+                      <p className="text-xs sm:text-sm font-bold text-gray-200">
+                        {uploadingImages
+                          ? 'جاري رفع الصور وحفظ روابطها السحابية...'
+                          : 'اسحب صور المنتج وأفلتها هنا، أو اضغط لاختيار الصور من الهاتف أو الكمبيوتر'}
+                      </p>
+                      <p className="text-[11px] text-gray-400 mt-1 tabular-nums">
+                        الصور المرفوعة حاليًا: {productForm.images.length} / 15
+                      </p>
                     </div>
 
                     {/* Optional Direct HTTPS URL Input */}
@@ -1702,22 +1874,28 @@ export function DeveloperSettingsPage({
                         dir="ltr"
                         value={imageUrlInput}
                         onChange={(e) => setImageUrlInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddExternalImageUrl();
+                          }
+                        }}
                         placeholder="أو الصق رابط صورة سحابي مباشر https://res.cloudinary.com/..."
                         className="flex-1 min-h-[42px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
                       />
                       <button
                         type="button"
                         onClick={handleAddExternalImageUrl}
-                        className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-[#1E1E1E] hover:bg-[#2A2A2A] border border-white/15 px-4 py-2 text-xs font-bold text-[#D4AF37] whitespace-nowrap cursor-pointer"
+                        className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-[#1E1E1E] hover:bg-[#2A2A2A] border border-white/15 px-4 py-2 text-xs font-bold text-[#D4AF37] whitespace-nowrap shrink-0 cursor-pointer"
                       >
-                        <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                        <ImagePlus className="h-4 w-4 shrink-0" aria-hidden="true" />
                         <span>إضافة الرابط</span>
                       </button>
                     </div>
 
                     {/* Uploaded Images Preview Grid */}
                     {productForm.images.length > 0 && (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-1">
                         {productForm.images.map((url, idx) => (
                           <div
                             key={`${url}-${idx}`}
@@ -1760,13 +1938,432 @@ export function DeveloperSettingsPage({
                                   setIsProductFormDirty(true);
                                 }}
                                 aria-label={`حذف الصورة رقم ${idx + 1}`}
-                                className="text-red-400 hover:text-red-300 p-1 cursor-pointer"
+                                className="text-[#0F4C5C] hover:text-[#0A3D4A] p-1 cursor-pointer"
                               >
                                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                               </button>
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Basic Product Identity */}
+                  <div className="space-y-4 pt-5 border-t border-white/10">
+                    <span className="block text-xs sm:text-sm font-extrabold text-[#D4AF37]">
+                      2. البيانات الأساسية للمنتج
+                    </span>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                      <div className="md:col-span-6">
+                        <label
+                          htmlFor="prod-name-input"
+                          className="block text-xs font-bold text-[#D4AF37] mb-1.5"
+                        >
+                          اسم المنتج *
+                        </label>
+                        <input
+                          id="prod-name-input"
+                          type="text"
+                          required
+                          maxLength={160}
+                          value={productForm.name}
+                          onChange={(e) => {
+                            setProductForm((prev) => ({ ...prev, name: e.target.value }));
+                            setIsProductFormDirty(true);
+                          }}
+                          placeholder="مثال: كاميرا مراقبة ذكية خارجية بدقة 5 ميجابكسل"
+                          className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/35 px-4 py-2.5 text-sm font-semibold text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
+                        />
+                      </div>
+
+                      <div className="md:col-span-3">
+                        <label
+                          htmlFor="prod-category-input"
+                          className="block text-xs font-bold text-gray-300 mb-1.5"
+                        >
+                          التصنيف / القسم (اختياري)
+                        </label>
+                        <input
+                          id="prod-category-input"
+                          type="text"
+                          maxLength={60}
+                          value={productForm.category}
+                          onChange={(e) => {
+                            setProductForm((prev) => ({ ...prev, category: e.target.value }));
+                            setIsProductFormDirty(true);
+                          }}
+                          placeholder="كاميرات، صوتيات، عام..."
+                          className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
+                        />
+                      </div>
+
+                      <div className="md:col-span-3">
+                        <label
+                          htmlFor="prod-brand-input"
+                          className="block text-xs font-bold text-gray-300 mb-1.5"
+                        >
+                          الماركة / المصنّع (اختياري)
+                        </label>
+                        <input
+                          id="prod-brand-input"
+                          type="text"
+                          maxLength={80}
+                          value={productForm.brand}
+                          onChange={(e) => {
+                            setProductForm((prev) => ({ ...prev, brand: e.target.value }));
+                            setIsProductFormDirty(true);
+                          }}
+                          placeholder="Hikvision, Dahua, Sony..."
+                          className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Pricing & Integrated Discount Settings */}
+                  <div className="space-y-4 pt-5 border-t border-white/10">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="block text-xs sm:text-sm font-extrabold text-[#D4AF37]">
+                          3. التسعير وإعدادات الخصم والعرض
+                        </span>
+                        <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5">
+                          حدد السعر الأساسي للمنتج، ويمكنك تفعيل خصم بنسبة مئوية أو مبلغ ثابت أو إدخال السعر بعد الخصم مباشرة مع جدولة تاريخ العرض.
+                        </p>
+                      </div>
+
+                      {productForm.discountEnabled && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectDiscountMode('none')}
+                          className="inline-flex min-h-[38px] items-center justify-center gap-1.5 rounded-xl bg-[#0B0B0B] hover:bg-[#1E1E1E] border border-white/15 px-3.5 py-1.5 text-xs font-bold text-gray-300 hover:text-[#D4AF37] whitespace-nowrap shrink-0 cursor-pointer"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5 text-[#D4AF37] shrink-0" aria-hidden="true" />
+                          <span>إلغاء الخصم والعودة للسعر الأساسي</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Base Price + 3-Way Discount Mode Segmented Control */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+                      <div className="lg:col-span-5">
+                        <label
+                          htmlFor="prod-base-price-input"
+                          className="block text-xs font-bold text-[#D4AF37] mb-1.5"
+                        >
+                          {productForm.discountEnabled
+                            ? 'السعر الأساسي قبل الخصم (ج.م) *'
+                            : 'السعر الأساسي للمنتج (ج.م) *'}
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="prod-base-price-input"
+                            type="number"
+                            required
+                            min="0.01"
+                            max="1000000"
+                            step="0.01"
+                            dir="ltr"
+                            value={basePriceDraft}
+                            onChange={(e) => handleBasePriceChange(e.target.value)}
+                            placeholder="1250"
+                            className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/35 pl-14 pr-4 py-2.5 text-sm font-bold text-white text-right tabular-nums placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
+                          />
+                          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#D4AF37]">
+                            ج.م
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="lg:col-span-7">
+                        <span className="block text-xs font-bold text-gray-300 mb-1.5">
+                          حالة ونوع الخصم على المنتج
+                        </span>
+                        <div
+                          role="group"
+                          aria-label="اختيار نظام الخصم للمنتج"
+                          className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-[#0B0B0B] border border-white/15"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleSelectDiscountMode('none')}
+                            className={`min-h-[42px] rounded-lg px-2.5 py-2 text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                              !productForm.discountEnabled
+                                ? 'bg-[#D4AF37] text-[#0B0B0B]'
+                                : 'text-gray-300 hover:text-white'
+                            }`}
+                          >
+                            بدون خصم
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSelectDiscountMode('percentage')}
+                            className={`min-h-[42px] rounded-lg px-2.5 py-2 text-xs font-extrabold inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                              productForm.discountEnabled && currentDiscountDraft.discountType === 'percentage'
+                                ? 'bg-[#0F4C5C] text-white'
+                                : 'text-gray-300 hover:text-white'
+                            }`}
+                          >
+                            <Percent className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span>نسبة مئوية (%)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSelectDiscountMode('fixed')}
+                            className={`min-h-[42px] rounded-lg px-2.5 py-2 text-xs font-extrabold inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                              productForm.discountEnabled && currentDiscountDraft.discountType === 'fixed'
+                                ? 'bg-[#0F4C5C] text-white'
+                                : 'text-gray-300 hover:text-white'
+                            }`}
+                          >
+                            <Tag className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span>مبلغ ثابت (ج.م)</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Expanded Discount Configuration Controls */}
+                    {productForm.discountEnabled && (
+                      <div className="space-y-4 pt-2">
+                        {/* Quick Percentage Presets */}
+                        {currentDiscountDraft.discountType === 'percentage' && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-400">
+                              نسب خصم سريعة:
+                            </span>
+                            {[5, 10, 15, 20, 25, 30, 50].map((pct) => {
+                              const isSelected = Number(discountValueDraft) === pct;
+                              return (
+                                <button
+                                  key={pct}
+                                  type="button"
+                                  onClick={() => handleDiscountValueChange(String(pct), 'percentage')}
+                                  className={`min-h-[34px] rounded-lg px-3 py-1 text-xs font-bold border transition-colors tabular-nums whitespace-nowrap shrink-0 cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-[#D4AF37] text-[#0B0B0B] border-[#D4AF37]'
+                                      : 'bg-[#0B0B0B] text-gray-300 border-white/15 hover:border-[#D4AF37]/60 hover:text-white'
+                                  }`}
+                                >
+                                  {pct}%
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Discount Value & Bidirectional Final Sale Price */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label
+                              htmlFor="prod-discount-value-input"
+                              className="block text-xs font-bold text-[#D4AF37] mb-1.5"
+                            >
+                              {currentDiscountDraft.discountType === 'percentage'
+                                ? 'قيمة نسبة الخصم (%) — أقل من 100% *'
+                                : 'قيمة مبلغ الخصم الثابت (ج.م) — أقل من السعر الأساسي *'}
+                            </label>
+                            <div className="relative">
+                              <input
+                                id="prod-discount-value-input"
+                                type="number"
+                                min="0.01"
+                                max={
+                                  currentDiscountDraft.discountType === 'percentage'
+                                    ? '99.99'
+                                    : basePriceDraft || '1000000'
+                                }
+                                step="0.01"
+                                required={productForm.discountEnabled}
+                                dir="ltr"
+                                value={discountValueDraft}
+                                onChange={(e) => handleDiscountValueChange(e.target.value)}
+                                placeholder={
+                                  currentDiscountDraft.discountType === 'percentage' ? '15' : '250'
+                                }
+                                className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/35 pl-14 pr-4 py-2.5 text-sm font-bold text-white text-right tabular-nums placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
+                              />
+                              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#D4AF37]">
+                                {currentDiscountDraft.discountType === 'percentage' ? '%' : 'ج.م'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="prod-final-price-input"
+                              className="block text-xs font-bold text-gray-300 mb-1.5"
+                            >
+                              السعر النهائي بعد الخصم (ج.م) — يُحسب تلقائيًا أو عدّله مباشرة
+                            </label>
+                            <div className="relative">
+                              <input
+                                id="prod-final-price-input"
+                                type="number"
+                                min="0.01"
+                                max={basePriceDraft || '1000000'}
+                                step="0.01"
+                                dir="ltr"
+                                disabled={livePricingCalc.validBase <= 0}
+                                value={finalPriceDraft}
+                                onChange={(e) => handleFinalPriceChange(e.target.value)}
+                                placeholder={
+                                  livePricingCalc.validBase > 0
+                                    ? 'مثال: 950'
+                                    : 'أدخل السعر الأساسي أولًا'
+                                }
+                                className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-white/15 disabled:opacity-50 pl-14 pr-4 py-2.5 text-sm font-bold text-emerald-300 text-right tabular-nums placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
+                              />
+                              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-400">
+                                ج.م
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Optional Start & End Dates */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label
+                                htmlFor="prod-discount-start-date"
+                                className="text-xs font-bold text-gray-300 flex items-center gap-1.5"
+                              >
+                                <Calendar className="h-3.5 w-3.5 text-[#D4AF37] shrink-0" aria-hidden="true" />
+                                <span>تاريخ بداية الخصم (اختياري)</span>
+                              </label>
+                              {productForm.discountStartDate && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setProductForm((prev) => ({ ...prev, discountStartDate: '' }));
+                                    setIsProductFormDirty(true);
+                                  }}
+                                  className="text-[11px] font-semibold text-[#D4AF37] hover:underline cursor-pointer"
+                                >
+                                  مسح التاريخ
+                                </button>
+                              )}
+                            </div>
+                            <input
+                              id="prod-discount-start-date"
+                              type="date"
+                              dir="ltr"
+                              value={productForm.discountStartDate || ''}
+                              onChange={(e) => {
+                                setProductForm((prev) => ({
+                                  ...prev,
+                                  discountStartDate: e.target.value,
+                                }));
+                                setIsProductFormDirty(true);
+                              }}
+                              className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-xs sm:text-sm text-white tabular-nums focus:outline-none focus:border-[#D4AF37]"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label
+                                htmlFor="prod-discount-end-date"
+                                className="text-xs font-bold text-gray-300 flex items-center gap-1.5"
+                              >
+                                <Calendar className="h-3.5 w-3.5 text-[#D4AF37] shrink-0" aria-hidden="true" />
+                                <span>تاريخ نهاية الخصم (اختياري)</span>
+                              </label>
+                              {productForm.discountEndDate && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setProductForm((prev) => ({ ...prev, discountEndDate: '' }));
+                                    setIsProductFormDirty(true);
+                                  }}
+                                  className="text-[11px] font-semibold text-[#D4AF37] hover:underline cursor-pointer"
+                                >
+                                  مسح التاريخ
+                                </button>
+                              )}
+                            </div>
+                            <input
+                              id="prod-discount-end-date"
+                              type="date"
+                              dir="ltr"
+                              value={productForm.discountEndDate || ''}
+                              onChange={(e) => {
+                                setProductForm((prev) => ({
+                                  ...prev,
+                                  discountEndDate: e.target.value,
+                                }));
+                                setIsProductFormDirty(true);
+                              }}
+                              className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-xs sm:text-sm text-white tabular-nums focus:outline-none focus:border-[#D4AF37]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Live Pricing & Savings Summary Strip */}
+                    {livePricingCalc.validBase > 0 && (
+                      <div className="rounded-xl bg-[#0B0B0B] border border-white/10 p-4 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm tabular-nums">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-300">
+                            <span>
+                              السعر الأساسي:{' '}
+                              <strong className="text-white">
+                                {formatPriceEgp(livePricingCalc.validBase)} ج.م
+                              </strong>
+                            </span>
+
+                            {productForm.discountEnabled &&
+                              livePricingCalc.calc.valid &&
+                              !livePricingCalc.inlineError && (
+                                <>
+                                  <span aria-hidden="true">·</span>
+                                  <span className="text-emerald-400 font-bold">
+                                    توفير للعميل: {formatPriceEgp(livePricingCalc.calc.savings)} ج.م (خصم{' '}
+                                    {livePricingCalc.calc.discountPercent}%)
+                                  </span>
+                                </>
+                              )}
+                          </div>
+
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-xs text-gray-400">السعر النهائي للعميل:</span>
+                            <span className="text-base sm:text-lg font-extrabold text-[#D4AF37]">
+                              {!productForm.discountEnabled
+                                ? `${formatPriceEgp(livePricingCalc.validBase)} ج.م`
+                                : livePricingCalc.calc.valid && !livePricingCalc.inlineError
+                                  ? `${formatPriceEgp(livePricingCalc.calc.price)} ج.م`
+                                  : 'يرجى ضبط قيمة الخصم'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {livePricingCalc.inlineError ? (
+                          <p className="text-xs font-semibold text-[#0F4C5C]">
+                            {livePricingCalc.inlineError}
+                          </p>
+                        ) : productForm.discountEnabled && livePricingCalc.calc.valid ? (
+                          <p className="text-xs text-gray-400">
+                            حالة العرض عند الحفظ:{' '}
+                            <strong className="text-gray-200">
+                              {livePricingCalc.scheduleStatus === 'active' &&
+                                'مفعّل — سيظهر بالسعر المخفّض مع شطب السعر القديم وفي قسم العروض فور الحفظ'}
+                              {livePricingCalc.scheduleStatus === 'scheduled' &&
+                                `مجدول — سيبدأ ظهور الخصم تلقائيًا يوم ${currentDiscountDraft.discountStartDate}`}
+                              {livePricingCalc.scheduleStatus === 'expired' &&
+                                `تاريخ النهاية (${currentDiscountDraft.discountEndDate}) قد مضى — سيعرض المتجر السعر الأساسي تلقائيًا`}
+                            </strong>
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-400">
+                            يُعرض المنتج بالسعر الأساسي فقط دون شارة خصم — اختر «نسبة مئوية» أو «مبلغ ثابت» أعلاه لتفعيل عرض على المنتج.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1883,7 +2480,7 @@ export function DeveloperSettingsPage({
                                   setIsProductFormDirty(true);
                                 }}
                                 aria-label={`حذف المواصفة ${sp}`}
-                                className="text-red-400 hover:text-red-300 cursor-pointer"
+                                className="text-[#0F4C5C] hover:text-[#0A3D4A] cursor-pointer"
                               >
                                 <X className="h-3.5 w-3.5" aria-hidden="true" />
                               </button>
@@ -1958,7 +2555,7 @@ export function DeveloperSettingsPage({
                                   setIsProductFormDirty(true);
                                 }}
                                 aria-label={`حذف الخيار ${opt}`}
-                                className="text-red-400 hover:text-red-300 cursor-pointer"
+                                className="text-[#0F4C5C] hover:text-[#0A3D4A] cursor-pointer"
                               >
                                 <X className="h-3.5 w-3.5" aria-hidden="true" />
                               </button>
@@ -2061,7 +2658,7 @@ export function DeveloperSettingsPage({
                       <button
                         type="submit"
                         disabled={savingProduct || uploadingImages}
-                        className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 disabled:opacity-55 border border-[#D4AF37]/70 px-6 py-3 text-sm font-extrabold text-white transition-colors whitespace-nowrap cursor-pointer"
+                        className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] disabled:opacity-55 border border-[#D4AF37]/70 px-6 py-3 text-sm font-extrabold text-white transition-colors whitespace-nowrap cursor-pointer"
                       >
                         {savingProduct ? (
                           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -2107,14 +2704,24 @@ export function DeveloperSettingsPage({
           {/* ================================================================ */}
           {activeTab === 'discounts' && (
             <section aria-labelledby="dev-discounts-heading" className="space-y-6">
-              <div className="pb-4 border-b border-[#D4AF37]/25">
-                <h2 id="dev-discounts-heading" className="text-xl sm:text-2xl font-extrabold text-white">
-                  إدارة الأسعار والخصومات
-                </h2>
-                <p className="text-xs sm:text-sm text-gray-400 mt-1">
-                  اضغط «السعر والخصم» أمام أي منتج لتحديث سعره الأساسي أو تفعيل نسبة مئوية أو مبلغ ثابت
-                  وتواريخ العرض أو إلغاء الخصم فورًا.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#D4AF37]/25">
+                <div>
+                  <h2 id="dev-discounts-heading" className="text-xl sm:text-2xl font-extrabold text-white">
+                    إدارة الأسعار والخصومات
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                    يمكنك ضبط إعدادات الخصم مباشرة أثناء رفع وإضافة منتج جديد، أو تعديل خصم أي منتج حالي من القائمة أدناه.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => openAddProductForm({ enableDiscount: true })}
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/70 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  <Upload className="h-4 w-4 text-[#D4AF37] shrink-0" aria-hidden="true" />
+                  <span>رفع منتج جديد مع خصم</span>
+                </button>
               </div>
 
               {/* Clean Metric Summary Strip */}
@@ -2236,7 +2843,7 @@ export function DeveloperSettingsPage({
                           <button
                             type="button"
                             onClick={() => setDiscountModalProduct(product)}
-                            className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 border border-[#D4AF37]/60 px-4 py-2 text-xs font-extrabold text-white whitespace-nowrap cursor-pointer"
+                            className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/60 px-4 py-2 text-xs font-extrabold text-white whitespace-nowrap cursor-pointer"
                           >
                             <Tag className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
                             <span>السعر والخصم</span>
@@ -2374,11 +2981,23 @@ export function DeveloperSettingsPage({
               </button>
             </div>
 
-            <ProductImage
-              src={previewProduct.images[0]}
-              alt={previewProduct.name}
-              containerClassName="aspect-square w-full rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/25 p-3"
-            />
+            <div className="relative">
+              {isDiscountActive(previewProduct) && (
+                <span className="absolute top-3 right-3 z-20 rounded-lg bg-[#0F4C5C] border border-[#D4AF37]/60 px-2.5 py-1 text-xs font-extrabold text-white tabular-nums">
+                  خصم{' '}
+                  {calculateDiscountPercent(
+                    previewProduct.originalPrice,
+                    getEffectiveProductPrice(previewProduct)
+                  )}
+                  %
+                </span>
+              )}
+              <ProductImage
+                src={previewProduct.images[0]}
+                alt={previewProduct.name}
+                containerClassName="aspect-square w-full rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/25 p-3"
+              />
+            </div>
 
             <div className="space-y-1.5">
               <p className="text-xs text-[#D4AF37]">
@@ -2390,14 +3009,26 @@ export function DeveloperSettingsPage({
                   {previewProduct.shortDescription}
                 </p>
               )}
-              <div className="flex items-baseline gap-2 pt-2 tabular-nums">
+              <div className="flex flex-wrap items-baseline gap-2 pt-2 tabular-nums">
                 <span className="text-xl font-extrabold text-[#D4AF37]">
                   {formatPriceEgp(getEffectiveProductPrice(previewProduct))} ج.م
                 </span>
                 {isDiscountActive(previewProduct) && (
-                  <span className="text-xs text-gray-500 line-through">
-                    {formatPriceEgp(previewProduct.originalPrice)} ج.م
-                  </span>
+                  <>
+                    <span className="text-xs text-gray-500 line-through">
+                      {formatPriceEgp(previewProduct.originalPrice)} ج.م
+                    </span>
+                    <span className="text-xs font-bold text-emerald-400">
+                      (توفير{' '}
+                      {formatPriceEgp(
+                        calculateSavingsAmount(
+                          previewProduct.originalPrice,
+                          getEffectiveProductPrice(previewProduct)
+                        )
+                      )}{' '}
+                      ج.م)
+                    </span>
+                  </>
                 )}
               </div>
               <p className="text-xs text-gray-400">
@@ -2409,7 +3040,7 @@ export function DeveloperSettingsPage({
             <button
               type="button"
               onClick={() => setPreviewProduct(null)}
-              className="w-full min-h-[44px] rounded-xl bg-[#C62828] hover:bg-red-800 border border-[#D4AF37]/60 text-xs font-extrabold text-white cursor-pointer"
+              className="w-full min-h-[44px] rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/60 text-xs font-extrabold text-white cursor-pointer"
             >
               إغلاق المعاينة ومتابعة الحفظ
             </button>
@@ -2425,7 +3056,7 @@ export function DeveloperSettingsPage({
           aria-labelledby="confirm-del-prod-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4"
         >
-          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#C62828] p-6 space-y-4 text-gray-100">
+          <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#0F4C5C] p-6 space-y-4 text-gray-100">
             <h3 id="confirm-del-prod-title" className="text-base sm:text-lg font-extrabold text-white">
               تأكيد حذف المنتج نهائيًا
             </h3>
@@ -2447,7 +3078,7 @@ export function DeveloperSettingsPage({
                 type="button"
                 disabled={deletingProduct}
                 onClick={handleConfirmDeleteProduct}
-                className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 px-5 py-2 text-xs font-extrabold text-white cursor-pointer disabled:opacity-50"
+                className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] px-5 py-2 text-xs font-extrabold text-white cursor-pointer disabled:opacity-50"
               >
                 {deletingProduct && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                 <span>نعم، حذف المنتج</span>
@@ -2456,6 +3087,14 @@ export function DeveloperSettingsPage({
           </div>
         </div>
       )}
+      <Footer
+        showVisitorCounter={true}
+        isDark={true}
+        onNavigateAbout={async () => {
+          await handleSecureLogout();
+          if (typeof window !== 'undefined') window.location.hash = '#about';
+        }}
+      />
     </div>
   );
 }

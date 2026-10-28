@@ -96,8 +96,8 @@ export function OverviewSection({
     onClick: () => void;
   }> = [
     {
-      title: 'إضافة منتج جديد',
-      description: 'رفع صور سحابية عبر Cloudinary وتحديد السعر والمواصفات.',
+      title: 'رفع وإضافة منتج جديد',
+      description: 'رفع صور المنتج السحابية وتحديد السعر الأساسي وإعدادات الخصم والمواصفات في صفحة واحدة.',
       Icon: Plus,
       onClick: onAddNewProduct,
     },
@@ -148,10 +148,10 @@ export function OverviewSection({
         <button
           type="button"
           onClick={onAddNewProduct}
-          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 border border-[#D4AF37]/70 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/70 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
         >
           <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
-          <span>إضافة منتج جديد</span>
+          <span>رفع وإضافة منتج جديد</span>
         </button>
       </div>
 
@@ -172,7 +172,7 @@ export function OverviewSection({
             {outOfStockCount > 0 ? (
               <>
                 <span aria-hidden="true"> · </span>
-                <span className="text-red-300">{outOfStockCount} غير متوفر</span>
+                <span className="text-[#A0D2EB]">{outOfStockCount} غير متوفر</span>
               </>
             ) : null}
           </p>
@@ -278,7 +278,7 @@ export function OverviewSection({
             <button
               type="button"
               onClick={onAddNewProduct}
-              className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 border border-[#D4AF37]/60 px-4 py-2 text-xs font-extrabold text-white cursor-pointer"
+              className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/60 px-4 py-2 text-xs font-extrabold text-white cursor-pointer"
             >
               <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
               <span>إضافة أول منتج</span>

@@ -105,7 +105,7 @@ export function AccountSettingsSection({
           className={`flex items-start gap-2.5 rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold border ${
             feedback.type === 'success'
               ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-200'
-              : 'bg-[#C62828]/15 border-[#C62828] text-red-200'
+              : 'bg-[#0F4C5C]/15 border-[#0F4C5C] text-[#A0D2EB]'
           }`}
         >
           {feedback.type === 'success' ? (
@@ -207,7 +207,7 @@ export function AccountSettingsSection({
           <button
             type="button"
             onClick={() => void onLogout()}
-            className="inline-flex min-h-[46px] sm:mr-auto items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 border border-[#D4AF37]/70 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white whitespace-nowrap cursor-pointer"
+            className="inline-flex min-h-[46px] sm:mr-auto items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/70 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white whitespace-nowrap cursor-pointer"
           >
             <LogOut className="h-4 w-4" aria-hidden="true" />
             <span>تسجيل الخروج الآمن</span>

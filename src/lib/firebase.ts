@@ -26,6 +26,7 @@ import {
   initializeFirestore,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   where,
@@ -82,6 +83,7 @@ function createIframeSafeAuth(): Auth {
 
 export const db = createResilientFirestore();
 export const auth = createIframeSafeAuth();
+export { doc, runTransaction };
 
 export {
   AUTHORIZED_DEVELOPER_EMAIL,

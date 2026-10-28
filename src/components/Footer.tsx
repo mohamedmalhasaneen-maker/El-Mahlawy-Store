@@ -13,16 +13,22 @@ import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { PARTNER_INFO } from '../types/store';
 import { buildWhatsAppLinkFromPhone } from '../utils/siteConfig';
 
+import { VisitorCounter } from './VisitorCounter';
+
 interface FooterProps {
   onAdminButtonClick?: () => void;
   onNavigateAbout?: () => void;
   showAboutSection?: boolean;
+  showVisitorCounter?: boolean;
+  isDark?: boolean;
 }
 
 export function Footer({
   onAdminButtonClick,
   onNavigateAbout,
   showAboutSection = true,
+  showVisitorCounter = false,
+  isDark = false,
 }: FooterProps = {}) {
   const siteConfig = useSiteConfig();
 
@@ -46,10 +52,11 @@ export function Footer({
   const partnerOrder1Wa = buildWhatsAppLinkFromPhone(siteConfig.partnerOrderPhone1);
   const partnerOrder2Wa = buildWhatsAppLinkFromPhone(siteConfig.partnerOrderPhone2);
   const partnerMaintenanceWa = buildWhatsAppLinkFromPhone(siteConfig.partnerMaintenancePhone);
+  const partnerMaintenanceNewWa = buildWhatsAppLinkFromPhone('01005089640');
   const partnerAfterSalesWa = buildWhatsAppLinkFromPhone(siteConfig.partnerAfterSalesPhone);
 
   return (
-    <footer className="bg-[#081A33] text-white border-t border-[#163663]">
+    <footer className={`${isDark ? 'bg-[#0B0B0B]' : 'bg-[#081A33]'} text-white border-t ${isDark ? 'border-[#D4AF37]/35' : 'border-[#163663]'}`}>
       {/* 1. قسم «تواصل معنا» */}
       <div
         id="footer-contact"
@@ -57,7 +64,7 @@ export function Footer({
       >
         <div className="mb-8 sm:mb-10">
           {siteConfig.contactSectionSubtitle && (
-            <p className="text-xs sm:text-sm font-bold text-[#38BDF8] mb-1.5">
+            <p className={`text-xs sm:text-sm font-bold ${isDark ? 'text-[#D4AF37]' : 'text-[#38BDF8]'} mb-1.5`}>
               {siteConfig.contactSectionSubtitle}
             </p>
           )}
@@ -73,7 +80,7 @@ export function Footer({
           } gap-6 lg:gap-8`}
         >
           {/* Card 1: المحلاوي ستور | El Mahlawy Store */}
-          <div className="flex flex-col justify-between rounded-3xl bg-[#0E264A] border border-[#1E3F73] p-6 sm:p-7">
+          <div className={`flex flex-col justify-between rounded-3xl ${isDark ? 'bg-[#0B0B0B]' : 'bg-[#0E264A]'} border ${isDark ? 'border-[#D4AF37]/30' : 'border-[#1E3F73]'} p-6 sm:p-7 shadow-xs`}>
             <div>
               <div className="flex items-center gap-3 mb-3">
                 <span
@@ -100,7 +107,7 @@ export function Footer({
                     {siteConfig.storeSubtitle ? (
                       <>
                         {' '}
-                        <span className="text-[#38BDF8]">|</span>{' '}
+                        <span className={isDark ? 'text-[#D4AF37]' : 'text-[#38BDF8]'}>|</span>{' '}
                         <bdi>{siteConfig.storeSubtitle}</bdi>
                       </>
                     ) : null}
@@ -125,17 +132,7 @@ export function Footer({
                       <span>{siteConfig.workingHours}</span>
                     </span>
                   )}
-                  {siteConfig.googleMapsUrl && (
-                    <a
-                      href={siteConfig.googleMapsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 font-bold text-[#38BDF8] hover:text-white underline underline-offset-4 transition-colors"
-                    >
-                      <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span>الموقع على خرائط Google</span>
-                    </a>
-                  )}
+                  {/* Link removed */}
                 </div>
               )}
             </div>
@@ -146,7 +143,7 @@ export function Footer({
                 <a
                   href={`tel:${siteConfig.primaryPhone}`}
                   dir="ltr"
-                  className="font-num text-sm font-bold text-white hover:text-[#38BDF8]"
+                  className={`font-num text-sm font-bold text-white ${isDark ? 'hover:text-[#D4AF37]' : 'hover:text-[#38BDF8]'}`}
                 >
                   {siteConfig.primaryPhone}
                 </a>
@@ -212,7 +209,7 @@ export function Footer({
                     href={siteConfig.afterSalesWhatsAppUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#0284C7] hover:bg-[#0369A1] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors"
+                    className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl ${isDark ? 'bg-[#0F4C5C]' : 'bg-[#0284C7]'} ${isDark ? 'hover:bg-[#0A3D4A]' : 'hover:bg-[#0369A1]'} px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors border ${isDark ? 'border-[#D4AF37]/50' : 'border-transparent'}`}
                   >
                     <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>ما بعد البيع</span>
@@ -268,12 +265,17 @@ export function Footer({
                   </span>
                 </div>
               )}
+              {showVisitorCounter && (
+                <div className="text-center pt-4">
+                  <VisitorCounter />
+                </div>
+              )}
             </div>
           </div>
 
           {/* Card 2: Infinity Corp | Smart Home & Technical Solutions */}
           {siteConfig.showPartnerCard && (
-            <div className="flex flex-col justify-between rounded-3xl bg-[#0E264A] border border-[#1E3F73] p-6 sm:p-7">
+            <div className={`flex flex-col justify-between rounded-3xl ${isDark ? 'bg-[#0B0B0B]' : 'bg-[#0E264A]'} border ${isDark ? 'border-[#D4AF37]/30' : 'border-[#1E3F73]'} p-6 sm:p-7 shadow-xs`}>
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <span
@@ -359,18 +361,7 @@ export function Footer({
                   </div>
                 )}
 
-                {siteConfig.partnerAfterSalesPhone && (
-                  <div className="flex items-center justify-between gap-2 text-xs text-[#BAE6FD]">
-                    <span>خدمة ما بعد البيع</span>
-                    <a
-                      href={`tel:${siteConfig.partnerAfterSalesPhone}`}
-                      dir="ltr"
-                      className="font-num text-sm font-bold text-white hover:text-[#38BDF8]"
-                    >
-                      {siteConfig.partnerAfterSalesPhone}
-                    </a>
-                  </div>
-                )}
+
 
                 {extraPartnerChannels.map((ch) => (
                   <div
@@ -401,32 +392,39 @@ export function Footer({
                   </div>
                 ))}
 
-                {(partnerOrder1Wa ||
-                  partnerOrder2Wa ||
-                  partnerMaintenanceWa ||
-                  partnerAfterSalesWa) && (
+                {(partnerOrder1Wa || partnerOrder2Wa) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                    {(partnerOrder1Wa || partnerOrder2Wa) && (
+                    {partnerOrder1Wa && (
                       <a
-                        href={partnerOrder1Wa || partnerOrder2Wa}
+                        href={partnerOrder1Wa}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#22bf5b] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors"
                       >
                         <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>واتساب الطلبات</span>
+                        <span>واتساب الطلبات 1</span>
                       </a>
                     )}
-
-                    {(partnerMaintenanceWa || partnerAfterSalesWa) && (
+                    {partnerOrder2Wa && (
                       <a
-                        href={partnerMaintenanceWa || partnerAfterSalesWa}
+                        href={partnerOrder2Wa}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#0284C7] hover:bg-[#0369A1] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors"
+                        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#22bf5b] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors"
                       >
                         <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>{partnerMaintenanceWa ? 'التركيب والصيانة' : 'ما بعد البيع'}</span>
+                        <span>واتساب الطلبات 2</span>
+                      </a>
+                    )}
+                    {partnerMaintenanceNewWa && (
+                      <a
+                        href={partnerMaintenanceNewWa}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl ${isDark ? 'bg-[#0F4C5C]' : 'bg-[#0284C7]'} ${isDark ? 'hover:bg-[#0A3D4A]' : 'hover:bg-[#0369A1]'} px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors border ${isDark ? 'border-[#D4AF37]/50' : 'border-transparent'}`}
+                      >
+                        <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>واتساب التركيب والصيانة</span>
                       </a>
                     )}
                   </div>
@@ -563,7 +561,7 @@ export function Footer({
       )}
 
       {/* 3. التذييل النهائي للموقع (Footer) */}
-      <div className="border-t border-[#163663] bg-[#061426]">
+      <div className={`border-t ${isDark ? 'border-[#D4AF37]/40' : 'border-[#163663]'} ${isDark ? 'bg-[#050505]' : 'bg-[#061426]'}`}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5 max-w-3xl">
