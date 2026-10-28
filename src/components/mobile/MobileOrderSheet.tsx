@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { MessageCircle, Minus, Plus, X } from 'lucide-react';
+import { useSiteConfig } from '../../contexts/SiteConfigContext';
 import { Product } from '../../types/store';
 import {
   buildWhatsAppOrderUrl,
   calculateDiscountPercent,
   formatPriceEgp,
+  getEffectiveProductPrice,
   isDiscountActive,
+  roundCurrency,
 } from '../../utils/catalogLogic';
 import { useMobileOverlay } from '../../utils/useMobileOverlay';
 import { ProductImage } from '../ProductImage';
@@ -21,6 +24,7 @@ export function MobileOrderSheet({
   onClose,
   publicOrigin,
 }: MobileOrderSheetProps) {
+  const siteConfig = useSiteConfig();
   const [selectedOption, setSelectedOption] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
@@ -38,10 +42,11 @@ export function MobileOrderSheet({
   if (!product) return null;
 
   const hasDiscount = isDiscountActive(product);
+  const effectivePrice = getEffectiveProductPrice(product);
   const discountPct = hasDiscount
-    ? calculateDiscountPercent(product.originalPrice, product.price)
+    ? calculateDiscountPercent(product.originalPrice, effectivePrice)
     : 0;
-  const totalAmount = product.price * quantity;
+  const totalAmount = roundCurrency(effectivePrice * quantity);
 
   const whatsappOrderUrl = buildWhatsAppOrderUrl({
     product,
@@ -49,6 +54,9 @@ export function MobileOrderSheet({
     quantity,
     notes,
     baseOrigin: publicOrigin,
+    whatsappNumber: siteConfig.primaryWhatsApp,
+    storeName: siteConfig.storeName,
+    storeSubtitle: siteConfig.storeSubtitle,
   });
 
   return (
@@ -104,7 +112,7 @@ export function MobileOrderSheet({
             />
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-bold text-[#0284C7] truncate">
-                {product.brand}
+                {product.brand || siteConfig.storeName}
                 {hasDiscount ? ` · خصم ${discountPct}%` : ''}
               </p>
               <h3 className="text-sm font-extrabold text-[#0B1F3A] leading-snug line-clamp-2">
@@ -112,7 +120,7 @@ export function MobileOrderSheet({
               </h3>
               <div className="mt-1 flex flex-wrap items-baseline gap-1.5">
                 <span className="font-num text-base font-extrabold text-[#1D4ED8]">
-                  {formatPriceEgp(product.price)}
+                  {formatPriceEgp(effectivePrice)}
                 </span>
                 <span className="text-xs font-bold text-[#0F294A]">ج.م</span>
                 {hasDiscount && (

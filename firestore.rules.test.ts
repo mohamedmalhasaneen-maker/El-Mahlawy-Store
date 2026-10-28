@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { DEFAULT_SITE_CONFIG, sanitizeSiteConfig } from './src/utils/siteConfig';
 
 const rulesSource = fs.readFileSync(path.join(process.cwd(), 'firestore.rules'), 'utf8');
 const blueprint = JSON.parse(
@@ -14,74 +15,155 @@ interface AuthContext {
   email_verified: boolean;
 }
 
-const REQUEST_TIME = '2026-10-27T10:00:00.000Z';
+const REQUEST_TIME = '2026-10-28T10:00:00.000Z';
+const AUTHORIZED_UID = 'eGi5P37ztLe5Nn77sEFvmFFcZWp1';
 
 const REQUIRED_PRODUCT_KEYS = blueprint.entities.Product.required as string[];
+const ALLOWED_PRODUCT_KEYS = Object.keys(blueprint.entities.Product.properties);
+const REQUIRED_SITE_CONFIG_KEYS = blueprint.entities.SiteConfig.required as string[];
 
-function isValidId(id: unknown): boolean {
-  return typeof id === 'string' && id.length >= 1 && id.length <= 128 && /^[a-zA-Z0-9_\-]+$/.test(id);
+function isValidId(id: unknown, maxLen = 128): boolean {
+  return (
+    typeof id === 'string' &&
+    id.length >= 1 &&
+    id.length <= maxLen &&
+    /^[a-zA-Z0-9_\-]+$/.test(id)
+  );
 }
 
-function isBootstrappedAdmin(auth: AuthContext | null): boolean {
+function isAuthorizedDeveloper(auth: AuthContext | null): boolean {
+  if (!auth) return false;
+  if (auth.uid === AUTHORIZED_UID) return true;
   return Boolean(
-    auth &&
-      auth.email === 'mohamed.m.alhasaneen@gmail.com' &&
-      auth.email_verified === true
+    auth.email_verified === true &&
+      (auth.email === 'abdulazizriadvip@gmail.com' ||
+        auth.email === 'mohamed.m.alhasaneen@gmail.com')
   );
 }
 
 function isValidProductRuleSimulator(data: Record<string, unknown>): boolean {
   const keys = Object.keys(data);
   if (!REQUIRED_PRODUCT_KEYS.every((k) => keys.includes(k))) return false;
-  if (!keys.every((k) => REQUIRED_PRODUCT_KEYS.includes(k))) return false;
+  if (!keys.every((k) => ALLOWED_PRODUCT_KEYS.includes(k))) return false;
 
   if (!isValidId(data.id)) return false;
   if (typeof data.name !== 'string' || data.name.length < 2 || data.name.length > 160) return false;
-  if (typeof data.brand !== 'string' || data.brand.length < 1 || data.brand.length > 80) return false;
-  if (typeof data.category !== 'string' || data.category.length < 2 || data.category.length > 60) return false;
-  if (
-    typeof data.shortDescription !== 'string' ||
-    data.shortDescription.length < 4 ||
-    data.shortDescription.length > 300
-  )
-    return false;
-  if (typeof data.description !== 'string' || data.description.length < 4 || data.description.length > 3000)
-    return false;
+  if (typeof data.brand !== 'string' || data.brand.length > 80) return false;
+  if (typeof data.category !== 'string' || data.category.length > 60) return false;
+  if (typeof data.shortDescription !== 'string' || data.shortDescription.length > 300) return false;
+  if (typeof data.description !== 'string' || data.description.length > 3000) return false;
   if (typeof data.price !== 'number' || data.price <= 0 || data.price > 1000000) return false;
   if (
     typeof data.originalPrice !== 'number' ||
     data.originalPrice < data.price ||
     data.originalPrice > 1000000
-  )
+  ) {
     return false;
+  }
   if (typeof data.discountEnabled !== 'boolean') return false;
   if (data.discountEnabled && !(data.originalPrice > data.price)) return false;
+
+  if (
+    'discountType' in data &&
+    (typeof data.discountType !== 'string' ||
+      data.discountType.length > 20 ||
+      !['percentage', 'fixed'].includes(data.discountType))
+  ) {
+    return false;
+  }
+  if (
+    'discountValue' in data &&
+    (typeof data.discountValue !== 'number' ||
+      data.discountValue < 0 ||
+      data.discountValue > 1000000)
+  ) {
+    return false;
+  }
+  if (
+    'discountStartDate' in data &&
+    (typeof data.discountStartDate !== 'string' || data.discountStartDate.length > 32)
+  ) {
+    return false;
+  }
+  if (
+    'discountEndDate' in data &&
+    (typeof data.discountEndDate !== 'string' || data.discountEndDate.length > 32)
+  ) {
+    return false;
+  }
+
   if (typeof data.inStock !== 'boolean') return false;
   if (typeof data.isFeatured !== 'boolean') return false;
   if (typeof data.isPublished !== 'boolean') return false;
-  if (!Array.isArray(data.images) || data.images.length < 1 || data.images.length > 8) return false;
+  if (!Array.isArray(data.images) || data.images.length < 1 || data.images.length > 15) return false;
   if (
     typeof data.images[0] !== 'string' ||
     data.images[0].length < 1 ||
-    data.images[0].length > 500
-  )
+    data.images[0].length > 2000
+  ) {
     return false;
+  }
   if (!Array.isArray(data.specs) || data.specs.length > 15) return false;
   if (
     data.specs.length > 0 &&
     (typeof data.specs[0] !== 'string' || data.specs[0].length < 1 || data.specs[0].length > 200)
-  )
+  ) {
     return false;
+  }
   if (!Array.isArray(data.options) || data.options.length > 10) return false;
   if (
     data.options.length > 0 &&
     (typeof data.options[0] !== 'string' || data.options[0].length < 1 || data.options[0].length > 80)
-  )
+  ) {
     return false;
+  }
   if (!isValidId(data.authorUid)) return false;
   if (typeof data.createdAt !== 'string' || typeof data.updatedAt !== 'string') return false;
 
   return true;
+}
+
+function isValidSiteConfigRuleSimulator(data: Record<string, unknown>): boolean {
+  const keys = Object.keys(data);
+  if (!REQUIRED_SITE_CONFIG_KEYS.every((k) => keys.includes(k))) return false;
+  if (!keys.every((k) => REQUIRED_SITE_CONFIG_KEYS.includes(k))) return false;
+  if (!isValidId(data.id, 32)) return false;
+  if (typeof data.storeName !== 'string' || data.storeName.length < 2 || data.storeName.length > 100) {
+    return false;
+  }
+  if (typeof data.primaryPhone !== 'string' || data.primaryPhone.length < 7 || data.primaryPhone.length > 30) {
+    return false;
+  }
+  if (!Array.isArray(data.contactChannels) || data.contactChannels.length > 20) return false;
+  if (!Array.isArray(data.socialLinks) || data.socialLinks.length > 15) return false;
+  if (!Array.isArray(data.branches) || data.branches.length > 10) return false;
+  if (!isValidId(data.updatedBy)) return false;
+  if (typeof data.updatedAt !== 'string') return false;
+  return true;
+}
+
+function evaluateProductGet(
+  productId: string,
+  existing: Record<string, unknown>,
+  auth: AuthContext | null
+): 'ALLOWED' | 'PERMISSION_DENIED' {
+  if (!isValidId(productId)) return 'PERMISSION_DENIED';
+  if (existing.isPublished === true || isAuthorizedDeveloper(auth)) return 'ALLOWED';
+  return 'PERMISSION_DENIED';
+}
+
+function evaluateAdminRoleCreate(): 'ALLOWED' | 'PERMISSION_DENIED' {
+  return 'PERMISSION_DENIED';
+}
+
+function evaluateConnectionProbe(
+  probeId: string,
+  op: 'get' | 'list' | 'write'
+): 'ALLOWED' | 'PERMISSION_DENIED' {
+  if (op === 'get' && isValidId(probeId) && probeId === 'connection') {
+    return 'ALLOWED';
+  }
+  return 'PERMISSION_DENIED';
 }
 
 function evaluateProductCreate(
@@ -97,7 +179,7 @@ function evaluateProductCreate(
   if (incoming.createdAt !== REQUEST_TIME || incoming.updatedAt !== REQUEST_TIME) {
     return 'PERMISSION_DENIED';
   }
-  if (!isBootstrappedAdmin(auth)) return 'PERMISSION_DENIED';
+  if (!isAuthorizedDeveloper(auth)) return 'PERMISSION_DENIED';
   return 'ALLOWED';
 }
 
@@ -114,67 +196,160 @@ function evaluateProductUpdate(
   if (incoming.authorUid !== existing.authorUid) return 'PERMISSION_DENIED';
   if (incoming.createdAt !== existing.createdAt) return 'PERMISSION_DENIED';
   if (incoming.updatedAt !== REQUEST_TIME) return 'PERMISSION_DENIED';
-  if (!isBootstrappedAdmin(auth)) return 'PERMISSION_DENIED';
+  if (!isAuthorizedDeveloper(auth)) return 'PERMISSION_DENIED';
   return 'ALLOWED';
 }
 
-function makeBaseValidPayload(): Record<string, unknown> {
+function evaluateSiteConfigWrite(
+  configId: string,
+  incoming: Record<string, unknown>,
+  auth: AuthContext | null
+): 'ALLOWED' | 'PERMISSION_DENIED' {
+  if (!auth) return 'PERMISSION_DENIED';
+  if (!isValidId(configId) || configId !== 'main') return 'PERMISSION_DENIED';
+  if (!isValidSiteConfigRuleSimulator(incoming)) return 'PERMISSION_DENIED';
+  if (incoming.id !== 'main') return 'PERMISSION_DENIED';
+  if (incoming.updatedBy !== auth.uid) return 'PERMISSION_DENIED';
+  if (incoming.updatedAt !== REQUEST_TIME) return 'PERMISSION_DENIED';
+  if (!isAuthorizedDeveloper(auth)) return 'PERMISSION_DENIED';
+  return 'ALLOWED';
+}
+
+function makeBaseValidPayload(authorUid = AUTHORIZED_UID): Record<string, unknown> {
   return {
     id: 'prod-101',
     name: 'سماعة بلوتوث برو',
-    brand: 'سوني',
-    category: 'سماعات وصوتيات',
-    shortDescription: 'سماعة رأس لاسلكية بعزل ضوضاء احترافي',
-    description: 'سماعة رأس لاسلكية بعزل ضوضاء احترافي وبطارية 40 ساعة.',
+    brand: '',
+    category: '',
+    shortDescription: '',
+    description: '',
     price: 2200,
     originalPrice: 2800,
     discountEnabled: true,
+    discountType: 'percentage',
+    discountValue: 21.43,
+    discountStartDate: '2026-10-01',
+    discountEndDate: '2026-12-31',
     inStock: true,
     isFeatured: true,
     isPublished: true,
-    images: ['https://example.com/uploads/item.jpg'],
+    images: ['https://res.cloudinary.com/obvb7rtp/image/upload/v1/item.jpg'],
     specs: ['بلوتوث 5.3'],
     options: ['أزرق ملكي'],
-    authorUid: 'admin-uid-1',
+    authorUid,
     createdAt: REQUEST_TIME,
     updatedAt: REQUEST_TIME,
   };
 }
 
-const verifiedAdmin: AuthContext = {
-  uid: 'admin-uid-1',
+const authorizedDeveloperUidAuth: AuthContext = {
+  uid: AUTHORIZED_UID,
+  email: 'abdulazizriadvip@gmail.com',
+  email_verified: false, // Even if Console-created without email verification, exact UID succeeds
+};
+
+const verifiedBootstrappedOwner: AuthContext = {
+  uid: 'owner-uid-1',
   email: 'mohamed.m.alhasaneen@gmail.com',
   email_verified: true,
 };
 
-test('firestore.rules structural guards match security_spec invariants', () => {
+test('firestore.rules structural guards match security_spec invariants and cover all blueprint paths', () => {
   assert.ok(rulesSource.includes("rules_version = '2';"));
   assert.ok(rulesSource.includes('allow read, write: if false;'));
+  assert.ok(rulesSource.includes(`request.auth.uid == '${AUTHORIZED_UID}'`));
+  assert.ok(rulesSource.includes("request.auth.token.email == 'abdulazizriadvip@gmail.com'"));
   assert.ok(rulesSource.includes('request.auth.token.email_verified == true'));
+  assert.ok(rulesSource.includes('isValidSocialLinkItem'));
   assert.ok(rulesSource.includes('incoming().createdAt == request.time'));
   assert.ok(rulesSource.includes('incoming().updatedAt == request.time'));
   assert.ok(rulesSource.includes('affectedKeys().hasOnly'));
+  assert.ok(rulesSource.includes('match /products/{productId}'));
+  assert.ok(rulesSource.includes('match /siteConfig/{configId}'));
+  assert.ok(rulesSource.includes('match /admins/{adminUid}'));
+  assert.ok(rulesSource.includes('match /test/{probeId}'));
+  assert.ok(rulesSource.includes('allow create: if false;'));
+});
+
+test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 and /test/connection probe work as specified', () => {
+  assert.equal(
+    evaluateProductCreate('prod-101', makeBaseValidPayload(AUTHORIZED_UID), authorizedDeveloperUidAuth),
+    'ALLOWED'
+  );
+
+  const sanitized = {
+    ...sanitizeSiteConfig(
+      {
+        ...DEFAULT_SITE_CONFIG,
+        socialLinks: [
+          {
+            id: 'sl-tiktok',
+            platform: 'tiktok',
+            label: 'تيك توك المحلاوي',
+            owner: 'store',
+            url: 'https://www.tiktok.com/@elmahlawystore',
+          },
+        ],
+      },
+      AUTHORIZED_UID
+    ),
+    updatedAt: REQUEST_TIME,
+  } as unknown as Record<string, unknown>;
+
+  assert.equal(evaluateSiteConfigWrite('main', sanitized, authorizedDeveloperUidAuth), 'ALLOWED');
+  // Reject rogue document ID
+  assert.equal(evaluateSiteConfigWrite('other', sanitized, authorizedDeveloperUidAuth), 'PERMISSION_DENIED');
+  // Reject unauthenticated visitor write
+  assert.equal(evaluateSiteConfigWrite('main', sanitized, null), 'PERMISSION_DENIED');
+
+  // Connectivity probe check
+  assert.equal(evaluateConnectionProbe('connection', 'get'), 'ALLOWED');
+  assert.equal(evaluateConnectionProbe('other', 'get'), 'PERMISSION_DENIED');
+  assert.equal(evaluateConnectionProbe('connection', 'write'), 'PERMISSION_DENIED');
+  assert.equal(evaluateConnectionProbe('connection', 'list'), 'PERMISSION_DENIED');
+});
+
+test('Unauthenticated and non-developer users are blocked from reading hidden admin products or creating admin accounts', () => {
+  const hiddenDraft = { ...makeBaseValidPayload(), isPublished: false };
+  const publishedItem = { ...makeBaseValidPayload(), isPublished: true };
+
+  assert.equal(evaluateProductGet('prod-101', publishedItem, null), 'ALLOWED');
+  assert.equal(evaluateProductGet('prod-101', hiddenDraft, null), 'PERMISSION_DENIED');
+  assert.equal(
+    evaluateProductGet('prod-101', hiddenDraft, {
+      uid: 'u-2',
+      email: 'stranger@gmail.com',
+      email_verified: true,
+    }),
+    'PERMISSION_DENIED'
+  );
+  assert.equal(evaluateProductGet('prod-101', hiddenDraft, authorizedDeveloperUidAuth), 'ALLOWED');
+  assert.equal(evaluateProductGet('prod-101', hiddenDraft, verifiedBootstrappedOwner), 'ALLOWED');
+  assert.equal(evaluateAdminRoleCreate(), 'PERMISSION_DENIED');
 });
 
 test('Dirty Dozen adversarial payloads all return PERMISSION_DENIED', () => {
-  // Baseline valid admin write succeeds
-  assert.equal(evaluateProductCreate('prod-101', makeBaseValidPayload(), verifiedAdmin), 'ALLOWED');
+  // Baseline valid developer write succeeds
+  assert.equal(
+    evaluateProductCreate('prod-101', makeBaseValidPayload(AUTHORIZED_UID), authorizedDeveloperUidAuth),
+    'ALLOWED'
+  );
 
-  // 1. Shadow Field Injection
+  // 1. Shadow Field Injection on Product
   assert.equal(
     evaluateProductCreate(
       'prod-101',
-      { ...makeBaseValidPayload(), isSuperFeatured: true },
-      verifiedAdmin
+      { ...makeBaseValidPayload(AUTHORIZED_UID), isSuperFeatured: true },
+      authorizedDeveloperUidAuth
     ),
     'PERMISSION_DENIED'
   );
 
-  // 2. Email Spoofing (unverified admin email)
+  // 2. Email Spoofing (non-developer UID claiming unverified developer email abdulazizriadvip@gmail.com)
   assert.equal(
-    evaluateProductCreate('prod-101', makeBaseValidPayload(), {
-      uid: 'admin-uid-1',
-      email: 'mohamed.m.alhasaneen@gmail.com',
+    evaluateProductCreate('prod-101', makeBaseValidPayload('spoof-uid-999'), {
+      uid: 'spoof-uid-999',
+      email: 'abdulazizriadvip@gmail.com',
       email_verified: false,
     }),
     'PERMISSION_DENIED'
@@ -182,8 +357,8 @@ test('Dirty Dozen adversarial payloads all return PERMISSION_DENIED', () => {
 
   // 3. Non-admin authenticated user write
   assert.equal(
-    evaluateProductCreate('prod-101', makeBaseValidPayload(), {
-      uid: 'admin-uid-1',
+    evaluateProductCreate('prod-101', makeBaseValidPayload('attacker-uid-1'), {
+      uid: 'attacker-uid-1',
       email: 'attacker@example.com',
       email_verified: true,
     }),
@@ -194,8 +369,8 @@ test('Dirty Dozen adversarial payloads all return PERMISSION_DENIED', () => {
   assert.equal(
     evaluateProductCreate(
       'prod-101',
-      { ...makeBaseValidPayload(), authorUid: 'other-user' },
-      verifiedAdmin
+      { ...makeBaseValidPayload(AUTHORIZED_UID), authorUid: 'other-user' },
+      authorizedDeveloperUidAuth
     ),
     'PERMISSION_DENIED'
   );
@@ -204,8 +379,8 @@ test('Dirty Dozen adversarial payloads all return PERMISSION_DENIED', () => {
   assert.equal(
     evaluateProductCreate(
       'bad$id with spaces!',
-      { ...makeBaseValidPayload(), id: 'bad$id with spaces!' },
-      verifiedAdmin
+      { ...makeBaseValidPayload(AUTHORIZED_UID), id: 'bad$id with spaces!' },
+      authorizedDeveloperUidAuth
     ),
     'PERMISSION_DENIED'
   );
@@ -214,8 +389,13 @@ test('Dirty Dozen adversarial payloads all return PERMISSION_DENIED', () => {
   assert.equal(
     evaluateProductCreate(
       'prod-101',
-      { ...makeBaseValidPayload(), price: 3000, originalPrice: 2500, discountEnabled: true },
-      verifiedAdmin
+      {
+        ...makeBaseValidPayload(AUTHORIZED_UID),
+        price: 3000,
+        originalPrice: 2500,
+        discountEnabled: true,
+      },
+      authorizedDeveloperUidAuth
     ),
     'PERMISSION_DENIED'
   );
@@ -224,33 +404,33 @@ test('Dirty Dozen adversarial payloads all return PERMISSION_DENIED', () => {
   assert.equal(
     evaluateProductCreate(
       'prod-101',
-      { ...makeBaseValidPayload(), price: 0 },
-      verifiedAdmin
+      { ...makeBaseValidPayload(AUTHORIZED_UID), price: 0 },
+      authorizedDeveloperUidAuth
     ),
     'PERMISSION_DENIED'
   );
 
-  // 8. Denial-of-Wallet Unbounded Array (25 images)
+  // 8. Denial-of-Wallet Unbounded Array (25 images > max 15)
   assert.equal(
     evaluateProductCreate(
       'prod-101',
       {
-        ...makeBaseValidPayload(),
+        ...makeBaseValidPayload(AUTHORIZED_UID),
         images: Array.from({ length: 25 }, (_, i) => `https://example.com/${i}.jpg`),
       },
-      verifiedAdmin
+      authorizedDeveloperUidAuth
     ),
     'PERMISSION_DENIED'
   );
 
   // 9. Value Poisoning on Update (wrong type for whitelisted field)
-  const existing = makeBaseValidPayload();
+  const existing = makeBaseValidPayload(AUTHORIZED_UID);
   assert.equal(
     evaluateProductUpdate(
       'prod-101',
       existing,
       { ...existing, name: true },
-      verifiedAdmin
+      authorizedDeveloperUidAuth
     ),
     'PERMISSION_DENIED'
   );
@@ -261,7 +441,7 @@ test('Dirty Dozen adversarial payloads all return PERMISSION_DENIED', () => {
       'prod-101',
       existing,
       { ...existing, authorUid: 'hijacked-uid' },
-      verifiedAdmin
+      authorizedDeveloperUidAuth
     ),
     'PERMISSION_DENIED'
   );
@@ -272,14 +452,19 @@ test('Dirty Dozen adversarial payloads all return PERMISSION_DENIED', () => {
       'prod-101',
       existing,
       { ...existing, updatedAt: '2099-01-01T00:00:00.000Z' },
-      verifiedAdmin
+      authorizedDeveloperUidAuth
     ),
     'PERMISSION_DENIED'
   );
 
-  // 12. Unauthenticated write attempt
+  // 12. Shadow Field / Rogue Key on SiteConfig (e.g. storing password in public config)
+  const badSiteConfig = {
+    ...sanitizeSiteConfig(DEFAULT_SITE_CONFIG, AUTHORIZED_UID),
+    updatedAt: REQUEST_TIME,
+    adminPassword: 'leaked-password',
+  } as unknown as Record<string, unknown>;
   assert.equal(
-    evaluateProductCreate('prod-101', makeBaseValidPayload(), null),
+    evaluateSiteConfigWrite('main', badSiteConfig, authorizedDeveloperUidAuth),
     'PERMISSION_DENIED'
   );
 });

@@ -1,10 +1,10 @@
 import { LayoutDashboard } from 'lucide-react';
-import { STORE_INFO } from '../types/store';
+import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { ThemeToggle } from './ThemeToggle';
 
 interface NavbarProps {
-  activeView: 'store' | 'about' | 'admin';
-  onSwitchView: (view: 'store' | 'about' | 'admin') => void;
+  activeView: 'store' | 'about' | 'developer';
+  onSwitchView: (view: 'store' | 'about' | 'developer') => void;
   onAdminButtonClick: () => void;
   hasDiscountOffers: boolean;
   isDark?: boolean;
@@ -19,6 +19,8 @@ export function Navbar({
   isDark = false,
   onToggleTheme,
 }: NavbarProps) {
+  const siteConfig = useSiteConfig();
+
   const handleNavClick = (sectionId: string) => {
     if (activeView !== 'store') {
       onSwitchView('store');
@@ -42,6 +44,11 @@ export function Navbar({
 
   return (
     <header className="sticky top-0 z-40 h-14 md:h-16 bg-white/95 dark:bg-[#081A33]/95 backdrop-blur-md border-b border-[#D8EEFB] dark:border-[#163663] transition-colors">
+      <style>{`
+        div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) {
+          display: none !important;
+        }
+      `}</style>
       <div className="mx-auto flex h-full max-w-7xl items-center justify-between gap-3 md:gap-6 px-4 sm:px-6 lg:px-8">
         {/* Zone 1: Single-element Brand Wordmark */}
         <a
@@ -55,12 +62,21 @@ export function Navbar({
         >
           <img
             src="/logo.png"
-            alt={STORE_INFO.storeName}
+            alt={siteConfig.storeName}
+            referrerPolicy="no-referrer"
             className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-contain shadow-xs shrink-0 bg-white p-0.5"
           />
           <span>
-            {STORE_INFO.storeName} <span className="text-[#0284C7] font-bold">|</span>{' '}
-            <bdi className="font-bold text-[#1E3A8A] dark:text-[#7DD3FC]">{STORE_INFO.storeSubtitle}</bdi>
+            {siteConfig.storeName}
+            {siteConfig.storeSubtitle ? (
+              <>
+                {' '}
+                <span className="text-[#0284C7] font-bold">|</span>{' '}
+                <bdi className="font-bold text-[#1E3A8A] dark:text-[#7DD3FC]">
+                  {siteConfig.storeSubtitle}
+                </bdi>
+              </>
+            ) : null}
           </span>
         </a>
 
@@ -80,7 +96,7 @@ export function Navbar({
           >
             الرئيسية
           </a>
-          {hasDiscountOffers && (
+          {hasDiscountOffers && siteConfig.showOffersSection && (
             <a
               href="#offers-section"
               onClick={() => handleNavClick('offers-section')}
@@ -112,11 +128,9 @@ export function Navbar({
           </a>
         </nav>
 
-        {/* Zone 3: Actions (Theme Toggle & Admin Panel) */}
+        {/* Zone 3: Actions (Theme Toggle & Developer Settings) */}
         <div className="flex items-center gap-2 shrink-0">
-          {onToggleTheme && (
-            <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />
-          )}
+          {onToggleTheme && <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />}
 
           {activeView === 'store' && (
             <button
@@ -124,8 +138,11 @@ export function Navbar({
               onClick={onAdminButtonClick}
               className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE] border border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E2F3FE] dark:hover:bg-[#163868] transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
             >
-              <LayoutDashboard className="h-4 w-4 text-[#1D4ED8] dark:text-[#38BDF8]" aria-hidden="true" />
-              <span>لوحة الإدارة</span>
+              <LayoutDashboard
+                className="h-4 w-4 text-[#1D4ED8] dark:text-[#38BDF8]"
+                aria-hidden="true"
+              />
+              <span>إعدادات المطور</span>
             </button>
           )}
         </div>

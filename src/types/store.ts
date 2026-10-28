@@ -14,6 +14,8 @@ export enum OperationType {
   WRITE = 'write',
 }
 
+export type DiscountType = 'percentage' | 'fixed';
+
 export interface Product {
   id: string;
   name: string;
@@ -24,6 +26,10 @@ export interface Product {
   price: number;
   originalPrice: number;
   discountEnabled: boolean;
+  discountType?: DiscountType;
+  discountValue?: number;
+  discountStartDate?: string;
+  discountEndDate?: string;
   inStock: boolean;
   isFeatured: boolean;
   isPublished: boolean;
@@ -45,6 +51,10 @@ export interface ProductFormInput {
   price: number;
   originalPrice: number;
   discountEnabled: boolean;
+  discountType?: DiscountType;
+  discountValue?: number;
+  discountStartDate?: string;
+  discountEndDate?: string;
   inStock: boolean;
   isFeatured: boolean;
   isPublished: boolean;

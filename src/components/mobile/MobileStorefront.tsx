@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ArrowUpDown,
-  CheckCircle2,
-  ChevronDown,
-  ExternalLink,
-  LayoutDashboard,
   MapPin,
   Menu,
   MessageCircle,
@@ -12,15 +8,16 @@ import {
   Search,
   ShoppingBag,
   Truck,
-  Wrench,
   X,
 } from 'lucide-react';
-import { PARTNER_INFO, Product, SortOption, STORE_INFO } from '../../types/store';
+import { useSiteConfig } from '../../contexts/SiteConfigContext';
+import { Product, SortOption } from '../../types/store';
 import {
   calculateDiscountPercent,
   calculateSavingsAmount,
   findProductByShareParam,
   formatPriceEgp,
+  getEffectiveProductPrice,
 } from '../../utils/catalogLogic';
 import { ProductImage } from '../ProductImage';
 import { Footer } from '../Footer';
@@ -48,21 +45,6 @@ interface MobileStorefrontProps {
   onConsumeInitialProduct?: () => void;
 }
 
-
-const MOBILE_STORE_OFFERINGS = [
-  'عرض المنتجات والأجهزة المتاحة مع صورها ومواصفاتها.',
-  'استعراض أحدث الموديلات والأسعار والعروض الحقيقية.',
-  'مساعدة العملاء على اختيار المنتج الأنسب لاحتياجاتهم.',
-  'استقبال الاستفسارات والطلبات مباشرة عبر واتساب الأعمال.',
-];
-
-const MOBILE_PARTNER_SERVICES = [
-  'أنظمة المنزل الذكي (Smart Home) والتحكم في الإضاءة',
-  'توريد وتركيب كاميرات المراقبة وأنظمة الستالايت',
-  'أنظمة إنذار الحريق (Fire Alarm) والتحكم في الدخول (Access Control)',
-  'خدمات الصيانة والدعم الفني والضمان وما بعد البيع',
-];
-
 export function MobileStorefront({
   products,
   filteredProducts,
@@ -80,11 +62,10 @@ export function MobileStorefront({
   initialProductId,
   onConsumeInitialProduct,
 }: MobileStorefrontProps) {
-
+  const siteConfig = useSiteConfig();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [detailsProduct, setDetailsProduct] = useState<Product | null>(null);
   const [orderProduct, setOrderProduct] = useState<Product | null>(null);
-  const [showAllPartnerInfo, setShowAllPartnerInfo] = useState(false);
 
   useEffect(() => {
     if (!initialProductId || products.length === 0) return;
@@ -109,11 +90,13 @@ export function MobileStorefront({
     }
   };
 
-
   const isSearching = searchQuery.trim().length > 0;
 
   return (
-    <div id="mobile-top" className="flex min-h-dvh flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] md:hidden">
+    <div
+      id="mobile-top"
+      className="flex min-h-dvh flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] md:hidden"
+    >
       {/* 1. Simple Sticky Mobile Top Bar (<= 56px, safe-area top, <= 15% viewport height) */}
       <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#081A33]/95 backdrop-blur-md border-b border-[#D8EEFB] dark:border-[#163663] pt-[env(safe-area-inset-top)]">
         <div className="flex h-14 items-center justify-between gap-2 px-3.5">
@@ -123,21 +106,22 @@ export function MobileStorefront({
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="flex items-center focus-visible:outline-2 focus-visible:outline-[#1D4ED8] rounded-lg"
-            title={STORE_INFO.storeName}
+            className="flex items-center gap-2 min-w-0 focus-visible:outline-2 focus-visible:outline-[#1D4ED8] rounded-lg"
+            title={siteConfig.storeName}
           >
             <img
               src="/logo.png"
-              alt={STORE_INFO.storeName}
+              alt={siteConfig.storeName}
+              referrerPolicy="no-referrer"
               className="h-9 w-9 rounded-xl object-contain shadow-xs shrink-0 bg-white"
             />
+            <span className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] truncate">
+              {siteConfig.storeName}
+            </span>
           </a>
 
-
           <div className="flex items-center gap-1.5 shrink-0">
-            {onToggleTheme && (
-              <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />
-            )}
+            {onToggleTheme && <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />}
 
             <button
               type="button"
@@ -152,13 +136,21 @@ export function MobileStorefront({
         </div>
       </header>
 
-
       <main className="flex-1">
+        {siteConfig.announcementText.trim() && (
+          <div className="bg-[#0B2354] px-3.5 py-2 text-center text-xs font-bold text-[#E0F2FE]">
+            {siteConfig.announcementText.trim()}
+          </div>
+        )}
+
         {/* 2. Clear Easy-to-Use Mobile Search Bar */}
-        <section aria-label="البحث السريع في المتجر" className="px-3.5 pt-3 pb-2.5 bg-white dark:bg-[#071326]">
+        <section
+          aria-label="البحث السريع في المتجر"
+          className="px-3.5 pt-3 pb-2.5 bg-white dark:bg-[#071326]"
+        >
           <div className="relative flex items-center">
             <label htmlFor="mobile-store-search" className="sr-only">
-              ابحث عن منتج في المحلاوي ستور
+              ابحث عن منتج في {siteConfig.storeName}
             </label>
             <Search
               className="pointer-events-none absolute right-3.5 h-4.5 w-4.5 text-[#0284C7] dark:text-[#38BDF8]"
@@ -187,23 +179,30 @@ export function MobileStorefront({
 
         {/* 3. Compact Royal-to-Sky Blue Welcome Banner */}
         {!isSearching && (
-          <section aria-label="ترحيب المحلاوي ستور" className="px-3.5 pb-4">
+          <section aria-label={`ترحيب ${siteConfig.storeName}`} className="px-3.5 pb-4">
             <div className="rounded-2xl bg-gradient-to-br from-[#0B2354] via-[#1D4ED8] to-[#0284C7] p-4 text-white shadow-[0_8px_22px_rgba(29,78,216,0.16)]">
               <p className="text-[11px] font-bold text-[#BAE6FD]">
-                {STORE_INFO.storeName} · <bdi>{STORE_INFO.storeSubtitle}</bdi>
+                {siteConfig.storeName}
+                {siteConfig.storeSubtitle ? (
+                  <>
+                    {' '}
+                    · <bdi>{siteConfig.storeSubtitle}</bdi>
+                  </>
+                ) : null}
               </p>
 
               <h1
                 className="mt-1 text-lg min-[380px]:text-xl font-extrabold leading-snug text-white"
                 style={{ textWrap: 'balance' }}
               >
-                {STORE_INFO.tagline}
+                {siteConfig.tagline}
               </h1>
 
-              <p className="mt-1.5 text-xs text-[#E0F2FE]/95 leading-relaxed">
-                استعرض أحدث الأجهزة والمواصفات والأسعار مع الشحن لجميع محافظات مصر والتوصيل داخل
-                شرم الشيخ.
-              </p>
+              {siteConfig.shippingSummary && (
+                <p className="mt-1.5 text-xs text-[#E0F2FE]/95 leading-relaxed">
+                  {siteConfig.shippingSummary}
+                </p>
+              )}
 
               <div className="mt-3.5 flex items-center gap-2">
                 <button
@@ -215,7 +214,7 @@ export function MobileStorefront({
                 </button>
 
                 <a
-                  href={STORE_INFO.whatsappUrl}
+                  href={siteConfig.whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-white/15 border border-white/25 px-3.5 py-2 text-xs font-bold text-white whitespace-nowrap"
@@ -229,7 +228,7 @@ export function MobileStorefront({
         )}
 
         {/* 4. Product Offers & Discounts Section */}
-        {!isSearching && discountedProducts.length > 0 && (
+        {!isSearching && siteConfig.showOffersSection && discountedProducts.length > 0 && (
           <section
             id="mobile-offers-section"
             aria-labelledby="mobile-offers-heading"
@@ -257,8 +256,9 @@ export function MobileStorefront({
               }
             >
               {discountedProducts.map((offer) => {
-                const pct = calculateDiscountPercent(offer.originalPrice, offer.price);
-                const savings = calculateSavingsAmount(offer.originalPrice, offer.price);
+                const effectivePrice = getEffectiveProductPrice(offer);
+                const pct = calculateDiscountPercent(offer.originalPrice, effectivePrice);
+                const savings = calculateSavingsAmount(offer.originalPrice, effectivePrice);
 
                 return (
                   <article
@@ -287,7 +287,7 @@ export function MobileStorefront({
 
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] font-bold text-[#0284C7] dark:text-[#38BDF8] truncate">
-                        {offer.brand} · وفر{' '}
+                        {offer.brand ? `${offer.brand} · ` : ''}وفر{' '}
                         <bdi className="font-num">{formatPriceEgp(savings)}</bdi> ج.م
                       </p>
 
@@ -303,9 +303,11 @@ export function MobileStorefront({
 
                       <div className="mt-1 flex flex-wrap items-baseline gap-1.5">
                         <span className="font-num text-base font-extrabold text-[#1D4ED8] dark:text-[#38BDF8]">
-                          {formatPriceEgp(offer.price)}
+                          {formatPriceEgp(effectivePrice)}
                         </span>
-                        <span className="text-[11px] font-bold text-[#0F294A] dark:text-[#E0F2FE]">ج.م</span>
+                        <span className="text-[11px] font-bold text-[#0F294A] dark:text-[#E0F2FE]">
+                          ج.م
+                        </span>
                         <span className="font-num text-[11px] text-slate-400 line-through">
                           {formatPriceEgp(offer.originalPrice)} ج.م
                         </span>
@@ -398,7 +400,7 @@ export function MobileStorefront({
                     لا توجد منتجات مطابقة لـ «{searchQuery.trim()}»
                   </p>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mb-4">
-                    جرّب كلمة بحث أخرى أو استعرض جميع منتجات المحلاوي ستور.
+                    جرّب كلمة بحث أخرى أو استعرض جميع منتجات {siteConfig.storeName}.
                   </p>
                   <button
                     type="button"
@@ -418,7 +420,7 @@ export function MobileStorefront({
                     تواصل معنا عبر واتساب الأعمال للاستفسار عن أحدث الموديلات والأسعار والتوافر.
                   </p>
                   <a
-                    href={STORE_INFO.whatsappUrl}
+                    href={siteConfig.whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] px-4 py-2.5 text-xs font-extrabold text-white whitespace-nowrap"
@@ -443,68 +445,71 @@ export function MobileStorefront({
           )}
         </section>
 
-        {/* 6. Shipping, Delivery & Store / Infinity Corp Services */}
-        <section
-          id="mobile-shipping-section"
-          aria-labelledby="mobile-shipping-heading"
-          className="px-3.5 py-6 bg-[#F2FAFF] dark:bg-[#081830] border-t border-[#D8EEFB] dark:border-[#163663] space-y-4"
-        >
-          <div>
-            <p className="text-[11px] font-bold text-[#0284C7] dark:text-[#38BDF8]">خدمة التوصيل والشحن</p>
-            <h2
-              id="mobile-shipping-heading"
-              className="text-base min-[380px]:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]"
-            >
-              معلومات الشحن والتوصيل
-            </h2>
-          </div>
-
-          {/* Shipping & Local Delivery Highlights */}
-          <div className="rounded-2xl bg-white dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-4 space-y-3.5">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#1D4ED8] dark:text-[#38BDF8]">
-                <Truck className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <h3 className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]">
-                  شحن لجميع محافظات مصر
-                </h3>
-                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  نوفّر شحنًا منظمًا وتغليفًا آمنًا لكافة المحافظات مع تأكيد تفاصيل الطلب والتكلفة
-                  مباشرة عبر واتساب.
-                </p>
-              </div>
+        {/* 6. Shipping & Delivery Section */}
+        {siteConfig.showShippingSection && (
+          <section
+            id="mobile-shipping-section"
+            aria-labelledby="mobile-shipping-heading"
+            className="px-3.5 py-6 bg-[#F2FAFF] dark:bg-[#081830] border-t border-[#D8EEFB] dark:border-[#163663] space-y-4"
+          >
+            <div>
+              <p className="text-[11px] font-bold text-[#0284C7] dark:text-[#38BDF8]">
+                خدمة التوصيل والشحن
+              </p>
+              <h2
+                id="mobile-shipping-heading"
+                className="text-base min-[380px]:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]"
+              >
+                معلومات الشحن والتوصيل
+              </h2>
             </div>
 
-            <div className="border-t border-[#EBF6FE] dark:border-[#1E3F73] pt-3.5 flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8]">
-                <MapPin className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <h3 className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]">
-                  توصيل سريع داخل شرم الشيخ
-                </h3>
-                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  مقرنا في {STORE_INFO.address} مع خدمة توصيل سريعة ومباشرة داخل مدينة شرم الشيخ.
-                </p>
+            <div className="rounded-2xl bg-white dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-4 space-y-3.5">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#1D4ED8] dark:text-[#38BDF8]">
+                  <Truck className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]">
+                    شحن لجميع محافظات مصر
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    {siteConfig.shippingSummary}
+                  </p>
+                </div>
               </div>
+
+              {siteConfig.address && (
+                <div className="border-t border-[#EBF6FE] dark:border-[#1E3F73] pt-3.5 flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8]">
+                    <MapPin className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]">
+                      موقع المتجر والتوصيل المباشر
+                    </h3>
+                    <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                      مقرنا في {siteConfig.address}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
 
-      {/* 7. Unified Footer containing 1. Contact Us, 2. About Us, 3. Copyright Footer */}
+      {/* 7. Unified Footer */}
       <Footer onAdminButtonClick={onAdminButtonClick} onNavigateAbout={onNavigateAbout} />
 
       {/* Mobile Navigation Slide-Over Drawer */}
-
       <MobileMenuDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onNavigateSection={scrollToSection}
         onNavigateAbout={onNavigateAbout}
         onAdminClick={onAdminButtonClick}
-        hasDiscountOffers={discountedProducts.length > 0}
+        hasDiscountOffers={discountedProducts.length > 0 && siteConfig.showOffersSection}
       />
 
       {/* Mobile Product Details Bottom Sheet */}
@@ -524,3 +529,4 @@ export function MobileStorefront({
     </div>
   );
 }
+

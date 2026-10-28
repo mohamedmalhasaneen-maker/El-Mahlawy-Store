@@ -3,6 +3,7 @@ import { Product } from '../../types/store';
 import {
   calculateDiscountPercent,
   formatPriceEgp,
+  getEffectiveProductPrice,
   isDiscountActive,
 } from '../../utils/catalogLogic';
 import { ProductImage } from '../ProductImage';
@@ -19,8 +20,9 @@ export function MobileProductCard({
   onOrderProduct,
 }: MobileProductCardProps) {
   const hasDiscount = isDiscountActive(product);
+  const effectivePrice = getEffectiveProductPrice(product);
   const discountPct = hasDiscount
-    ? calculateDiscountPercent(product.originalPrice, product.price)
+    ? calculateDiscountPercent(product.originalPrice, effectivePrice)
     : 0;
 
   return (
@@ -48,10 +50,13 @@ export function MobileProductCard({
         </button>
 
         {/* Unboxed Brand & Availability */}
-        <p className="mt-2 truncate text-[11px] font-semibold text-[#0284C7] dark:text-[#38BDF8]">
-          {product.brand}
-          {!product.inStock ? ' · غير متوفر حاليًا' : ''}
-        </p>
+        {(product.brand || !product.inStock) && (
+          <p className="mt-2 truncate text-[11px] font-semibold text-[#0284C7] dark:text-[#38BDF8]">
+            {product.brand}
+            {product.brand && !product.inStock ? ' · ' : ''}
+            {!product.inStock ? 'غير متوفر حاليًا' : ''}
+          </p>
+        )}
 
         {/* Product Name (Clamped to 2 Lines) */}
         <button
@@ -74,7 +79,7 @@ export function MobileProductCard({
       <div className="mt-2.5 pt-2 border-t border-[#EBF6FE] dark:border-[#1E3F73]">
         <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
           <span className="font-num text-[15px] min-[390px]:text-base font-extrabold text-[#1D4ED8] dark:text-[#38BDF8]">
-            {formatPriceEgp(product.price)}
+            {formatPriceEgp(effectivePrice)}
           </span>
           <span className="text-[11px] font-bold text-[#0F294A] dark:text-[#E0F2FE]">ج.م</span>
 
@@ -98,3 +103,4 @@ export function MobileProductCard({
     </article>
   );
 }
+

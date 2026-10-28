@@ -10,14 +10,17 @@ import {
   Truck,
   X,
 } from 'lucide-react';
-import { Product, STORE_INFO } from '../types/store';
+import { useSiteConfig } from '../contexts/SiteConfigContext';
+import { Product } from '../types/store';
 import {
   buildWhatsAppOrderUrl,
   calculateDiscountPercent,
   calculateSavingsAmount,
   formatPriceEgp,
+  getEffectiveProductPrice,
   isDiscountActive,
   normalizeImageSrc,
+  roundCurrency,
 } from '../utils/catalogLogic';
 import { ProductImage } from './ProductImage';
 
@@ -28,6 +31,7 @@ interface ProductDetailModalProps {
 }
 
 export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDetailModalProps) {
+  const siteConfig = useSiteConfig();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -59,11 +63,12 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
 
   const images = product.images.length > 0 ? product.images : [''];
   const hasDiscount = isDiscountActive(product);
+  const effectivePrice = getEffectiveProductPrice(product);
   const discountPct = hasDiscount
-    ? calculateDiscountPercent(product.originalPrice, product.price)
+    ? calculateDiscountPercent(product.originalPrice, effectivePrice)
     : 0;
   const savings = hasDiscount
-    ? calculateSavingsAmount(product.originalPrice, product.price)
+    ? calculateSavingsAmount(product.originalPrice, effectivePrice)
     : 0;
 
   const whatsappUrl = buildWhatsAppOrderUrl({
@@ -71,27 +76,32 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
     selectedOption,
     quantity,
     baseOrigin: publicOrigin,
+    whatsappNumber: siteConfig.primaryWhatsApp,
+    storeName: siteConfig.storeName,
+    storeSubtitle: siteConfig.storeSubtitle,
   });
 
   const handleDownloadSpecs = () => {
     const content = [
-      `${STORE_INFO.storeName} | ${STORE_INFO.storeSubtitle}`,
+      `${siteConfig.storeName}${siteConfig.storeSubtitle ? ` | ${siteConfig.storeSubtitle}` : ''}`,
       '====================================',
       `المنتج: ${product.name}`,
-      `الماركة: ${product.brand}`,
-      `القسم: ${product.category}`,
-      `السعر الحالي: ${formatPriceEgp(product.price)} ج.م`,
-      hasDiscount ? `السعر قبل الخصم: ${formatPriceEgp(product.originalPrice)} ج.م (خصم ${discountPct}%)` : '',
+      product.brand ? `الماركة: ${product.brand}` : '',
+      product.category ? `القسم: ${product.category}` : '',
+      `السعر الحالي: ${formatPriceEgp(effectivePrice)} ج.م`,
+      hasDiscount
+        ? `السعر قبل الخصم: ${formatPriceEgp(product.originalPrice)} ج.م (خصم ${discountPct}%)`
+        : '',
       `حالة التوفر: ${product.inStock ? 'متوفر' : 'غير متوفر حاليًا'}`,
       '',
-      'الوصف التفصيلي:',
-      product.description,
+      product.description ? 'الوصف التفصيلي:' : '',
+      product.description || product.shortDescription,
       '',
-      'المواصفات والمميزات:',
+      product.specs.length > 0 ? 'المواصفات والمميزات:' : '',
       ...product.specs.map((s) => `- ${s}`),
       '',
-      `واتساب الأعمال (${STORE_INFO.storeName}): ${STORE_INFO.whatsappUrl}`,
-      `صفحة Facebook: ${STORE_INFO.facebookUrl}`,
+      `واتساب الأعمال (${siteConfig.storeName}): ${siteConfig.whatsappUrl}`,
+      siteConfig.facebookUrl ? `صفحة Facebook: ${siteConfig.facebookUrl}` : '',
     ]
       .filter(Boolean)
       .join('\n');
@@ -109,6 +119,8 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
     setTimeout(() => setDownloadedSheet(false), 2500);
   };
 
+  const showCategory = Boolean(product.category && product.category.trim() !== 'عام');
+
   return (
     <div
       role="dialog"
@@ -123,8 +135,8 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
         {/* Top Modal Header */}
         <div className="flex items-center justify-between gap-4 border-b border-[#E2F1FC] dark:border-[#1E3F73] px-5 py-3.5 bg-[#F8FCFF] dark:bg-[#0E264A] shrink-0">
           <p className="text-xs sm:text-sm font-semibold text-[#0284C7] dark:text-[#38BDF8] truncate">
-            {product.brand}
-            {product.category && product.category.trim() !== 'عام' ? ` · ${product.category}` : ''}
+            {product.brand || siteConfig.storeName}
+            {showCategory ? ` · ${product.category}` : ''}
           </p>
           <button
             type="button"
@@ -220,7 +232,9 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
               <div className="flex items-center gap-2 text-xs font-bold mb-2">
                 <span
                   className={
-                    product.inStock ? 'text-[#0284C7] dark:text-[#38BDF8]' : 'text-amber-700 dark:text-amber-400'
+                    product.inStock
+                      ? 'text-[#0284C7] dark:text-[#38BDF8]'
+                      : 'text-amber-700 dark:text-amber-400'
                   }
                 >
                   {product.inStock
@@ -241,9 +255,11 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                 <div className="flex flex-wrap items-baseline justify-between gap-3">
                   <div className="flex items-baseline gap-2.5">
                     <span className="font-num text-2xl sm:text-3xl font-extrabold text-[#1D4ED8] dark:text-[#38BDF8]">
-                      {formatPriceEgp(product.price)}
+                      {formatPriceEgp(effectivePrice)}
                     </span>
-                    <span className="text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE]">جنيه مصري</span>
+                    <span className="text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE]">
+                      جنيه مصري
+                    </span>
 
                     {hasDiscount && (
                       <span className="font-num text-sm sm:text-base text-slate-400 line-through mr-1">
@@ -292,7 +308,9 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
               {/* Quantity & Spec Sheet Download Row */}
               <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs sm:text-sm font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">الكمية:</span>
+                  <span className="text-xs sm:text-sm font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">
+                    الكمية:
+                  </span>
                   <div className="inline-flex items-center rounded-xl border border-[#CBE7FA] dark:border-[#1E3F73] bg-[#F2FAFF] dark:bg-[#0E264A] p-1">
                     <button
                       type="button"
@@ -323,12 +341,18 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                 >
                   {downloadedSheet ? (
                     <>
-                      <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                      <Check
+                        className="h-4 w-4 text-emerald-600 dark:text-emerald-400"
+                        aria-hidden="true"
+                      />
                       <span>تم تحميل بطاقة المواصفات</span>
                     </>
                   ) : (
                     <>
-                      <Download className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]" aria-hidden="true" />
+                      <Download
+                        className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]"
+                        aria-hidden="true"
+                      />
                       <span>تحميل بطاقة المواصفات</span>
                     </>
                   )}
@@ -336,12 +360,16 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
               </div>
 
               {/* Detailed Description */}
-              <div className="mb-5">
-                <h3 className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-1.5">الوصف التفصيلي</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-                  {product.description}
-                </p>
-              </div>
+              {(product.description || product.shortDescription) && (
+                <div className="mb-5">
+                  <h3 className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-1.5">
+                    الوصف التفصيلي
+                  </h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                    {product.description || product.shortDescription}
+                  </p>
+                </div>
+              )}
 
               {/* Specifications & Features */}
               {product.specs.length > 0 && (
@@ -365,10 +393,15 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                 </div>
               )}
 
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-1">
-                <Truck className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8] shrink-0" aria-hidden="true" />
-                <span>{STORE_INFO.shippingSummary}</span>
-              </div>
+              {siteConfig.shippingSummary && (
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-1">
+                  <Truck
+                    className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8] shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span>{siteConfig.shippingSummary}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -376,9 +409,11 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
         {/* Sticky Non-Overlapping Footer CTA Bar */}
         <div className="border-t border-[#D8EEFB] dark:border-[#1E3F73] bg-white dark:bg-[#081A33] px-5 py-3.5 sm:px-7 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
           <div className="hidden sm:block">
-            <span className="text-xs text-slate-500 dark:text-slate-400 block">الإجمالي التقديري للطلب</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 block">
+              الإجمالي التقديري للطلب
+            </span>
             <span className="font-num text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]">
-              {formatPriceEgp(product.price * quantity)} ج.م
+              {formatPriceEgp(roundCurrency(effectivePrice * quantity))} ج.م
             </span>
           </div>
 
@@ -396,4 +431,5 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
     </div>
   );
 }
+
 

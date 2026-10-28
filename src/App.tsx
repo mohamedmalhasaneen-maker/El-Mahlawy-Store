@@ -1,39 +1,47 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowUpDown, MessageCircle, RotateCcw, Search } from 'lucide-react';
 import './lib/firebase';
-import { Product, ProductFormInput, SortOption, STORE_INFO } from './types/store';
+import { SiteConfigContext } from './contexts/SiteConfigContext';
+import { Product, ProductFormInput, SortOption } from './types/store';
 import {
   filterAndSortProducts,
   findProductByShareParam,
   getDiscountedProducts,
-  sanitizeProductPayload,
-  verifyAdminPassword,
 } from './utils/catalogLogic';
+import { DEFAULT_SITE_CONFIG, SiteConfig } from './utils/siteConfig';
 import {
-  subscribeToPublishedProducts,
-  createCloudProduct,
-  updateCloudProduct,
-  deleteCloudProduct,
+  DiscountQuickUpdatePayload,
+  User,
   auth,
+  checkUserIsCloudAdmin,
+  createCloudProduct,
+  deleteCloudProduct,
+  isAuthorizedDeveloperUser,
+  onAuthStateChanged,
+  saveCloudSiteConfig,
   signOutAdmin,
-  signInAdminWithGoogle,
+  subscribeToAllProductsForAdmin,
+  subscribeToPublishedProducts,
+  subscribeToSiteConfig,
+  updateCloudProduct,
+  updateCloudProductDiscount,
+  updateCloudProductFlags,
 } from './lib/firebase';
+import { isPermanentAuthSessionInvalidError } from './utils/developerAuth';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { OffersSection } from './components/OffersSection';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetailModal } from './components/ProductDetailModal';
-import { PartnerAndAboutSection } from './components/PartnerAndAboutSection';
 import { AboutUsPage } from './components/AboutUsPage';
+import { DeveloperSettingsPage } from './components/DeveloperSettingsPage';
 import { Footer } from './components/Footer';
-import { AdminDashboard } from './components/AdminDashboard';
-import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { MobileStorefront } from './components/mobile/MobileStorefront';
 import { TechBackground } from './components/TechBackground';
 import { useTheme } from './utils/useTheme';
 
 const LOCAL_STORAGE_KEY = 'mahallawy_store_catalog_v1';
-const ADMIN_SESSION_KEY = 'mahallawy_admin_unlocked_v1';
+const SITE_CONFIG_CACHE_KEY = 'mahallawy_site_config_v1';
 
 function loadCachedProducts(): Product[] {
   try {
@@ -50,114 +58,53 @@ function loadCachedProducts(): Product[] {
   return [];
 }
 
+function loadCachedSiteConfig(): SiteConfig {
+  try {
+    const raw = localStorage.getItem(SITE_CONFIG_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<SiteConfig>;
+      if (parsed && typeof parsed === 'object' && typeof parsed.storeName === 'string') {
+        return { ...DEFAULT_SITE_CONFIG, ...parsed };
+      }
+    }
+  } catch {
+    // Ignore malformed cache
+  }
+  return DEFAULT_SITE_CONFIG;
+}
+
+function resolveInitialView(): 'store' | 'about' | 'developer' {
+  if (typeof window === 'undefined') return 'store';
+  const hash = window.location.hash.toLowerCase();
+  const search = window.location.search.toLowerCase();
+  if (
+    hash === '#developer' ||
+    hash === '#developer-settings' ||
+    hash === '#admin' ||
+    search.includes('view=developer')
+  ) {
+    return 'developer';
+  }
+  if (hash === '#about' || search.includes('view=about')) {
+    return 'about';
+  }
+  return 'store';
+}
+
 export default function App() {
-  const { theme, toggleTheme, isDark } = useTheme();
-  const [activeView, setActiveView] = useState<'store' | 'about' | 'admin'>('store');
+  const { isDark, toggleTheme } = useTheme();
+  const [activeView, setActiveView] = useState<'store' | 'about' | 'developer'>(resolveInitialView);
   const [products, setProducts] = useState<Product[]>(loadCachedProducts);
+  const [adminProducts, setAdminProducts] = useState<Product[] | null>(null);
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(
     () => loadCachedProducts().length === 0
   );
+  const [siteConfig, setSiteConfig] = useState<SiteConfig>(loadCachedSiteConfig);
 
-  // Admin password state (never persisted; always required to open Admin Panel)
-  const [adminPassword, setAdminPassword] = useState<string>('');
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-
-  useEffect(() => {
-    const syncViewWithUrl = () => {
-      const hash = typeof window !== 'undefined' ? window.location.hash : '';
-      const search = typeof window !== 'undefined' ? window.location.search : '';
-      if (hash === '#about' || search.includes('view=about')) {
-        setActiveView('about');
-      }
-    };
-    syncViewWithUrl();
-    if (typeof window !== 'undefined') {
-      window.addEventListener('hashchange', syncViewWithUrl);
-      return () => window.removeEventListener('hashchange', syncViewWithUrl);
-    }
-  }, []);
-
-  const navigateToView = (view: 'store' | 'about' | 'admin') => {
-    if (view === 'about') {
-      setActiveView('about');
-      if (typeof window !== 'undefined') {
-        try {
-          window.history.pushState(null, '', '#about');
-        } catch {
-          // ignore history restriction
-        }
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    } else if (view === 'store') {
-      setActiveView('store');
-      if (typeof window !== 'undefined') {
-        if (window.location.hash === '#about') {
-          try {
-            window.history.pushState(null, '', window.location.pathname);
-          } catch {
-            // ignore history restriction
-          }
-        }
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    } else if (view === 'admin') {
-      handleAdminButtonClick();
-    }
-  };
-
-  const isAdminUnlocked = Boolean(adminPassword);
-
-  const [siteSettings, setSiteSettings] = useState<Record<string, any>>({
-    storeName: 'المحلاوي ستور',
-    storeEnglishName: 'El Mahlawy Store',
-    tagline: 'منتجات متنوعة وحلول ذكية لحياة أسهل',
-    address: 'جنوب سيناء – شرم الشيخ – الرويسات – مدخل 1 – شارع دستي، بجوار قسم الشرطة، الشارع الجانبي لمول الشيخ عيد، محل المحلاوي ستور.',
-    googleMapsUrl: 'https://maps.google.com/?q=27.9158,34.3300',
-    workingHours: 'يومياً من 10 صباحاً حتى 11 مساؤًا',
-    deliverySummary: 'شحن متاح لجميع محافظات مصر. وتوصيل داخل شرم الشيخ من خلال خدمة الدليفري.',
-    deliveryCost: 'يُحدد حسب المنطقة (خدمة الدليفري متاحة بشرم الشيخ)',
-    warrantyPolicy: 'ضمان معتمد ودعم فني طوال فترة الضمان',
-    afterSalesPolicy: 'نضمن لك الدعم والمساعدة خلال فترة الضمان. معاينة المنتج عن بُعد وتوجيه الدعم الفني.',
-    primaryPhone: '01210141187',
-    secondaryPhone: '01000000000',
-    primaryWhatsApp: '201210141187',
-    afterSalesWhatsApp: '201210141187',
-    infinityCorpPhone: '01000000000',
-    infinityCorpWhatsApp: '201000000000',
-    facebookUrl: 'https://facebook.com/elmahlawystore',
-    instagramUrl: 'https://instagram.com/elmahlawystore',
-    whatsappOrderTemplate: 'السلام عليكم، أرغب في طلب المنتج التالي:\n- المنتج: {productName}\n- السعر: {price} جنيه\n- الرابط: {productUrl}\n\nملاحظات العميل: {notes}',
-    orderConfirmationMessage: 'تم استلام طلبك بنجاح! سيتم التواصل معك قريباً لتأكيد التوصيل.',
-    htmlTitle: 'المحلاوي ستور | El Mahlawy Store',
-    seoDescription: 'المحلاوي ستور - تسوق أحدث المنتجات والإلكترونيات وحلول الذكاء التكنولوجي بشرم الشيخ وجميع محافظات مصر.',
-    seoKeywords: 'المحلاوي ستور, شرم الشيخ, تسوق, إلكترونيات, الرويسات, Infinity Corp',
-    ogImageUrl: '',
-    primaryColor: '#0284c7',
-    secondaryColor: '#0ea5e9',
-    bannerImageUrl: '',
-    announcementText: 'عروض خاصة لفترة محدودة على جميع المنتجات - شحن لجميع محافظات مصر!',
-    announcementEnabled: true,
-    maintenanceMode: false,
-    maintenanceMessage: 'الموقع تحت الصيانة الدورية وسيعود قريباً.',
-    activityLog: [],
-  });
-
-  const handleSaveSettings = async (newSettings: Record<string, any>): Promise<boolean> => {
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-password': adminPassword,
-      },
-      body: JSON.stringify({ settings: newSettings }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      throw new Error(data.error || 'تعذر حفظ الإعدادات.');
-    }
-    setSiteSettings(data.settings);
-    return true;
-  };
+  // Firebase Auth state for Developer Settings
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isCloudAdmin, setIsCloudAdmin] = useState(false);
 
   // Storefront search, sort & detail modal
   const [searchQuery, setSearchQuery] = useState('');
@@ -170,6 +117,98 @@ export default function App() {
   const [publicOrigin, setPublicOrigin] = useState<string>(() =>
     typeof window !== 'undefined' ? window.location.origin : ''
   );
+
+  // Sync URL hash <-> activeView
+  useEffect(() => {
+    const syncViewWithUrl = () => {
+      setActiveView(resolveInitialView());
+    };
+    syncViewWithUrl();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hashchange', syncViewWithUrl);
+      window.addEventListener('popstate', syncViewWithUrl);
+      return () => {
+        window.removeEventListener('hashchange', syncViewWithUrl);
+        window.removeEventListener('popstate', syncViewWithUrl);
+      };
+    }
+  }, []);
+
+  // Sync document SEO title & meta description dynamically with cloud SiteConfig
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const title = siteConfig.seoTitle?.trim() || `${siteConfig.storeName} | ${siteConfig.storeSubtitle}`;
+    document.title = title;
+
+    const description = siteConfig.seoDescription?.trim();
+    if (description) {
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) metaDesc.setAttribute('content', description);
+      const ogDesc = document.querySelector('meta[property="og:description"]');
+      if (ogDesc) ogDesc.setAttribute('content', description);
+    }
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', title);
+  }, [siteConfig.seoTitle, siteConfig.seoDescription, siteConfig.storeName, siteConfig.storeSubtitle]);
+
+  // Listen to Firebase Auth state & verify admin role
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        try {
+          const allowed = await checkUserIsCloudAdmin(user);
+          setIsCloudAdmin(allowed);
+        } catch {
+          setIsCloudAdmin(false);
+        }
+      } else {
+        setIsCloudAdmin(false);
+      }
+      setIsAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleRefreshAuth = useCallback(async (options?: { reloadFromServer?: boolean }) => {
+    if (!auth.currentUser) return;
+    const shouldReloadFromServer = options?.reloadFromServer !== false;
+    if (shouldReloadFromServer) {
+      await auth.currentUser.reload();
+      if (isAuthorizedDeveloperUser(auth.currentUser)) {
+        await auth.currentUser.getIdToken(true);
+      }
+    } else if (isAuthorizedDeveloperUser(auth.currentUser)) {
+      await auth.currentUser.getIdToken(false);
+    }
+    const refreshed = auth.currentUser;
+    if (!refreshed) return;
+    setCurrentUser({ ...refreshed } as User);
+    const allowed = await checkUserIsCloudAdmin(refreshed);
+    setIsCloudAdmin(allowed);
+  }, []);
+
+  const navigateToView = (view: 'store' | 'about' | 'developer') => {
+    setActiveView(view);
+    if (typeof window !== 'undefined') {
+      try {
+        if (view === 'about') {
+          window.history.pushState(null, '', '#about');
+        } else if (view === 'developer') {
+          window.history.pushState(null, '', '#developer');
+        } else {
+          window.history.pushState(null, '', window.location.pathname + window.location.search);
+        }
+      } catch {
+        // Ignore history restrictions in sandboxed iframes
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleOpenDeveloperSettings = () => {
+    navigateToView('developer');
+  };
 
   const clearSharedProductParam = () => {
     setSharedProductId(null);
@@ -197,23 +236,8 @@ export default function App() {
     }
   }, [sharedProductId, products]);
 
-  const syncLocalCache = (items: Product[]) => {
-    setProducts(items);
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(items));
-    } catch {
-      // Ignore storage quota warnings
-    }
-  };
-
-  // Fetch public origin (/api/health) and load persistent server catalog (/api/products)
+  // Subscribe to public published products and cloud SiteConfig
   useEffect(() => {
-    try {
-      sessionStorage.removeItem(ADMIN_SESSION_KEY);
-    } catch {
-      // Ignore storage restrictions
-    }
-
     fetch('/api/health')
       .then((res) => res.json())
       .then((data: { publicOrigin?: string }) => {
@@ -225,103 +249,167 @@ export default function App() {
         // Keep window.location.origin fallback
       });
 
-    const unsubscribe = subscribeToPublishedProducts(
+    const unsubProducts = subscribeToPublishedProducts(
       (items) => {
-        syncLocalCache(items);
+        setProducts(items);
         setIsLoadingProducts(false);
+        try {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(items));
+        } catch {
+          // Ignore storage quota warnings
+        }
       },
       (err) => {
-        console.error('Error fetching products:', err);
+        console.error('Error fetching published products:', err);
         setIsLoadingProducts(false);
       }
     );
 
-    return () => unsubscribe();
-
-    fetch('/api/settings')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && typeof data === 'object') {
-          setSiteSettings((prev) => ({ ...prev, ...data }));
+    const unsubSiteConfig = subscribeToSiteConfig(
+      (cfg) => {
+        setSiteConfig(cfg);
+        try {
+          localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(cfg));
+        } catch {
+          // Ignore storage quota warnings
         }
-      })
-      .catch(() => {});
+      },
+      (err) => {
+        console.error('Error fetching site config:', err);
+      }
+    );
+
+    return () => {
+      unsubProducts();
+      unsubSiteConfig();
+    };
   }, []);
 
-  const handleVerifyAdminPassword = async (candidate: string): Promise<boolean> => {
-    const trimmed = (candidate || '').trim();
-    if (!trimmed) return false;
+  // Subscribe to full catalog (including hidden/unpublished products) when authenticated as authorized developer
+  useEffect(() => {
+    const isAuthorized = isAuthorizedDeveloperUser(currentUser);
 
-    let isValid = false;
-    try {
-      const res = await fetch('/api/admin/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: trimmed }),
-      });
-      if (res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (data?.ok) {
-          isValid = true;
-        }
+    if (!isCloudAdmin || !isAuthorized) {
+      setAdminProducts(null);
+      return;
+    }
+
+    const unsubAll = subscribeToAllProductsForAdmin(
+      (items) => {
+        setAdminProducts(items);
+      },
+      (err) => {
+        console.error('Admin catalog subscription fallback:', err);
+        setAdminProducts(null);
       }
-    } catch {
-      // Ignore network error and fall back to local check
-    }
+    );
 
-    if (!isValid) {
-      if (verifyAdminPassword(trimmed)) {
-        isValid = true;
-      }
-    }
+    return () => unsubAll();
+  }, [currentUser, isCloudAdmin]);
 
-    if (!isValid) {
-      return false;
-    }
-
-    try {
-      // Ensure we are signed in with Firebase Auth to satisfy Firestore rules
-      await signInAdminWithGoogle();
-      
-      setAdminPassword(trimmed);
-      setPasswordModalOpen(false);
-      setActiveView('admin');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return true;
-    } catch (err) {
-      console.error('Firebase Auth Error:', err);
-      return false;
-    }
-  };
-
-  const handleAdminButtonClick = () => {
-    setAdminPassword('');
-    setPasswordModalOpen(true);
-  };
-
-  const handleAdminLogout = async () => {
-    setAdminPassword('');
+  const handleDeveloperLogout = useCallback(async () => {
     try {
       await signOutAdmin();
-      sessionStorage.removeItem(ADMIN_SESSION_KEY);
     } catch (err) {
       console.error('Sign out error:', err);
+    } finally {
+      setIsCloudAdmin(false);
+      setCurrentUser(null);
+      setAdminProducts(null);
     }
-    setActiveView('store');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
+
+  // Secure session management: idle auto-logout (45 min) & token validity recheck on tab focus
+  useEffect(() => {
+    if (!isCloudAdmin) return;
+    const IDLE_TIMEOUT_MS = 45 * 60 * 1000;
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const resetIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        void handleDeveloperLogout();
+      }, IDLE_TIMEOUT_MS);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && auth.currentUser) {
+        auth.currentUser
+          .reload()
+          .then(async () => {
+            const allowed = await checkUserIsCloudAdmin(auth.currentUser);
+            if (!allowed) {
+              await handleDeveloperLogout();
+            }
+          })
+          .catch((err) => {
+            if (isPermanentAuthSessionInvalidError(err)) {
+              void handleDeveloperLogout();
+            }
+          });
+      }
+    };
+
+    resetIdleTimer();
+    const activityEvents: (keyof WindowEventMap)[] = [
+      'pointerdown',
+      'keydown',
+      'touchstart',
+      'scroll',
+    ];
+    for (const ev of activityEvents) {
+      window.addEventListener(ev, resetIdleTimer, { passive: true });
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      for (const ev of activityEvents) {
+        window.removeEventListener(ev, resetIdleTimer);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isCloudAdmin, handleDeveloperLogout]);
 
   const handleSaveProduct = async (input: ProductFormInput, editingId?: string) => {
-    const authorUid = auth.currentUser?.uid || 'admin';
+    const currentUid = auth.currentUser?.uid;
+    if (!currentUid) {
+      throw new Error('يرجى تسجيل الدخول بحساب المطور أولًا.');
+    }
     if (editingId) {
-      await updateCloudProduct(editingId, input, authorUid);
+      const existingList = adminProducts ?? products;
+      const existingItem = existingList.find((p) => p.id === editingId);
+      await updateCloudProduct(editingId, input, existingItem?.authorUid || currentUid);
     } else {
-      await createCloudProduct(input, authorUid);
+      await createCloudProduct(input, currentUid);
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
     await deleteCloudProduct(productId);
+  };
+
+  const handleSaveProductDiscount = async (
+    productId: string,
+    payload: DiscountQuickUpdatePayload
+  ) => {
+    await updateCloudProductDiscount(productId, payload);
+  };
+
+  const handleQuickUpdateProductFlags = async (
+    product: Product,
+    updates: Partial<Pick<Product, 'isPublished' | 'inStock' | 'isFeatured'>>
+  ) => {
+    await updateCloudProductFlags(product.id, updates);
+  };
+
+  const handleSaveSiteConfig = async (nextConfig: SiteConfig) => {
+    const currentUid = auth.currentUser?.uid;
+    if (!currentUid) {
+      throw new Error('يرجى تسجيل الدخول بحساب المطور أولًا.');
+    }
+    const saved = await saveCloudSiteConfig(nextConfig, currentUid);
+    setSiteConfig(saved);
   };
 
   const discountedProducts = useMemo(() => getDiscountedProducts(products), [products]);
@@ -331,258 +419,245 @@ export default function App() {
     [products, searchQuery, sortBy]
   );
 
-  const heroSpotlightProduct = useMemo(
-    () =>
+  const heroSpotlightProduct = useMemo(() => {
+    if (!siteConfig.showHeroSpotlight) return undefined;
+    return (
       products.find((p) => p.isFeatured && p.isPublished) ||
       products.find((p) => p.isPublished) ||
-      undefined,
-    [products]
-  );
+      undefined
+    );
+  }, [products, siteConfig.showHeroSpotlight]);
+
+  const developerCatalogProducts = useMemo(() => {
+    const source = adminProducts ?? products;
+    return [...source].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }, [adminProducts, products]);
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] transition-colors">
-      <TechBackground isDark={isDark} />
+    <SiteConfigContext.Provider value={siteConfig}>
+      <div className="relative min-h-screen flex flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] transition-colors">
+        <TechBackground isDark={isDark} />
 
-      {activeView === 'admin' ? (
-        <>
-          <div className="hidden md:block">
-            <Navbar
-              activeView={activeView}
-              onSwitchView={(view) => {
-                if (view === 'admin') {
-                  handleAdminButtonClick();
-                } else {
-                  navigateToView(view);
-                }
-              }}
-              onAdminButtonClick={handleAdminButtonClick}
-              hasDiscountOffers={discountedProducts.length > 0}
-              isDark={isDark}
-              onToggleTheme={toggleTheme}
-            />
-          </div>
-          <main className="flex-1 relative z-10">
-            <AdminDashboard
-              products={products}
-              isAuthorized={isAdminUnlocked}
-              onSubmitPassword={handleVerifyAdminPassword}
-              onLogout={handleAdminLogout}
+        {activeView === 'developer' ? (
+          <div className="relative z-10">
+            <DeveloperSettingsPage
+              products={developerCatalogProducts}
+              siteConfig={siteConfig}
+              currentUser={currentUser}
+              isAuthReady={isAuthReady}
+              isCloudAdmin={isCloudAdmin}
+              onRefreshAuth={handleRefreshAuth}
+              onLogout={handleDeveloperLogout}
+              onBackToStore={() => navigateToView('store')}
               onSaveProduct={handleSaveProduct}
               onDeleteProduct={handleDeleteProduct}
-              onBackToStore={handleAdminLogout}
-              publicOrigin={publicOrigin}
-              siteSettings={siteSettings}
-              onSaveSettings={handleSaveSettings}
+              onSaveProductDiscount={handleSaveProductDiscount}
+              onQuickUpdateProductFlags={handleQuickUpdateProductFlags}
+              onSaveSiteConfig={handleSaveSiteConfig}
             />
-          </main>
-        </>
-      ) : activeView === 'about' ? (
-        <div className="relative z-10">
-          <AboutUsPage
-            onBackToStore={() => navigateToView('store')}
-            onAdminButtonClick={handleAdminButtonClick}
-          />
-        </div>
-      ) : (
-        <div className="relative z-10">
-          {/* Dedicated Rebuilt Mobile Storefront (< 768px) */}
-          <MobileStorefront
-            products={products}
-            filteredProducts={filteredProducts}
-            discountedProducts={discountedProducts}
-            isLoadingProducts={isLoadingProducts}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            sortBy={sortBy}
-            onSortChange={setSortBy}
-            onAdminButtonClick={handleAdminButtonClick}
-            onNavigateAbout={() => navigateToView('about')}
-            isDark={isDark}
-            onToggleTheme={toggleTheme}
-            publicOrigin={publicOrigin}
-            initialProductId={sharedProductId}
-            onConsumeInitialProduct={clearSharedProductParam}
-          />
-
-          {/* Existing Desktop Storefront (>= 768px) */}
-          <div className="hidden md:flex md:flex-col min-h-screen">
-            <Navbar
-              activeView={activeView}
-              onSwitchView={(view) => {
-                if (view === 'admin') {
-                  handleAdminButtonClick();
-                } else {
-                  navigateToView(view);
-                }
-              }}
-              onAdminButtonClick={handleAdminButtonClick}
-              hasDiscountOffers={discountedProducts.length > 0}
+          </div>
+        ) : activeView === 'about' ? (
+          <div className="relative z-10">
+            <AboutUsPage
+              onBackToStore={() => navigateToView('store')}
+              onAdminButtonClick={handleOpenDeveloperSettings}
+            />
+          </div>
+        ) : (
+          <div className="relative z-10">
+            {/* Dedicated Mobile Storefront (< 768px) */}
+            <MobileStorefront
+              products={products}
+              filteredProducts={filteredProducts}
+              discountedProducts={discountedProducts}
+              isLoadingProducts={isLoadingProducts}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              onAdminButtonClick={handleOpenDeveloperSettings}
+              onNavigateAbout={() => navigateToView('about')}
               isDark={isDark}
               onToggleTheme={toggleTheme}
+              publicOrigin={publicOrigin}
+              initialProductId={sharedProductId}
+              onConsumeInitialProduct={clearSharedProductParam}
             />
 
-            <main className="flex-1">
-              {/* 1. Welcome Hero & Trust Banner */}
-              <HeroSection
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                featuredProduct={heroSpotlightProduct}
-                onSelectProduct={(product) => setSelectedProduct(product)}
-                hasDiscountOffers={discountedProducts.length > 0}
+            {/* Desktop Storefront (>= 768px) */}
+            <div className="hidden md:flex md:flex-col min-h-screen">
+              <Navbar
+                activeView={activeView}
+                onSwitchView={(view) => {
+                  if (view === 'developer') {
+                    handleOpenDeveloperSettings();
+                  } else {
+                    navigateToView(view);
+                  }
+                }}
+                onAdminButtonClick={handleOpenDeveloperSettings}
+                hasDiscountOffers={discountedProducts.length > 0 && siteConfig.showOffersSection}
+                isDark={isDark}
+                onToggleTheme={toggleTheme}
               />
 
-              {/* 2. Dedicated Offers & Discounts Section */}
-              <OffersSection
-                products={products}
-                onViewDetails={(product) => setSelectedProduct(product)}
-                publicOrigin={publicOrigin}
-              />
+              <main className="flex-1">
+                {/* 1. Welcome Hero & Trust Banner */}
+                <HeroSection
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  featuredProduct={heroSpotlightProduct}
+                  onSelectProduct={(product) => setSelectedProduct(product)}
+                  hasDiscountOffers={discountedProducts.length > 0 && siteConfig.showOffersSection}
+                />
 
-              {/* 3. Main Products Catalog Section */}
-              <section
-                id="products-section"
-                aria-labelledby="catalog-heading"
-                className="py-12 sm:py-16 bg-white dark:bg-[#071326]"
-              >
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                  {/* Catalog Header & Controls */}
-                  <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 mb-8">
-                    <div>
-                      <p className="text-xs sm:text-sm font-bold text-[#0284C7] dark:text-[#38BDF8] mb-1">
-                        أحدث المنتجات والأجهزة المتاحة
-                      </p>
-                      <h2
-                        id="catalog-heading"
-                        className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]"
-                      >
-                        منتجات المحلاوي ستور
-                      </h2>
+                {/* 2. Dedicated Offers & Discounts Section */}
+                {siteConfig.showOffersSection && (
+                  <OffersSection
+                    products={products}
+                    onViewDetails={(product) => setSelectedProduct(product)}
+                    publicOrigin={publicOrigin}
+                  />
+                )}
+
+                {/* 3. Main Products Catalog Section */}
+                <section
+                  id="products-section"
+                  aria-labelledby="catalog-heading"
+                  className="py-12 sm:py-16 bg-white dark:bg-[#071326]"
+                >
+                  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                    {/* Catalog Header & Controls */}
+                    <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 mb-8">
+                      <div>
+                        <p className="text-xs sm:text-sm font-bold text-[#0284C7] dark:text-[#38BDF8] mb-1">
+                          أحدث المنتجات والأجهزة المتاحة
+                        </p>
+                        <h2
+                          id="catalog-heading"
+                          className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]"
+                        >
+                          منتجات {siteConfig.storeName}
+                        </h2>
+                      </div>
+
+                      {/* Search & Sort Controls */}
+                      {products.length > 0 && (
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                          <div className="relative min-w-[240px] sm:w-72">
+                            <label htmlFor="catalog-search-input" className="sr-only">
+                              البحث داخل قسم المنتجات
+                            </label>
+                            <Search
+                              className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]"
+                              aria-hidden="true"
+                            />
+                            <input
+                              id="catalog-search-input"
+                              type="search"
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              placeholder="ابحث باسم المنتج أو المواصفات..."
+                              className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] pr-10 pl-3 py-2 text-xs sm:text-sm text-[#0B1F3A] dark:text-[#F0F9FF] placeholder:text-slate-400 focus:bg-white dark:focus:bg-[#081830] focus:outline-2 focus:outline-[#1D4ED8]"
+                            />
+                          </div>
+
+                          <div className="relative flex items-center">
+                            <label htmlFor="catalog-sort-select" className="sr-only">
+                              ترتيب المنتجات
+                            </label>
+                            <ArrowUpDown
+                              className="pointer-events-none absolute right-3.5 h-4 w-4 text-[#1D4ED8] dark:text-[#38BDF8]"
+                              aria-hidden="true"
+                            />
+                            <select
+                              id="catalog-sort-select"
+                              value={sortBy}
+                              onChange={(e) => setSortBy(e.target.value as SortOption)}
+                              className="min-h-[44px] w-full sm:w-auto rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] pr-9 pl-4 py-2 text-xs sm:text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE] focus:bg-white dark:focus:bg-[#081830] focus:outline-2 focus:outline-[#1D4ED8] cursor-pointer"
+                            >
+                              <option value={SortOption.NEWEST}>الأحدث إضافة</option>
+                              <option value={SortOption.PRICE_ASC}>السعر: من الأقل للأعلى</option>
+                              <option value={SortOption.PRICE_DESC}>السعر: من الأعلى للأقل</option>
+                              <option value={SortOption.DISCOUNT_DESC}>الأعلى نسبة خصم</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Search & Sort Controls */}
-                    {products.length > 0 && (
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                        <div className="relative min-w-[240px] sm:w-72">
-                          <label htmlFor="catalog-search-input" className="sr-only">
-                            البحث داخل قسم المنتجات
-                          </label>
-                          <Search
-                            className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]"
-                            aria-hidden="true"
+                    {/* Product Cards Grid or Empty State */}
+                    {filteredProducts.length === 0 ? (
+                      <div className="rounded-3xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-10 sm:p-14 text-center">
+                        {searchQuery.trim() ? (
+                          <>
+                            <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2">
+                              لم نجد منتجات تطابق بحثك الحالي
+                            </p>
+                            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-5">
+                              جرّب البحث بكلمة أخرى أو استعرض كافة منتجات {siteConfig.storeName}.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setSearchQuery('')}
+                              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer"
+                            >
+                              <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                              <span>عرض جميع المنتجات</span>
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2">
+                              يتم تحديث قائمة المنتجات والأجهزة الحديثة باستمرار
+                            </p>
+                            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-5 max-w-lg mx-auto">
+                              تواصل معنا مباشرة عبر واتساب الأعمال للاستفسار عن أحدث الموديلات
+                              والأسعار والتوافر في {siteConfig.storeName}.
+                            </p>
+                            <a
+                              href={siteConfig.whatsappUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white"
+                            >
+                              <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                              <span>تواصل عبر واتساب الأعمال</span>
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                        {filteredProducts.map((product) => (
+                          <ProductCard
+                            key={product.id}
+                            product={product}
+                            onViewDetails={(p) => setSelectedProduct(p)}
+                            publicOrigin={publicOrigin}
                           />
-                          <input
-                            id="catalog-search-input"
-                            type="search"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="ابحث باسم المنتج أو المواصفات..."
-                            className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] pr-10 pl-3 py-2 text-xs sm:text-sm text-[#0B1F3A] dark:text-[#F0F9FF] placeholder:text-slate-400 focus:bg-white dark:focus:bg-[#081830] focus:outline-2 focus:outline-[#1D4ED8]"
-                          />
-                        </div>
-
-                        <div className="relative flex items-center">
-                          <label htmlFor="catalog-sort-select" className="sr-only">
-                            ترتيب المنتجات
-                          </label>
-                          <ArrowUpDown
-                            className="pointer-events-none absolute right-3.5 h-4 w-4 text-[#1D4ED8] dark:text-[#38BDF8]"
-                            aria-hidden="true"
-                          />
-                          <select
-                            id="catalog-sort-select"
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as SortOption)}
-                            className="min-h-[44px] w-full sm:w-auto rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] pr-9 pl-4 py-2 text-xs sm:text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE] focus:bg-white dark:focus:bg-[#081830] focus:outline-2 focus:outline-[#1D4ED8] cursor-pointer"
-                          >
-                            <option value={SortOption.NEWEST}>الأحدث إضافة</option>
-                            <option value={SortOption.PRICE_ASC}>السعر: من الأقل للأعلى</option>
-                            <option value={SortOption.PRICE_DESC}>السعر: من الأعلى للأقل</option>
-                            <option value={SortOption.DISCOUNT_DESC}>الأعلى نسبة خصم</option>
-                          </select>
-                        </div>
+                        ))}
                       </div>
                     )}
                   </div>
+                </section>
+              </main>
 
-                  {/* Product Cards Grid or Empty State */}
-                  {filteredProducts.length === 0 ? (
-                    <div className="rounded-3xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-10 sm:p-14 text-center">
-                      {searchQuery.trim() ? (
-                        <>
-                          <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2">
-                            لم نجد منتجات تطابق بحثك الحالي
-                          </p>
-                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-5">
-                            جرّب البحث بكلمة أخرى أو استعرض كافة منتجات المحلاوي ستور.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setSearchQuery('')}
-                            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer"
-                          >
-                            <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                            <span>عرض جميع المنتجات</span>
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2">
-                            يتم تحديث قائمة المنتجات والأجهزة الحديثة باستمرار
-                          </p>
-                          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-5 max-w-lg mx-auto">
-                            تواصل معنا مباشرة عبر واتساب الأعمال للاستفسار عن أحدث الموديلات
-                            والأسعار والتوافر في المحلاوي ستور.
-                          </p>
-                          <a
-                            href={STORE_INFO.whatsappUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white"
-                          >
-                            <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                            <span>تواصل عبر واتساب الأعمال</span>
-                          </a>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-                      {filteredProducts.map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          onViewDetails={(p) => setSelectedProduct(p)}
-                          publicOrigin={publicOrigin}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-            </main>
+              <Footer
+                onAdminButtonClick={handleOpenDeveloperSettings}
+                onNavigateAbout={() => navigateToView('about')}
+              />
 
-            <Footer
-              onAdminButtonClick={handleAdminButtonClick}
-              onNavigateAbout={() => navigateToView('about')}
-            />
-
-            {/* Desktop Product Details Modal */}
-            <ProductDetailModal
-              product={selectedProduct}
-              onClose={() => setSelectedProduct(null)}
-              publicOrigin={publicOrigin}
-            />
+              {/* Desktop Product Details Modal */}
+              <ProductDetailModal
+                product={selectedProduct}
+                onClose={() => setSelectedProduct(null)}
+                publicOrigin={publicOrigin}
+              />
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Admin Password Modal triggered by Admin Panel button (Desktop & Mobile) */}
-      <AdminPasswordModal
-        isOpen={passwordModalOpen}
-        onClose={() => setPasswordModalOpen(false)}
-        onSubmitPassword={handleVerifyAdminPassword}
-      />
-    </div>
+        )}
+      </div>
+    </SiteConfigContext.Provider>
   );
 }
-

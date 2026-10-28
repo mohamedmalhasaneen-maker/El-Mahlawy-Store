@@ -11,6 +11,35 @@ const UPLOADS_DIR = path.join(ROOT_DIR, 'uploads');
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
 const ASSETS_IMAGES_DIR = path.join(ROOT_DIR, 'src', 'assets', 'images');
+const FIREBASE_CONFIG_FILE = path.join(ROOT_DIR, 'firebase-applet-config.json');
+
+const ALLOWED_FIREBASE_AUTH_HOSTS = new Set([
+  'identitytoolkit.googleapis.com',
+  'securetoken.googleapis.com',
+]);
+
+const ALLOWED_FIREBASE_AUTH_PATH_PREFIXES = [
+  '/v1/accounts:',
+  '/v1/projects',
+  '/v1/token',
+  '/v2/accounts:',
+  '/v2/passwordPolicy',
+  '/v2/recaptchaConfig',
+];
+
+function loadConfiguredFirebaseApiKey(): string {
+  try {
+    if (!fs.existsSync(FIREBASE_CONFIG_FILE)) return '';
+    const parsed = JSON.parse(fs.readFileSync(FIREBASE_CONFIG_FILE, 'utf8')) as {
+      apiKey?: unknown;
+    };
+    return typeof parsed.apiKey === 'string' ? parsed.apiKey.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+const CONFIGURED_FIREBASE_API_KEY = loadConfiguredFirebaseApiKey();
 
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -20,13 +49,14 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 function getExpectedAdminPassword(): string {
-  const envPass = (process.env.ADMIN_PASSWORD || '').trim();
-  return envPass || 'WQ(8)@opnKLOZ$80@Gh';
+  return (process.env.ADMIN_PASSWORD || '').trim();
 }
 
 function isAuthorizedAdminRequest(req: Request): boolean {
+  const expected = getExpectedAdminPassword();
+  if (!expected) return false;
   const headerPass = String(req.headers['x-admin-password'] || '').trim();
-  return headerPass === getExpectedAdminPassword();
+  return headerPass.length > 0 && headerPass === expected;
 }
 
 function readStoredProducts(): Record<string, unknown>[] | null {
@@ -175,6 +205,97 @@ async function startServer() {
       status: 'ok',
       publicOrigin: resolveRequestOrigin(req),
     });
+  });
+
+  // Same-origin Firebase Authentication HTTPS relay (fallback when client browser/ISP blocks identitytoolkit/securetoken)
+  app.post('/api/firebase-auth-relay', async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+
+    if (!CONFIGURED_FIREBASE_API_KEY) {
+      res.status(503).json({ error: { code: 503, message: 'FIREBASE_CONFIG_UNAVAILABLE' } });
+      return;
+    }
+
+    const rawTargetUrl = typeof req.body?.targetUrl === 'string' ? req.body.targetUrl.trim() : '';
+    const rawMethod =
+      typeof req.body?.method === 'string' ? req.body.method.trim().toUpperCase() : 'POST';
+    const rawHeaders =
+      req.body?.headers && typeof req.body.headers === 'object' && !Array.isArray(req.body.headers)
+        ? (req.body.headers as Record<string, unknown>)
+        : {};
+    const rawBody = typeof req.body?.body === 'string' ? req.body.body : undefined;
+
+    if (!rawTargetUrl || !['GET', 'POST'].includes(rawMethod)) {
+      res.status(400).json({ error: { code: 400, message: 'INVALID_AUTH_RELAY_REQUEST' } });
+      return;
+    }
+
+    let parsedTarget: URL;
+    try {
+      parsedTarget = new URL(rawTargetUrl);
+    } catch {
+      res.status(400).json({ error: { code: 400, message: 'INVALID_AUTH_RELAY_URL' } });
+      return;
+    }
+
+    const hasAllowedPath = ALLOWED_FIREBASE_AUTH_PATH_PREFIXES.some((prefix) =>
+      parsedTarget.pathname.startsWith(prefix)
+    );
+
+    if (
+      parsedTarget.protocol !== 'https:' ||
+      !ALLOWED_FIREBASE_AUTH_HOSTS.has(parsedTarget.hostname) ||
+      !hasAllowedPath ||
+      parsedTarget.searchParams.get('key') !== CONFIGURED_FIREBASE_API_KEY
+    ) {
+      res.status(403).json({ error: { code: 403, message: 'FORBIDDEN_AUTH_RELAY_TARGET' } });
+      return;
+    }
+
+    const upstreamHeaders: Record<string, string> = {};
+    const safeHeaderMap: Record<string, string> = {
+      'content-type': 'Content-Type',
+      'x-client-version': 'X-Client-Version',
+      'x-firebase-gmpid': 'X-Firebase-gmpid',
+      'x-firebase-locale': 'X-Firebase-Locale',
+      'x-firebase-client': 'X-Firebase-Client',
+      'x-firebase-appcheck': 'X-Firebase-AppCheck',
+    };
+
+    for (const [incomingKey, incomingVal] of Object.entries(rawHeaders)) {
+      const canonical = safeHeaderMap[incomingKey.toLowerCase()];
+      if (canonical && typeof incomingVal === 'string' && incomingVal.length <= 2048) {
+        upstreamHeaders[canonical] = incomingVal;
+      }
+    }
+
+    const clientOrigin =
+      typeof req.headers.origin === 'string' && req.headers.origin.startsWith('http')
+        ? req.headers.origin
+        : resolveRequestOrigin(req);
+    const clientReferer =
+      typeof req.headers.referer === 'string' && req.headers.referer.startsWith('http')
+        ? req.headers.referer
+        : `${clientOrigin}/`;
+
+    upstreamHeaders['Origin'] = clientOrigin;
+    upstreamHeaders['Referer'] = clientReferer;
+
+    try {
+      const upstreamRes = await fetch(parsedTarget.toString(), {
+        method: rawMethod,
+        headers: upstreamHeaders,
+        body: rawMethod === 'GET' ? undefined : rawBody,
+        signal: AbortSignal.timeout(15000),
+      });
+
+      const responseBody = await upstreamRes.text();
+      const contentType =
+        upstreamRes.headers.get('content-type') || 'application/json; charset=UTF-8';
+      res.status(upstreamRes.status).setHeader('Content-Type', contentType).send(responseBody);
+    } catch {
+      res.status(502).json({ error: { code: 502, message: 'UPSTREAM_AUTH_UNREACHABLE' } });
+    }
   });
 
   // Verify admin password (123456)

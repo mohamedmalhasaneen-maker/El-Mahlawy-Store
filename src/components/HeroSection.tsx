@@ -7,8 +7,14 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { PARTNER_INFO, Product, STORE_INFO } from '../types/store';
-import { calculateDiscountPercent, formatPriceEgp, isDiscountActive } from '../utils/catalogLogic';
+import { useSiteConfig } from '../contexts/SiteConfigContext';
+import { Product } from '../types/store';
+import {
+  calculateDiscountPercent,
+  formatPriceEgp,
+  getEffectiveProductPrice,
+  isDiscountActive,
+} from '../utils/catalogLogic';
 import { ProductImage } from './ProductImage';
 
 interface HeroSectionProps {
@@ -26,6 +32,8 @@ export function HeroSection({
   onSelectProduct,
   hasDiscountOffers,
 }: HeroSectionProps) {
+  const siteConfig = useSiteConfig();
+
   const scrollToProducts = () => {
     document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -39,11 +47,22 @@ export function HeroSection({
     scrollToProducts();
   };
 
+  const showSpotlight = Boolean(featuredProduct && siteConfig.showHeroSpotlight);
   const showCategory =
     featuredProduct?.category && featuredProduct.category.trim() !== 'عام';
+  const spotlightEffectivePrice = featuredProduct
+    ? getEffectiveProductPrice(featuredProduct)
+    : 0;
+  const spotlightDiscountActive = featuredProduct ? isDiscountActive(featuredProduct) : false;
 
   return (
     <section id="top" className="relative overflow-hidden bg-white">
+      {siteConfig.announcementText.trim() && (
+        <div className="bg-[#0B2354] border-b border-white/15 px-4 py-2 text-center text-xs sm:text-sm font-bold text-[#E0F2FE]">
+          <div className="mx-auto max-w-7xl truncate">{siteConfig.announcementText.trim()}</div>
+        </div>
+      )}
+
       {/* Main Royal-Blue to Sky-Blue Welcome Banner */}
       <div className="relative overflow-hidden bg-gradient-to-bl from-[#0B2354] via-[#164BB0] to-[#0EA5E9] text-white">
         {/* Subtle Water-Inspired Geometric Contours */}
@@ -73,25 +92,31 @@ export function HeroSection({
             {/* Right Column (RTL): Official Identity, Headline, Search Bar, CTAs */}
             <div
               className={`${
-                featuredProduct ? 'lg:col-span-7' : 'lg:col-span-9'
+                showSpotlight ? 'lg:col-span-7' : 'lg:col-span-9'
               } flex flex-col justify-center`}
             >
               <p className="text-xs sm:text-sm font-bold text-[#BAE6FD] tracking-wide mb-3">
-                {STORE_INFO.storeName} | <bdi>{STORE_INFO.storeSubtitle}</bdi>
+                {siteConfig.storeName}
+                {siteConfig.storeSubtitle ? (
+                  <>
+                    {' '}
+                    | <bdi>{siteConfig.storeSubtitle}</bdi>
+                  </>
+                ) : null}
               </p>
 
               <h1
                 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-extrabold leading-[1.24] text-white mb-4"
                 style={{ textWrap: 'balance' }}
               >
-                {STORE_INFO.tagline}
+                {siteConfig.tagline}
               </h1>
 
-              <p className="text-sm sm:text-base lg:text-lg text-[#E0F2FE] leading-relaxed max-w-2xl mb-6">
-                الوجهة المتخصصة في عرض المنتجات والأجهزة الحديثة، واستعراض أحدث الموديلات والصور
-                والمواصفات والإمكانيات، لمساعدة العملاء على التعرف على المنتجات المتاحة واختيار
-                الأنسب لاحتياجاتهم.
-              </p>
+              {siteConfig.heroDescription && (
+                <p className="text-sm sm:text-base lg:text-lg text-[#E0F2FE] leading-relaxed max-w-2xl mb-6">
+                  {siteConfig.heroDescription}
+                </p>
+              )}
 
               {/* Prominent Accessible Search Bar */}
               <form
@@ -147,7 +172,7 @@ export function HeroSection({
                 </button>
 
                 <a
-                  href={STORE_INFO.whatsappUrl}
+                  href={siteConfig.whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl bg-white/14 hover:bg-white/22 border border-white/35 px-5 py-2.5 text-sm sm:text-base font-bold text-white transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
@@ -156,7 +181,7 @@ export function HeroSection({
                   <span>واتساب الأعمال</span>
                 </a>
 
-                {hasDiscountOffers && (
+                {hasDiscountOffers && siteConfig.showOffersSection && (
                   <button
                     type="button"
                     onClick={scrollToOffers}
@@ -169,18 +194,18 @@ export function HeroSection({
             </div>
 
             {/* Left Column (RTL): Featured Product Spotlight Pedestal */}
-            {featuredProduct && (
+            {showSpotlight && featuredProduct && (
               <div className="lg:col-span-5 flex items-center justify-center">
                 <div className="w-full max-w-md rounded-3xl bg-white/95 p-5 sm:p-6 text-[#0B1F3A] shadow-[0_20px_50px_rgba(7,22,48,0.28)] border border-white/60">
                   <div className="flex items-center justify-between gap-2 mb-3 text-xs font-semibold text-[#0284C7]">
-                    <span>أحدث منتجات المحلاوي ستور</span>
-                    {isDiscountActive(featuredProduct) && (
+                    <span>أحدث منتجات {siteConfig.storeName}</span>
+                    {spotlightDiscountActive && (
                       <span className="font-bold text-[#1D4ED8]">
                         خصم{' '}
                         <bdi className="font-num">
                           {calculateDiscountPercent(
                             featuredProduct.originalPrice,
-                            featuredProduct.price
+                            spotlightEffectivePrice
                           )}
                           %
                         </bdi>
@@ -204,16 +229,19 @@ export function HeroSection({
 
                     <div className="mt-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-4">
                       <div className="min-w-0">
-                        <p className="text-xs text-slate-500 mb-1">
-                          {featuredProduct.brand}
-                          {showCategory ? ` · ${featuredProduct.category}` : ''}
-                        </p>
+                        {(featuredProduct.brand || showCategory) && (
+                          <p className="text-xs text-slate-500 mb-1">
+                            {featuredProduct.brand}
+                            {featuredProduct.brand && showCategory ? ' · ' : ''}
+                            {showCategory ? featuredProduct.category : ''}
+                          </p>
+                        )}
                         <h2 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] leading-snug">
                           {featuredProduct.name}
                         </h2>
                       </div>
                       <div className="sm:text-left shrink-0">
-                        {isDiscountActive(featuredProduct) && (
+                        {spotlightDiscountActive && (
                           <p className="text-xs text-slate-400 line-through">
                             <bdi className="font-num">
                               {formatPriceEgp(featuredProduct.originalPrice)}
@@ -222,7 +250,7 @@ export function HeroSection({
                           </p>
                         )}
                         <p className="text-lg sm:text-xl font-extrabold text-[#1D4ED8]">
-                          <bdi className="font-num">{formatPriceEgp(featuredProduct.price)}</bdi>{' '}
+                          <bdi className="font-num">{formatPriceEgp(spotlightEffectivePrice)}</bdi>{' '}
                           <span className="text-xs font-bold">ج.م</span>
                         </p>
                       </div>
@@ -236,53 +264,70 @@ export function HeroSection({
       </div>
 
       {/* Soft Harmonious Value & Partnership Strip */}
-      <div className="bg-[#F2FAFF] dark:bg-[#081830] border-b border-[#D8EEFB] dark:border-[#163663]">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 text-xs sm:text-sm text-[#0F294A] dark:text-[#E0F2FE]">
-            <div className="flex items-center gap-3 py-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#1D4ED8] dark:text-[#38BDF8]">
-                <Layers className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">أحدث المنتجات والموديلات</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300">استعراض شامل للأجهزة المتاحة</p>
+      {siteConfig.showValueStrip && (
+        <div className="bg-[#F2FAFF] dark:bg-[#081830] border-b border-[#D8EEFB] dark:border-[#163663]">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 text-xs sm:text-sm text-[#0F294A] dark:text-[#E0F2FE]">
+              <div className="flex items-center gap-3 py-1">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#1D4ED8] dark:text-[#38BDF8]">
+                  <Layers className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">
+                    أحدث المنتجات والموديلات
+                  </p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    استعراض شامل للأجهزة المتاحة
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-3 py-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8]">
-                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">صور ومواصفات واضحة</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300">تعرف على الإمكانيات لاختيار الأنسب</p>
+              <div className="flex items-center gap-3 py-1">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8]">
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">
+                    صور ومواصفات واضحة
+                  </p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    تعرف على الإمكانيات لاختيار الأنسب
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-3 py-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#1D4ED8] dark:text-[#38BDF8]">
-                <MessageCircle className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">تواصل عبر واتساب الأعمال</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300">للاستفسار عن الأسعار والتوافر فورًا</p>
+              <div className="flex items-center gap-3 py-1">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#1D4ED8] dark:text-[#38BDF8]">
+                  <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">
+                    تواصل عبر واتساب الأعمال
+                  </p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    للاستفسار عن الأسعار والتوافر فورًا
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-3 py-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8]">
-                <Cpu className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">
-                  شريك النجاح <bdi>{PARTNER_INFO.partnerName}</bdi>
-                </p>
-                <p className="text-xs text-slate-600 dark:text-slate-300">أنظمة ذكية وتركيبات ودعم فني</p>
+              <div className="flex items-center gap-3 py-1">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8]">
+                  <Cpu className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-bold text-[#0B1F3A] dark:text-[#F0F9FF]">
+                    شريك النجاح <bdi>{siteConfig.partnerName}</bdi>
+                  </p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    أنظمة ذكية وتركيبات ودعم فني
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
+

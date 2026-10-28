@@ -2,7 +2,7 @@
   "entities": {
     "Product": {
       "title": "Product",
-      "description": "An electronics or retail product sold at El-Mahallawy Store.",
+      "description": "An electronics or technical system product sold at El Mahlawy Store.",
       "type": "object",
       "properties": {
         "id": {
@@ -20,27 +20,27 @@
         },
         "brand": {
           "type": "string",
-          "minLength": 1,
+          "minLength": 0,
           "maxLength": 80,
-          "description": "Manufacturer or brand name."
+          "description": "Optional manufacturer or brand name."
         },
         "category": {
           "type": "string",
-          "minLength": 2,
+          "minLength": 0,
           "maxLength": 60,
-          "description": "Storefront product category."
+          "description": "Optional storefront product category."
         },
         "shortDescription": {
           "type": "string",
-          "minLength": 4,
+          "minLength": 0,
           "maxLength": 300,
-          "description": "Concise summary shown on product cards."
+          "description": "Optional concise summary shown on product cards."
         },
         "description": {
           "type": "string",
-          "minLength": 4,
+          "minLength": 0,
           "maxLength": 3000,
-          "description": "Full detailed description shown in the product details view."
+          "description": "Optional detailed description shown in the product details view."
         },
         "price": {
           "type": "number",
@@ -48,11 +48,31 @@
         },
         "originalPrice": {
           "type": "number",
-          "description": "Original price before discount in Egyptian Pounds (EGP)."
+          "description": "Base price before discount in Egyptian Pounds (EGP)."
         },
         "discountEnabled": {
           "type": "boolean",
-          "description": "Whether promotional discount pricing is active."
+          "description": "Whether promotional discount pricing is enabled."
+        },
+        "discountType": {
+          "type": "string",
+          "enum": ["percentage", "fixed"],
+          "maxLength": 20,
+          "description": "Discount calculation mode: percentage or fixed EGP amount."
+        },
+        "discountValue": {
+          "type": "number",
+          "description": "Configured discount percentage or fixed amount."
+        },
+        "discountStartDate": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "Optional ISO start date (YYYY-MM-DD) for scheduled discount."
+        },
+        "discountEndDate": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "Optional ISO end date (YYYY-MM-DD) for scheduled discount."
         },
         "inStock": {
           "type": "boolean",
@@ -60,7 +80,7 @@
         },
         "isFeatured": {
           "type": "boolean",
-          "description": "Whether the product is highlighted as a selected item."
+          "description": "Whether the product is highlighted as a featured item."
         },
         "isPublished": {
           "type": "boolean",
@@ -68,7 +88,7 @@
         },
         "images": {
           "type": "array",
-          "description": "Bounded list (1..8) of public product image URLs."
+          "description": "Bounded list (1..15) of public Cloudinary or asset image URLs."
         },
         "specs": {
           "type": "array",
@@ -117,6 +137,115 @@
         "updatedAt"
       ]
     },
+    "SiteConfig": {
+      "title": "SiteConfig",
+      "description": "Public storefront identity, contact settings, About Us copy, and section visibility flags managed by the developer.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "storeName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "storeSubtitle": { "type": "string", "minLength": 0, "maxLength": 100 },
+        "tagline": { "type": "string", "minLength": 0, "maxLength": 200 },
+        "heroDescription": { "type": "string", "minLength": 0, "maxLength": 600 },
+        "announcementText": { "type": "string", "minLength": 0, "maxLength": 240 },
+        "seoTitle": { "type": "string", "minLength": 0, "maxLength": 140 },
+        "seoDescription": { "type": "string", "minLength": 0, "maxLength": 400 },
+        "copyrightText": { "type": "string", "minLength": 0, "maxLength": 200 },
+        "primaryPhone": { "type": "string", "minLength": 7, "maxLength": 30 },
+        "secondaryPhone": { "type": "string", "minLength": 0, "maxLength": 30 },
+        "primaryWhatsApp": { "type": "string", "minLength": 7, "maxLength": 25 },
+        "whatsappUrl": { "type": "string", "minLength": 0, "maxLength": 600 },
+        "afterSalesWhatsAppUrl": { "type": "string", "minLength": 0, "maxLength": 600 },
+        "facebookUrl": { "type": "string", "minLength": 0, "maxLength": 600 },
+        "instagramUrl": { "type": "string", "minLength": 0, "maxLength": 600 },
+        "address": { "type": "string", "minLength": 0, "maxLength": 500 },
+        "googleMapsUrl": { "type": "string", "minLength": 0, "maxLength": 600 },
+        "workingHours": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "shippingSummary": { "type": "string", "minLength": 0, "maxLength": 400 },
+        "afterSalesPolicy": { "type": "string", "minLength": 0, "maxLength": 800 },
+        "closingPhrase": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "contactSectionTitle": { "type": "string", "minLength": 0, "maxLength": 120 },
+        "contactSectionSubtitle": { "type": "string", "minLength": 0, "maxLength": 200 },
+        "partnerName": { "type": "string", "minLength": 0, "maxLength": 100 },
+        "partnerSubtitle": { "type": "string", "minLength": 0, "maxLength": 120 },
+        "partnerRoleTitle": { "type": "string", "minLength": 0, "maxLength": 120 },
+        "partnerServiceScopeText": { "type": "string", "minLength": 0, "maxLength": 300 },
+        "partnerOrderPhone1": { "type": "string", "minLength": 0, "maxLength": 30 },
+        "partnerOrderPhone2": { "type": "string", "minLength": 0, "maxLength": 30 },
+        "partnerMaintenancePhone": { "type": "string", "minLength": 0, "maxLength": 30 },
+        "partnerAfterSalesPhone": { "type": "string", "minLength": 0, "maxLength": 30 },
+        "partnerFacebookUrl": { "type": "string", "minLength": 0, "maxLength": 600 },
+        "aboutHeroTitle": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "aboutHeroSubtitle": { "type": "string", "minLength": 0, "maxLength": 500 },
+        "aboutStoreIntro": { "type": "string", "minLength": 0, "maxLength": 1200 },
+        "aboutPartnerIntro": { "type": "string", "minLength": 0, "maxLength": 1200 },
+        "visionTitle": { "type": "string", "minLength": 0, "maxLength": 160 },
+        "visionDescription": { "type": "string", "minLength": 0, "maxLength": 800 },
+        "contactChannels": { "type": "array", "description": "Bounded list (0..20) of structured contact channel maps." },
+        "socialLinks": { "type": "array", "description": "Bounded list (0..15) of structured social platform link maps." },
+        "branches": { "type": "array", "description": "Bounded list (0..10) of branch location maps." },
+        "showHeroSpotlight": { "type": "boolean" },
+        "showValueStrip": { "type": "boolean" },
+        "showOffersSection": { "type": "boolean" },
+        "showShippingSection": { "type": "boolean" },
+        "showPartnerCard": { "type": "boolean" },
+        "showAboutBanner": { "type": "boolean" },
+        "updatedBy": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "storeName",
+        "storeSubtitle",
+        "tagline",
+        "heroDescription",
+        "announcementText",
+        "seoTitle",
+        "seoDescription",
+        "copyrightText",
+        "primaryPhone",
+        "secondaryPhone",
+        "primaryWhatsApp",
+        "whatsappUrl",
+        "afterSalesWhatsAppUrl",
+        "facebookUrl",
+        "instagramUrl",
+        "address",
+        "googleMapsUrl",
+        "workingHours",
+        "shippingSummary",
+        "afterSalesPolicy",
+        "closingPhrase",
+        "contactSectionTitle",
+        "contactSectionSubtitle",
+        "partnerName",
+        "partnerSubtitle",
+        "partnerRoleTitle",
+        "partnerServiceScopeText",
+        "partnerOrderPhone1",
+        "partnerOrderPhone2",
+        "partnerMaintenancePhone",
+        "partnerAfterSalesPhone",
+        "partnerFacebookUrl",
+        "aboutHeroTitle",
+        "aboutHeroSubtitle",
+        "aboutStoreIntro",
+        "aboutPartnerIntro",
+        "visionTitle",
+        "visionDescription",
+        "contactChannels",
+        "socialLinks",
+        "branches",
+        "showHeroSpotlight",
+        "showValueStrip",
+        "showOffersSection",
+        "showShippingSection",
+        "showPartnerCard",
+        "showAboutBanner",
+        "updatedBy",
+        "updatedAt"
+      ]
+    },
     "AdminRole": {
       "title": "AdminRole",
       "description": "Trusted administrator membership record.",
@@ -143,6 +272,21 @@
         }
       },
       "required": ["uid", "grantedBy", "createdAt"]
+    },
+    "ConnectionProbe": {
+      "title": "ConnectionProbe",
+      "description": "Read-only Firestore client connectivity probe document (/test/connection).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Probe identifier ('connection')."
+        }
+      },
+      "required": ["id"]
     }
   },
   "firestore": {
@@ -150,9 +294,17 @@
       "schema": "Product",
       "description": "Storefront product catalog managed by administrators and publicly readable when published."
     },
+    "/siteConfig/{configId}": {
+      "schema": "SiteConfig",
+      "description": "Singleton public site & contact configuration document (/siteConfig/main) readable publicly and writable strictly by verified administrators."
+    },
     "/admins/{adminUid}": {
       "schema": "AdminRole",
-      "description": "Trusted admin lookup documents restricted strictly to administrators."
+      "description": "Locked administrator lookup collection; client-side list, create, update, and delete are strictly forbidden."
+    },
+    "/test/{probeId}": {
+      "schema": "ConnectionProbe",
+      "description": "Read-only connectivity health probe document (/test/connection); writes and list queries are strictly forbidden."
     }
   }
 }

@@ -24,16 +24,23 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Pure token check (safe for list queries with zero DB lookups)
-    function isBootstrappedAdmin() {
-      return isSignedIn() &&
-        request.auth.token.email == 'mohamed.m.alhasaneen@gmail.com' &&
-        request.auth.token.email_verified == true;
+    // Pure token/UID check for authorized developer & bootstrapped project owner (zero DB lookups)
+    function isAuthorizedDeveloper() {
+      return isSignedIn() && (
+        request.auth.uid == 'eGi5P37ztLe5Nn77sEFvmFFcZWp1' ||
+        (
+          request.auth.token.email_verified == true &&
+          (
+            request.auth.token.email == 'abdulazizriadvip@gmail.com' ||
+            request.auth.token.email == 'mohamed.m.alhasaneen@gmail.com'
+          )
+        )
+      );
     }
 
-    // Full admin check including trusted /admins collection lookup
+    // Full admin check including Console-managed /admins collection lookup
     function isAdmin() {
-      return isBootstrappedAdmin() || (
+      return isAuthorizedDeveloper() || (
         isSignedIn() &&
         request.auth.token.email_verified == true &&
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
@@ -49,24 +56,29 @@ service cloud.firestore {
         ]) &&
         data.keys().hasOnly([
           'id', 'name', 'brand', 'category', 'shortDescription', 'description',
-          'price', 'originalPrice', 'discountEnabled', 'inStock', 'isFeatured',
+          'price', 'originalPrice', 'discountEnabled', 'discountType', 'discountValue',
+          'discountStartDate', 'discountEndDate', 'inStock', 'isFeatured',
           'isPublished', 'images', 'specs', 'options', 'authorUid', 'createdAt', 'updatedAt'
         ]) &&
         data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
         data.name is string && data.name.size() >= 2 && data.name.size() <= 160 &&
-        data.brand is string && data.brand.size() >= 1 && data.brand.size() <= 80 &&
-        data.category is string && data.category.size() >= 2 && data.category.size() <= 60 &&
-        data.shortDescription is string && data.shortDescription.size() >= 4 && data.shortDescription.size() <= 300 &&
-        data.description is string && data.description.size() >= 4 && data.description.size() <= 3000 &&
+        data.brand is string && data.brand.size() <= 80 &&
+        data.category is string && data.category.size() <= 60 &&
+        data.shortDescription is string && data.shortDescription.size() <= 300 &&
+        data.description is string && data.description.size() <= 3000 &&
         (data.price is int || data.price is float) && data.price > 0 && data.price <= 1000000 &&
         (data.originalPrice is int || data.originalPrice is float) && data.originalPrice >= data.price && data.originalPrice <= 1000000 &&
         data.discountEnabled is bool &&
         (!data.discountEnabled || data.originalPrice > data.price) &&
+        (!('discountType' in data) || (data.discountType is string && data.discountType.size() <= 20 && data.discountType in ['percentage', 'fixed'])) &&
+        (!('discountValue' in data) || ((data.discountValue is int || data.discountValue is float) && data.discountValue >= 0 && data.discountValue <= 1000000)) &&
+        (!('discountStartDate' in data) || (data.discountStartDate is string && data.discountStartDate.size() <= 32)) &&
+        (!('discountEndDate' in data) || (data.discountEndDate is string && data.discountEndDate.size() <= 32)) &&
         data.inStock is bool &&
         data.isFeatured is bool &&
         data.isPublished is bool &&
-        data.images is list && data.images.size() >= 1 && data.images.size() <= 8 &&
-        data.images[0] is string && data.images[0].size() >= 1 && data.images[0].size() <= 500 &&
+        data.images is list && data.images.size() >= 1 && data.images.size() <= 15 &&
+        data.images[0] is string && data.images[0].size() >= 1 && data.images[0].size() <= 2000 &&
         data.specs is list && data.specs.size() <= 15 &&
         (data.specs.size() == 0 || (data.specs[0] is string && data.specs[0].size() >= 1 && data.specs[0].size() <= 200)) &&
         data.options is list && data.options.size() <= 10 &&
@@ -76,19 +88,140 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
-    // Validation Blueprint for AdminRole
-    function isValidAdminRole(data) {
-      return data.keys().hasAll(['uid', 'grantedBy', 'createdAt']) &&
-        data.keys().hasOnly(['uid', 'grantedBy', 'createdAt']) &&
-        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
-        data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 128 && data.grantedBy.matches('^[a-zA-Z0-9_\\-]+$') &&
-        data.createdAt is timestamp;
+    function isValidContactChannelItem(item) {
+      return item is map &&
+        item.keys().hasAll(['id', 'label', 'role', 'owner', 'phone', 'whatsappUrl']) &&
+        item.keys().hasOnly(['id', 'label', 'role', 'owner', 'phone', 'whatsappUrl']) &&
+        item.id is string && item.id.size() >= 1 && item.id.size() <= 64 && item.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+        item.label is string && item.label.size() >= 1 && item.label.size() <= 120 &&
+        item.role is string && item.role.size() <= 24 && item.role in ['orders', 'maintenance', 'after_sales', 'support', 'general'] &&
+        item.owner is string && item.owner.size() <= 16 && item.owner in ['store', 'partner'] &&
+        item.phone is string && item.phone.size() >= 7 && item.phone.size() <= 30 &&
+        item.whatsappUrl is string && item.whatsappUrl.size() <= 600;
+    }
+
+    function isValidSocialLinkItem(item) {
+      return item is map &&
+        item.keys().hasAll(['id', 'platform', 'label', 'owner', 'url']) &&
+        item.keys().hasOnly(['id', 'platform', 'label', 'owner', 'url']) &&
+        item.id is string && item.id.size() >= 1 && item.id.size() <= 64 && item.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+        item.platform is string && item.platform.size() >= 1 && item.platform.size() <= 24 &&
+        item.platform in ['facebook', 'instagram', 'tiktok', 'youtube', 'telegram', 'x', 'website', 'other'] &&
+        item.label is string && item.label.size() >= 1 && item.label.size() <= 120 &&
+        item.owner is string && item.owner.size() >= 1 && item.owner.size() <= 16 && item.owner in ['store', 'partner'] &&
+        item.url is string && item.url.size() >= 1 && item.url.size() <= 600;
+    }
+
+    function isValidBranchItem(item) {
+      return item is map &&
+        item.keys().hasAll(['id', 'name', 'address', 'mapUrl', 'workingHours', 'phone']) &&
+        item.keys().hasOnly(['id', 'name', 'address', 'mapUrl', 'workingHours', 'phone']) &&
+        item.id is string && item.id.size() >= 1 && item.id.size() <= 64 && item.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+        item.name is string && item.name.size() >= 1 && item.name.size() <= 120 &&
+        item.address is string && item.address.size() >= 1 && item.address.size() <= 400 &&
+        item.mapUrl is string && item.mapUrl.size() <= 600 &&
+        item.workingHours is string && item.workingHours.size() <= 160 &&
+        item.phone is string && item.phone.size() <= 30;
+    }
+
+    function isValidSiteIdentityAndContacts(data) {
+      return data.id is string && data.id.size() >= 1 && data.id.size() <= 32 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.storeName is string && data.storeName.size() >= 2 && data.storeName.size() <= 100 &&
+        data.storeSubtitle is string && data.storeSubtitle.size() <= 100 &&
+        data.tagline is string && data.tagline.size() <= 200 &&
+        data.heroDescription is string && data.heroDescription.size() <= 600 &&
+        data.announcementText is string && data.announcementText.size() <= 240 &&
+        data.seoTitle is string && data.seoTitle.size() <= 140 &&
+        data.seoDescription is string && data.seoDescription.size() <= 400 &&
+        data.copyrightText is string && data.copyrightText.size() <= 200 &&
+        data.primaryPhone is string && data.primaryPhone.size() >= 7 && data.primaryPhone.size() <= 30 &&
+        data.secondaryPhone is string && data.secondaryPhone.size() <= 30 &&
+        data.primaryWhatsApp is string && data.primaryWhatsApp.size() >= 7 && data.primaryWhatsApp.size() <= 25 &&
+        data.whatsappUrl is string && data.whatsappUrl.size() <= 600 &&
+        data.afterSalesWhatsAppUrl is string && data.afterSalesWhatsAppUrl.size() <= 600 &&
+        data.facebookUrl is string && data.facebookUrl.size() <= 600 &&
+        data.instagramUrl is string && data.instagramUrl.size() <= 600 &&
+        data.address is string && data.address.size() <= 500 &&
+        data.googleMapsUrl is string && data.googleMapsUrl.size() <= 600 &&
+        data.workingHours is string && data.workingHours.size() <= 160 &&
+        data.shippingSummary is string && data.shippingSummary.size() <= 400 &&
+        data.afterSalesPolicy is string && data.afterSalesPolicy.size() <= 800 &&
+        data.closingPhrase is string && data.closingPhrase.size() <= 160 &&
+        data.contactSectionTitle is string && data.contactSectionTitle.size() <= 120 &&
+        data.contactSectionSubtitle is string && data.contactSectionSubtitle.size() <= 200;
+    }
+
+    function isValidSitePartnerAboutAndMeta(data) {
+      return data.partnerName is string && data.partnerName.size() <= 100 &&
+        data.partnerSubtitle is string && data.partnerSubtitle.size() <= 120 &&
+        data.partnerRoleTitle is string && data.partnerRoleTitle.size() <= 120 &&
+        data.partnerServiceScopeText is string && data.partnerServiceScopeText.size() <= 300 &&
+        data.partnerOrderPhone1 is string && data.partnerOrderPhone1.size() <= 30 &&
+        data.partnerOrderPhone2 is string && data.partnerOrderPhone2.size() <= 30 &&
+        data.partnerMaintenancePhone is string && data.partnerMaintenancePhone.size() <= 30 &&
+        data.partnerAfterSalesPhone is string && data.partnerAfterSalesPhone.size() <= 30 &&
+        data.partnerFacebookUrl is string && data.partnerFacebookUrl.size() <= 600 &&
+        data.aboutHeroTitle is string && data.aboutHeroTitle.size() <= 160 &&
+        data.aboutHeroSubtitle is string && data.aboutHeroSubtitle.size() <= 500 &&
+        data.aboutStoreIntro is string && data.aboutStoreIntro.size() <= 1200 &&
+        data.aboutPartnerIntro is string && data.aboutPartnerIntro.size() <= 1200 &&
+        data.visionTitle is string && data.visionTitle.size() <= 160 &&
+        data.visionDescription is string && data.visionDescription.size() <= 800 &&
+        data.contactChannels is list && data.contactChannels.size() <= 20 &&
+        (data.contactChannels.size() == 0 || isValidContactChannelItem(data.contactChannels[0])) &&
+        data.socialLinks is list && data.socialLinks.size() <= 15 &&
+        (data.socialLinks.size() == 0 || isValidSocialLinkItem(data.socialLinks[0])) &&
+        data.branches is list && data.branches.size() <= 10 &&
+        (data.branches.size() == 0 || isValidBranchItem(data.branches[0])) &&
+        data.showHeroSpotlight is bool &&
+        data.showValueStrip is bool &&
+        data.showOffersSection is bool &&
+        data.showShippingSection is bool &&
+        data.showPartnerCard is bool &&
+        data.showAboutBanner is bool &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSiteConfig(data) {
+      return data.keys().hasAll([
+          'id', 'storeName', 'storeSubtitle', 'tagline', 'heroDescription',
+          'announcementText', 'seoTitle', 'seoDescription', 'copyrightText',
+          'primaryPhone', 'secondaryPhone', 'primaryWhatsApp', 'whatsappUrl',
+          'afterSalesWhatsAppUrl', 'facebookUrl', 'instagramUrl', 'address',
+          'googleMapsUrl', 'workingHours', 'shippingSummary', 'afterSalesPolicy',
+          'closingPhrase', 'contactSectionTitle', 'contactSectionSubtitle',
+          'partnerName', 'partnerSubtitle', 'partnerRoleTitle', 'partnerServiceScopeText',
+          'partnerOrderPhone1', 'partnerOrderPhone2', 'partnerMaintenancePhone',
+          'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
+          'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
+          'visionDescription', 'contactChannels', 'socialLinks', 'branches',
+          'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
+          'showPartnerCard', 'showAboutBanner', 'updatedBy', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'storeName', 'storeSubtitle', 'tagline', 'heroDescription',
+          'announcementText', 'seoTitle', 'seoDescription', 'copyrightText',
+          'primaryPhone', 'secondaryPhone', 'primaryWhatsApp', 'whatsappUrl',
+          'afterSalesWhatsAppUrl', 'facebookUrl', 'instagramUrl', 'address',
+          'googleMapsUrl', 'workingHours', 'shippingSummary', 'afterSalesPolicy',
+          'closingPhrase', 'contactSectionTitle', 'contactSectionSubtitle',
+          'partnerName', 'partnerSubtitle', 'partnerRoleTitle', 'partnerServiceScopeText',
+          'partnerOrderPhone1', 'partnerOrderPhone2', 'partnerMaintenancePhone',
+          'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
+          'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
+          'visionDescription', 'contactChannels', 'socialLinks', 'branches',
+          'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
+          'showPartnerCard', 'showAboutBanner', 'updatedBy', 'updatedAt'
+        ]) &&
+        isValidSiteIdentityAndContacts(data) &&
+        isValidSitePartnerAboutAndMeta(data);
     }
 
     // Products Catalog Collection
     match /products/{productId} {
       allow get: if isValidId(productId) && (existing().isPublished == true || isAdmin());
-      allow list: if existing().isPublished == true || isBootstrappedAdmin();
+      allow list: if existing().isPublished == true || isAuthorizedDeveloper();
 
       allow create: if isSignedIn() &&
         isValidId(productId) &&
@@ -102,18 +235,24 @@ service cloud.firestore {
       allow update: if isSignedIn() &&
         isValidId(productId) &&
         isValidProduct(incoming()) &&
-        incoming().id == existing().id &&
-        incoming().authorUid == existing().authorUid &&
-        incoming().createdAt == existing().createdAt &&
+        incoming().id == productId &&
+        (!('id' in existing()) || incoming().id == existing().id) &&
+        (!('authorUid' in existing()) || !(existing().authorUid is string) || existing().authorUid.size() == 0 || incoming().authorUid == existing().authorUid) &&
+        (!('createdAt' in existing()) || !(existing().createdAt is timestamp) || incoming().createdAt == existing().createdAt) &&
         incoming().updatedAt == request.time &&
         (
+          isAdmin() ||
           incoming().diff(existing()).affectedKeys().hasOnly([
             'name', 'brand', 'category', 'shortDescription', 'description',
-            'price', 'originalPrice', 'discountEnabled', 'inStock', 'isFeatured',
-            'isPublished', 'images', 'specs', 'options', 'updatedAt'
+            'price', 'originalPrice', 'discountEnabled', 'discountType',
+            'discountValue', 'discountStartDate', 'discountEndDate',
+            'inStock', 'isFeatured', 'isPublished', 'images', 'specs',
+            'options', 'updatedAt'
           ]) ||
           incoming().diff(existing()).affectedKeys().hasOnly([
-            'price', 'originalPrice', 'discountEnabled', 'inStock', 'isFeatured', 'updatedAt'
+            'price', 'originalPrice', 'discountEnabled', 'discountType',
+            'discountValue', 'discountStartDate', 'discountEndDate',
+            'inStock', 'isFeatured', 'isPublished', 'updatedAt'
           ])
         ) &&
         isAdmin();
@@ -121,21 +260,67 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(productId) && isAdmin();
     }
 
-    // Trusted Admin Membership Collection
-    match /admins/{adminUid} {
-      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isBootstrappedAdmin());
+    // Public Storefront & Contact Configuration Singleton (/siteConfig/main)
+    match /siteConfig/{configId} {
+      allow get: if isValidId(configId) && configId == 'main';
       allow list: if false;
 
       allow create: if isSignedIn() &&
-        isValidId(adminUid) &&
-        isValidAdminRole(incoming()) &&
-        incoming().uid == adminUid &&
-        incoming().grantedBy == request.auth.uid &&
-        incoming().createdAt == request.time &&
-        isBootstrappedAdmin();
+        isValidId(configId) &&
+        configId == 'main' &&
+        isValidSiteConfig(incoming()) &&
+        incoming().id == configId &&
+        incoming().updatedBy == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
 
+      allow update: if isSignedIn() &&
+        isValidId(configId) &&
+        configId == 'main' &&
+        isValidSiteConfig(incoming()) &&
+        incoming().id == configId &&
+        (!('id' in existing()) || incoming().id == existing().id) &&
+        incoming().updatedBy == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'storeName', 'storeSubtitle', 'tagline', 'heroDescription',
+            'announcementText', 'seoTitle', 'seoDescription', 'copyrightText',
+            'primaryPhone', 'secondaryPhone', 'primaryWhatsApp', 'whatsappUrl',
+            'afterSalesWhatsAppUrl', 'facebookUrl', 'instagramUrl', 'address',
+            'googleMapsUrl', 'workingHours', 'shippingSummary', 'afterSalesPolicy',
+            'closingPhrase', 'contactSectionTitle', 'contactSectionSubtitle',
+            'partnerName', 'partnerSubtitle', 'partnerRoleTitle', 'partnerServiceScopeText',
+            'partnerOrderPhone1', 'partnerOrderPhone2', 'partnerMaintenancePhone',
+            'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
+            'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
+            'visionDescription', 'contactChannels', 'socialLinks', 'branches',
+            'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
+            'showPartnerCard', 'showAboutBanner', 'updatedBy', 'updatedAt'
+          ])
+        ) &&
+        isAdmin();
+
+      allow delete: if false;
+    }
+
+    // Locked Admin Membership Collection (client-side creation/mutation strictly forbidden)
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && isAuthorizedDeveloper();
+      allow list: if false;
+      allow create: if false;
       allow update: if false;
-      allow delete: if isSignedIn() && isValidId(adminUid) && isBootstrappedAdmin();
+      allow delete: if false;
+    }
+
+    // Read-only Connectivity Probe (/test/connection)
+    match /test/{probeId} {
+      allow get: if isValidId(probeId) && probeId == 'connection';
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }

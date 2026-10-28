@@ -11,7 +11,6 @@ import {
   MapPin,
   MessageCircle,
   Package,
-  Phone,
   Radio,
   ShieldCheck,
   Sparkles,
@@ -19,7 +18,9 @@ import {
   Volume2,
   Wrench,
 } from 'lucide-react';
-import { PARTNER_INFO, STORE_INFO } from '../types/store';
+import { useSiteConfig } from '../contexts/SiteConfigContext';
+import { PARTNER_INFO } from '../types/store';
+import { buildWhatsAppLinkFromPhone, parsePartnerScopeList } from '../utils/siteConfig';
 import { Footer } from './Footer';
 
 interface AboutUsPageProps {
@@ -100,107 +101,133 @@ const INFINITY_SERVICES_LIST = [
 ];
 
 export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPageProps) {
+  const siteConfig = useSiteConfig();
+  const partnerScopeList = parsePartnerScopeList(siteConfig.partnerServiceScopeText);
+  const effectiveScope =
+    partnerScopeList.length > 0 ? partnerScopeList : PARTNER_INFO.serviceScope;
+  const partnerOrderWa = buildWhatsAppLinkFromPhone(siteConfig.partnerOrderPhone1);
+  const partnerMaintWa = buildWhatsAppLinkFromPhone(siteConfig.partnerMaintenancePhone);
+  const storeSocialLinks = (siteConfig.socialLinks || []).filter(
+    (sl) => sl.owner === 'store' && Boolean(sl.url)
+  );
+  const partnerSocialLinks = (siteConfig.socialLinks || []).filter(
+    (sl) => sl.owner === 'partner' && Boolean(sl.url)
+  );
+
   return (
-    <div className="min-h-screen bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] flex flex-col">
+    <div className="min-h-screen bg-[#0B0B0B] text-gray-100 flex flex-col">
       {/* Top Standalone Header Bar */}
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#081A33]/95 backdrop-blur-md border-b border-[#D8EEFB] dark:border-[#163663]">
+      <header className="sticky top-0 z-40 bg-[#0B0B0B]/95 backdrop-blur-md border-b border-[#D4AF37]">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <button
             type="button"
             onClick={onBackToStore}
-            className="inline-flex items-center gap-2 text-sm sm:text-base font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] hover:text-[#1D4ED8] dark:hover:text-[#38BDF8] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 text-sm sm:text-base font-extrabold text-white hover:text-[#D4AF37] transition-colors cursor-pointer"
           >
             <img
               src="/logo.png"
-              alt={STORE_INFO.storeName}
+              alt={siteConfig.storeName}
+              referrerPolicy="no-referrer"
               className="h-9 w-9 rounded-xl object-contain shadow-xs bg-white"
             />
             <span>
-              {STORE_INFO.storeName} <span className="text-[#0284C7] dark:text-[#38BDF8]">|</span>{' '}
-              <bdi className="text-[#1E3A8A] dark:text-[#7DD3FC]">{STORE_INFO.storeSubtitle}</bdi>
+              {siteConfig.storeName}
+              {siteConfig.storeSubtitle ? (
+                <>
+                  {' '}
+                  <span className="text-[#D4AF37]">|</span>{' '}
+                  <bdi className="text-[#C62828]">{siteConfig.storeSubtitle}</bdi>
+                </>
+              ) : null}
             </span>
           </button>
 
           <button
             type="button"
             onClick={onBackToStore}
-            className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] hover:bg-[#E2F3FE] dark:hover:bg-[#153460] border border-[#CBE7FA] dark:border-[#1E3F73] px-4 py-2 text-xs sm:text-sm font-extrabold text-[#1D4ED8] dark:text-[#38BDF8] transition-colors cursor-pointer"
+            className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#0B0B0B] hover:bg-[#1A1A1A] border border-[#D4AF37] px-4 py-2 text-xs sm:text-sm font-extrabold text-[#D4AF37] transition-colors cursor-pointer"
           >
             <ArrowRight className="h-4 w-4" />
-            <span>العودة إلى الصفحة الرئيسية</span>
+            <span>العودة للرئيسية</span>
           </button>
         </div>
       </header>
 
       <main className="flex-1 space-y-0">
         {/* HERO BANNER */}
-        <section className="bg-gradient-to-r from-[#0B1F3A] via-[#1D4ED8] to-[#0284C7] text-white py-12 sm:py-16 px-4">
+        <section className="bg-gradient-to-r from-[#0B0B0B] via-[#2A0505] to-[#0B0B0B] text-white py-12 sm:py-16 px-4 border-b border-[#D4AF37]">
           <div className="mx-auto max-w-5xl text-center space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-extrabold text-[#7DD3FC] border border-white/15">
-              <Sparkles className="h-4 w-4 text-[#38BDF8]" />
-              <span>صفحة مستقلة · من نحن | About Us</span>
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#C62828]/20 px-4 py-1.5 text-xs font-extrabold text-[#D4AF37] border border-[#D4AF37]/50">
+              <Sparkles className="h-4 w-4 text-[#D4AF37]" />
+              <span>من نحن | About Us</span>
             </div>
 
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
-              المحلاوي ستور <span className="text-[#7DD3FC]">×</span> Infinity Corp
+              {siteConfig.aboutHeroTitle || `${siteConfig.storeName} × ${siteConfig.partnerName}`}
             </h1>
 
-            <p className="text-sm sm:text-lg text-[#E0F2FE] max-w-3xl mx-auto font-medium leading-relaxed">
-              تعرّف على معلومات المحلاوي ستور وشريك النجاح شركة Infinity Corp بالكامل، وتصفّح منتجاتنا، وخدماتنا الفنية، ونطاق عملنا، وعناويننا وأرقام التواصل المباشرة.
+            <p className="text-sm sm:text-lg text-gray-300 max-w-3xl mx-auto font-medium leading-relaxed">
+              {siteConfig.aboutHeroSubtitle}
             </p>
 
             <div className="pt-2">
               <button
                 type="button"
                 onClick={onBackToStore}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-white hover:bg-[#F0F9FF] text-[#0B1F3A] px-5 py-2.5 text-xs sm:text-sm font-extrabold shadow-lg transition-colors cursor-pointer"
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-900 text-white px-5 py-2.5 text-xs sm:text-sm font-extrabold shadow-lg border border-[#D4AF37] transition-colors cursor-pointer"
               >
-                <Home className="h-4 w-4 text-[#1D4ED8]" />
-                <span>تصفح المنتجات في الصفحة الرئيسية</span>
+                <Home className="h-4 w-4" />
+                <span>الرئيسية</span>
               </button>
             </div>
           </div>
         </section>
 
         {/* 1. EL MAHLAWY STORE SECTION */}
-        <section className="bg-white py-12 sm:py-16 border-b border-[#D8EEFB]">
+        <section className="bg-[#0B0B0B] py-12 sm:py-16 border-b border-[#D4AF37]/30">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
             {/* Header Badge & Title */}
             <div className="max-w-3xl space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-lg bg-[#F2FAFF] border border-[#CBE7FA] px-3 py-1 text-xs font-bold text-[#1D4ED8]">
+              <div className="inline-flex items-center gap-2 rounded-lg bg-[#C62828]/10 border border-[#D4AF37] px-3 py-1 text-xs font-bold text-[#D4AF37]">
                 <Package className="h-3.5 w-3.5" />
-                <span>المتجر الرسمي والبيع المباشر</span>
+                <span>المتجر الرسمي</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A]">
-                المحلاوي ستور | <bdi className="text-[#0284C7]">El Mahlawy Store</bdi>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+                {siteConfig.storeName}
+                {siteConfig.storeSubtitle ? (
+                  <>
+                    {' '}
+                    | <bdi className="text-[#D4AF37]">{siteConfig.storeSubtitle}</bdi>
+                  </>
+                ) : null}
               </h2>
-              <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-medium">
-                المحلاوي ستور هو وجهتك لشراء الأجهزة والمعدات ومستلزمات الأنظمة الفنية بأسعار تنافسية، مع توفير مجموعة متنوعة من المنتجات التي تلبي احتياجات الأفراد والشركات والمحلات والمنشآت التجارية. نوفر الشحن لجميع محافظات مصر، بالإضافة إلى خدمة التوصيل داخل شرم الشيخ.
+              <p className="text-sm sm:text-base text-gray-300 leading-relaxed font-medium">
+                {siteConfig.aboutStoreIntro}
               </p>
             </div>
 
             {/* Products Grid */}
             <div>
-              <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] mb-4 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-[#0284C7]" />
+              <h3 className="text-base sm:text-lg font-extrabold text-[#D4AF37] mb-4 flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
                 <span>منتجاتنا الأساسية والمتنوعة</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {STORE_PRODUCTS_LIST.map(({ title, description, Icon }) => (
                   <div
                     key={title}
-                    className="rounded-2xl bg-[#F2FAFF] border border-[#CBE7FA] p-5 flex flex-col justify-between hover:border-[#0284C7] transition-colors"
+                    className="rounded-2xl bg-[#1A1A1A] border border-[#D4AF37]/30 p-5 flex flex-col justify-between hover:border-[#D4AF37] transition-colors"
                   >
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-[#D8EEFB] text-[#1D4ED8] shadow-xs">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0B0B0B] border border-[#D4AF37] text-[#D4AF37] shadow-xs">
                           <Icon className="h-5 w-5" />
                         </span>
-                        <h4 className="text-sm sm:text-base font-extrabold text-[#0B1F3A]">
+                        <h4 className="text-sm sm:text-base font-extrabold text-white">
                           {title}
                         </h4>
                       </div>
-                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-1">
+                      <p className="text-xs sm:text-sm text-gray-400 leading-relaxed pt-1">
                         {description}
                       </p>
                     </div>
@@ -212,119 +239,125 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
             {/* Details Cards: Address, Delivery, Customer Service, Direct Contact */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
               {/* Address */}
-              <div className="rounded-2xl bg-white border border-[#CBE7FA] p-5 space-y-2.5 shadow-xs">
-                <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-sm">
-                  <MapPin className="h-4.5 w-4.5 shrink-0 text-[#0284C7]" />
+              <div className="rounded-2xl bg-[#1A1A1A] border border-[#D4AF37]/30 p-5 space-y-2.5 shadow-xs">
+                <div className="flex items-center gap-2 text-[#D4AF37] font-extrabold text-sm">
+                  <MapPin className="h-4.5 w-4.5 shrink-0" />
                   <span>عنوان المتجر</span>
                 </div>
-                <p className="text-xs sm:text-sm text-[#0B1F3A] font-semibold leading-relaxed">
-                  {STORE_INFO.address}
+                <p className="text-xs sm:text-sm text-gray-200 font-semibold leading-relaxed">
+                  {siteConfig.address}
                 </p>
               </div>
 
               {/* Shipping & Delivery */}
-              <div className="rounded-2xl bg-white border border-[#CBE7FA] p-5 space-y-2.5 shadow-xs">
-                <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-sm">
-                  <Truck className="h-4.5 w-4.5 shrink-0 text-[#0284C7]" />
+              <div className="rounded-2xl bg-[#1A1A1A] border border-[#D4AF37]/30 p-5 space-y-2.5 shadow-xs">
+                <div className="flex items-center gap-2 text-[#D4AF37] font-extrabold text-sm">
+                  <Truck className="h-4.5 w-4.5 shrink-0" />
                   <span>الشحن والتوصيل</span>
                 </div>
-                <ul className="space-y-2 text-xs sm:text-sm text-[#0B1F3A] font-medium">
-                  <li className="flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>📦 شحن متاح لجميع محافظات مصر.</span>
-                  </li>
-                  <li className="flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>🛵 توصيل داخل شرم الشيخ عن طريق الدليفري.</span>
-                  </li>
-                </ul>
+                <p className="text-xs sm:text-sm text-gray-300 font-medium leading-relaxed">
+                  <CheckCircle2 className="inline h-4 w-4 text-[#D4AF37] ml-1.5" />
+                  {siteConfig.shippingSummary}
+                </p>
               </div>
 
               {/* Customer Support */}
-              <div className="rounded-2xl bg-white border border-[#CBE7FA] p-5 space-y-2.5 shadow-xs">
-                <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-sm">
-                  <ShieldCheck className="h-4.5 w-4.5 shrink-0 text-[#0284C7]" />
-                  <span>خدمة العملاء وما بعد البيع</span>
+              <div className="rounded-2xl bg-[#1A1A1A] border border-[#D4AF37]/30 p-5 space-y-2.5 shadow-xs">
+                <div className="flex items-center gap-2 text-[#D4AF37] font-extrabold text-sm">
+                  <ShieldCheck className="h-4.5 w-4.5 shrink-0" />
+                  <span>خدمة ما بعد البيع</span>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
-                  مساعدة العملاء في معرفة المواصفات والأسعار. تتوفر إمكانية الاستبدال أو الاسترجاع وفقًا لسياسة المتجر وشروط الضمان المعلنة.
+                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed font-medium">
+                  {siteConfig.afterSalesPolicy}
                 </p>
               </div>
 
               {/* Store Direct Contact Card */}
-              <div className="rounded-2xl bg-[#0B1F3A] text-white p-5 space-y-3 flex flex-col justify-between shadow-xs">
+              <div className="rounded-2xl bg-[#C62828] text-white p-5 space-y-3 flex flex-col justify-between shadow-xs border border-[#D4AF37]">
                 <div>
-                  <p className="text-xs font-extrabold text-[#7DD3FC] mb-1">
-                    تواصل مع المحلاوي ستور
+                  <p className="text-xs font-extrabold text-[#D4AF37] mb-1">
+                    تواصل معنا
                   </p>
-                  <div className="flex items-center justify-between text-xs font-bold bg-white/10 px-3 py-2 rounded-xl mb-2">
-                    <span className="text-[#BAE6FD]">رقم الاتصال:</span>
+                  <div className="flex items-center justify-between text-xs font-bold bg-black/20 px-3 py-2 rounded-xl mb-2">
+                    <span className="text-gray-200">هاتف:</span>
                     <a
-                      href={`tel:${STORE_INFO.primaryPhone}`}
+                      href={`tel:${siteConfig.primaryPhone}`}
                       dir="ltr"
-                      className="font-num text-white hover:text-[#7DD3FC]"
+                      className="font-num text-white hover:text-[#D4AF37]"
                     >
-                      {STORE_INFO.primaryPhone}
+                      {siteConfig.primaryPhone}
                     </a>
                   </div>
                 </div>
 
-                <a
-                  href={STORE_INFO.whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#22bf5b] px-3 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  <span>تواصل عبر واتساب الطلبات</span>
-                </a>
+                <div className="space-y-2">
+                  <a
+                    href={siteConfig.whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl bg-black hover:bg-[#1A1A1A] px-3 py-2.5 text-xs sm:text-sm font-extrabold text-white border border-[#D4AF37] transition-colors"
+                  >
+                    <MessageCircle className="h-4 w-4 text-[#25D366]" />
+                    <span>واتساب الطلبات</span>
+                  </a>
+                  {storeSocialLinks.map((sl) => (
+                    <a
+                      key={sl.id}
+                      href={sl.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-[38px] w-full items-center justify-center gap-1.5 rounded-xl bg-black/40 hover:bg-black px-3 py-2 text-xs font-bold text-[#D4AF37] border border-[#D4AF37]/60 transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{sl.label}</span>
+                    </a>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
         {/* 2. INFINITY CORP SECTION */}
-        <section className="bg-[#F2FAFF] py-12 sm:py-16 border-b border-[#D8EEFB]">
+        <section className="bg-[#0B0B0B] py-12 sm:py-16 border-b border-[#D4AF37]/30">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
-            {/* Header Identity */}
             <div className="max-w-3xl space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-lg bg-white border border-[#CBE7FA] px-3 py-1 text-xs font-bold text-[#1D4ED8]">
-                <Award className="h-3.5 w-3.5 text-[#0284C7]" />
-                <span>شركاء النجاح | Infinity Corp</span>
+              <div className="inline-flex items-center gap-2 rounded-lg bg-[#C62828]/10 border border-[#D4AF37] px-3 py-1 text-xs font-bold text-[#D4AF37]">
+                <Award className="h-3.5 w-3.5" />
+                <span>شركاء النجاح | <bdi>{siteConfig.partnerName}</bdi></span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A]">
-                شركة Infinity Corp للتركيبات الفنية والصيانة
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+                شركة <bdi>{siteConfig.partnerName}</bdi> للتركيبات الفنية
               </h2>
-              <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-medium">
-                تُعد Infinity Corp شركة متخصصة في التركيبات الفنية والصيانة الدورية وخدمة ما بعد البيع للأنظمة التي تقوم بتركيبها، وتقدم خدماتها للأفراد والشركات والفنادق والمنتجعات السياحية والمحلات التجارية داخل محافظة جنوب سيناء.
+              <p className="text-sm sm:text-base text-gray-300 leading-relaxed font-medium">
+                {siteConfig.aboutPartnerIntro}
               </p>
             </div>
 
-            {/* Technical Services Grid */}
             <div>
-              <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] mb-4 flex items-center gap-2">
-                <Wrench className="h-5 w-5 text-[#1D4ED8]" />
-                <span>الخدمات الفنية المتخصصة</span>
+              <h3 className="text-base sm:text-lg font-extrabold text-[#D4AF37] mb-4 flex items-center gap-2">
+                <Wrench className="h-5 w-5" />
+                <span>الخدمات الفنية</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {INFINITY_SERVICES_LIST.map(({ num, title, description, Icon }) => (
                   <div
                     key={title}
-                    className="rounded-2xl bg-white border border-[#CBE7FA] p-5 flex flex-col justify-between shadow-xs hover:border-[#1D4ED8] transition-colors"
+                    className="rounded-2xl bg-[#1A1A1A] border border-[#D4AF37]/30 p-5 flex flex-col justify-between shadow-xs hover:border-[#D4AF37] transition-colors"
                   >
                     <div className="space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F2FAFF] border border-[#D8EEFB] text-[#1D4ED8]">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B0B0B] border border-[#D4AF37] text-[#D4AF37]">
                           <Icon className="h-5 w-5" />
                         </span>
-                        <span className="font-num text-xs font-extrabold bg-[#F2FAFF] border border-[#CBE7FA] px-2.5 py-1 rounded-lg text-[#1D4ED8]">
+                        <span className="font-num text-xs font-extrabold bg-[#0B0B0B] border border-[#D4AF37] px-2.5 py-1 rounded-lg text-[#D4AF37]">
                           خدمة #{num}
                         </span>
                       </div>
-                      <h4 className="text-sm sm:text-base font-extrabold text-[#0B1F3A]">
+                      <h4 className="text-sm sm:text-base font-extrabold text-white">
                         {title}
                       </h4>
-                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                      <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
                         {description}
                       </p>
                     </div>
@@ -333,22 +366,17 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
               </div>
             </div>
 
-            {/* Scope, Maintenance & Infinity Corp Contact Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
-              {/* Scope */}
-              <div className="rounded-2xl bg-white border border-[#CBE7FA] p-5 space-y-3 shadow-xs">
-                <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-sm">
-                  <MapPin className="h-4.5 w-4.5 text-[#0284C7]" />
-                  <span>📍 نطاق خدماتنا في جنوب سيناء</span>
+              <div className="rounded-2xl bg-[#1A1A1A] border border-[#D4AF37]/30 p-5 space-y-3 shadow-xs">
+                <div className="flex items-center gap-2 text-[#D4AF37] font-extrabold text-sm">
+                  <MapPin className="h-4.5 w-4.5" />
+                  <span>نطاق خدماتنا</span>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
-                  نقدم خدماتنا في المدن التالية:
-                </p>
                 <div className="flex flex-wrap gap-2 pt-1">
-                  {PARTNER_INFO.serviceScope.map((city) => (
+                  {effectiveScope.map((city) => (
                     <span
                       key={city}
-                      className="rounded-lg bg-[#F2FAFF] border border-[#CBE7FA] px-3 py-1 text-xs font-bold text-[#0B1F3A]"
+                      className="rounded-lg bg-[#0B0B0B] border border-[#D4AF37] px-3 py-1 text-xs font-bold text-[#D4AF37]"
                     >
                       {city}
                     </span>
@@ -356,111 +384,80 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
                 </div>
               </div>
 
-              {/* Maintenance & Support */}
-              <div className="rounded-2xl bg-white border border-[#CBE7FA] p-5 space-y-3 shadow-xs">
-                <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-sm">
-                  <Wrench className="h-4.5 w-4.5 text-[#0284C7]" />
-                  <span>🛠️ الصيانة وخدمة ما بعد البيع</span>
+              <div className="rounded-2xl bg-[#1A1A1A] border border-[#D4AF37]/30 p-5 space-y-3 shadow-xs">
+                <div className="flex items-center gap-2 text-[#D4AF37] font-extrabold text-sm">
+                  <Wrench className="h-4.5 w-4.5" />
+                  <span>الصيانة</span>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
-                  نوفر الدعم الفني خلال فترة الضمان وفقًا لشروطه، والتشخيص عن بُعد متى أمكن، وإرسال فني متخصص عند الحاجة، بالإضافة إلى خدمات الصيانة الدورية للأنظمة التي قامت الشركة بتركيبها.
+                <p className="text-xs sm:text-sm text-gray-400 leading-relaxed font-medium">
+                  نوفر الدعم الفني خلال فترة الضمان، والتشخيص عن بُعد، وإرسال فني متخصص عند الحاجة، بالإضافة إلى خدمات الصيانة الدورية.
                 </p>
               </div>
 
-              {/* Infinity Corp Direct Contacts */}
-              <div className="rounded-2xl bg-[#0E264A] border border-[#1E3F73] text-white p-5 space-y-3 shadow-xs flex flex-col justify-between">
+              <div className="rounded-2xl bg-[#C62828] border border-[#D4AF37] text-white p-5 space-y-3 shadow-xs flex flex-col justify-between">
                 <div className="space-y-2">
-                  <p className="text-xs font-extrabold text-[#7DD3FC]">أرقام التواصل مع Infinity Corp (اضغط لفتح واتساب)</p>
+                  <p className="text-xs font-extrabold text-[#D4AF37]">
+                    تواصل مع <bdi>{siteConfig.partnerName}</bdi>
+                  </p>
                   <div className="space-y-2 text-xs font-bold">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 bg-white/10 px-3 py-2 rounded-xl">
-                      <span className="text-[#BAE6FD]">طلبات الشراء والاستفسارات:</span>
-                      <div className="flex items-center gap-2 font-num">
+                    {partnerOrderWa && (
+                      <div className="flex items-center justify-between gap-1 bg-black/20 px-3 py-2 rounded-xl">
+                        <span className="text-gray-300">الطلبات:</span>
                         <a
-                          href={`https://wa.me/20${PARTNER_INFO.orderPhones[0]}`}
+                          href={partnerOrderWa}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-white hover:text-[#25D366] transition-colors"
-                          title={`فتح واتساب لـ ${PARTNER_INFO.orderPhones[0]}`}
+                          className="text-white hover:text-[#D4AF37]"
                         >
-                          <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
-                          <span>{PARTNER_INFO.orderPhones[0]}</span>
-                        </a>
-                        <span className="text-white/40">/</span>
-                        <a
-                          href={`https://wa.me/20${PARTNER_INFO.orderPhones[1]}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-white hover:text-[#25D366] transition-colors"
-                          title={`فتح واتساب لـ ${PARTNER_INFO.orderPhones[1]}`}
-                        >
-                          <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
-                          <span>{PARTNER_INFO.orderPhones[1]}</span>
+                          واتساب
                         </a>
                       </div>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-white/10 px-3 py-2 rounded-xl">
-                      <span className="text-[#BAE6FD]">التركيب والصيانة الدورية:</span>
+                    )}
+                    {partnerMaintWa && (
+                      <div className="flex items-center justify-between bg-black/20 px-3 py-2 rounded-xl">
+                        <span className="text-gray-300">الصيانة:</span>
+                        <a
+                          href={partnerMaintWa}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-white hover:text-[#D4AF37]"
+                        >
+                          واتساب
+                        </a>
+                      </div>
+                    )}
+                    {partnerSocialLinks.map((sl) => (
                       <a
-                        href={`https://wa.me/20${PARTNER_INFO.maintenancePhone}`}
+                        key={sl.id}
+                        href={sl.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        dir="ltr"
-                        className="inline-flex items-center gap-1 font-num text-white hover:text-[#25D366] transition-colors"
-                        title={`فتح واتساب لـ ${PARTNER_INFO.maintenancePhone}`}
+                        className="inline-flex min-h-[38px] w-full items-center justify-center gap-1.5 rounded-xl bg-black/40 hover:bg-black px-3 py-2 text-xs font-bold text-[#D4AF37] border border-[#D4AF37]/60 transition-colors"
                       >
-                        <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
-                        <span>{PARTNER_INFO.maintenancePhone}</span>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{sl.label}</span>
                       </a>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-white/10 px-3 py-2 rounded-xl">
-                      <span className="text-[#BAE6FD]">خدمة ما بعد البيع:</span>
-                      <a
-                        href={`https://wa.me/20${PARTNER_INFO.afterSalesPhone}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        dir="ltr"
-                        className="inline-flex items-center gap-1 font-num text-white hover:text-[#25D366] transition-colors"
-                        title={`فتح واتساب لـ ${PARTNER_INFO.afterSalesPhone}`}
-                      >
-                        <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
-                        <span>{PARTNER_INFO.afterSalesPhone}</span>
-                      </a>
-                    </div>
+                    ))}
                   </div>
                 </div>
-
-                <div className="space-y-2 pt-2">
-                  <a
-                    href={PARTNER_INFO.facebookUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-bold text-white transition-colors"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5 text-[#7DD3FC]" />
-                    <span>صفحة Infinity Corp على Facebook</span>
-                  </a>
-                </div>
               </div>
-
             </div>
           </div>
         </section>
 
         {/* 3. OUR VISION SECTION */}
-        <section className="bg-gradient-to-br from-[#0B1F3A] via-[#1545A3] to-[#0284C7] text-white py-12 sm:py-16">
+        <section className="bg-gradient-to-br from-[#0B0B0B] via-[#2A0505] to-[#0B0B0B] text-white py-12 sm:py-16 border-t border-[#D4AF37]">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8 text-center">
             <div className="max-w-3xl space-y-3 mx-auto">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-extrabold text-[#7DD3FC] border border-white/15">
-                <Award className="h-4 w-4 text-[#38BDF8]" />
-                <span>رؤيتنا | Our Vision</span>
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#C62828]/20 px-4 py-1.5 text-xs font-extrabold text-[#D4AF37] border border-[#D4AF37]/50">
+                <Award className="h-4 w-4 text-[#D4AF37]" />
+                <span>رؤيتنا | Vision</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-                تقديم تجربة فنية متكاملة وموثوقة
+                {siteConfig.visionTitle}
               </h2>
-              <p className="text-sm sm:text-base text-[#E0F2FE] leading-relaxed font-medium">
-                نسعى إلى توفير المنتجات والأجهزة الفنية المناسبة، وتقديم خدمات تركيب وصيانة موثوقة، مع الاهتمام بجودة الخدمة وسهولة التواصل مع العملاء.
+              <p className="text-sm sm:text-base text-gray-300 leading-relaxed font-medium">
+                {siteConfig.visionDescription}
               </p>
             </div>
 
@@ -468,10 +465,10 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
               <button
                 type="button"
                 onClick={onBackToStore}
-                className="inline-flex min-h-[50px] items-center justify-center gap-3 rounded-2xl bg-white hover:bg-[#F0F9FF] text-[#0B1F3A] active:scale-95 px-8 py-3 text-sm sm:text-base font-extrabold shadow-xl transition-all cursor-pointer"
+                className="inline-flex min-h-[50px] items-center justify-center gap-3 rounded-2xl bg-[#C62828] hover:bg-red-900 text-white active:scale-95 px-8 py-3 text-sm sm:text-base font-extrabold shadow-xl border border-[#D4AF37] transition-all cursor-pointer"
               >
-                <ArrowRight className="h-5 w-5 text-[#1D4ED8]" />
-                <span>العودة إلى المتجر والصفحة الرئيسية</span>
+                <ArrowRight className="h-5 w-5" />
+                <span>العودة للمتجر</span>
               </button>
             </div>
           </div>
@@ -483,3 +480,4 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
     </div>
   );
 }
+

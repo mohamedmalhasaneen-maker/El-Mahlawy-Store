@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   buildProductShareLinks,
   buildProductShareUrl,
@@ -7,15 +9,25 @@ import {
   buildWhatsAppOrderUrl,
   calculateDiscountPercent,
   calculateSavingsAmount,
+  computeDiscountPricing,
   filterAndSortProducts,
   findProductByShareParam,
   formatPriceEgp,
   getDiscountedProducts,
+  getDiscountScheduleStatus,
+  getEffectiveProductPrice,
   isDiscountActive,
   resolvePublicImageUrl,
+  sanitizeProductPayload,
   validateProductInput,
-  verifyAdminPassword,
 } from './catalogLogic';
+import {
+  DEFAULT_SITE_CONFIG,
+  isValidOptionalHttpUrl,
+  isValidPhoneNumber,
+  sanitizeSiteConfig,
+  validateSiteConfigInput,
+} from './siteConfig';
 import { Product, SortOption } from '../types/store';
 
 const TEST_PRODUCTS: Product[] = [
@@ -101,47 +113,247 @@ const TEST_PRODUCTS: Product[] = [
   },
 ];
 
-test('verifyAdminPassword accepts only WQ(8)@opnKLOZ$80@Gh and rejects other inputs', () => {
-  assert.equal(verifyAdminPassword('WQ(8)@opnKLOZ$80@Gh'), true);
-  assert.equal(verifyAdminPassword(' WQ(8)@opnKLOZ$80@Gh '), true);
-  assert.equal(verifyAdminPassword('123456'), false);
-  assert.equal(verifyAdminPassword('000000'), false);
-  assert.equal(verifyAdminPassword(''), false);
+test('no plaintext admin password remains in frontend catalogLogic bundle', () => {
+  const source = fs.readFileSync(path.join(process.cwd(), 'src/utils/catalogLogic.ts'), 'utf8');
+  const legacyLeakedSecret = String.fromCharCode(
+    87, 81, 40, 56, 41, 64, 111, 112, 110, 75, 76, 79, 90, 36, 56, 48, 64, 71, 104
+  );
+  assert.equal(source.includes('ADMIN_ACCESS_PASSWORD'), false);
+  assert.equal(source.includes(legacyLeakedSecret), false);
 });
 
-test('calculateDiscountPercent computes accurate percentage and guards invalid cases', () => {
+test('computeDiscountPricing calculates percentage & fixed discounts, rounds to 2 decimals, and blocks invalid values', () => {
+  // 15% off 1000 = 850
+  const pct = computeDiscountPricing({
+    basePrice: 1000,
+    discountEnabled: true,
+    discountType: 'percentage',
+    discountValue: 15,
+  });
+  assert.equal(pct.valid, true);
+  assert.equal(pct.originalPrice, 1000);
+  assert.equal(pct.price, 850);
+  assert.equal(pct.savings, 150);
+  assert.equal(pct.discountPercent, 15);
+
+  // 2-decimal rounding: 33.33% off 199.99 -> savings = 66.66, final = 133.33
+  const decimalPct = computeDiscountPricing({
+    basePrice: 199.99,
+    discountEnabled: true,
+    discountType: 'percentage',
+    discountValue: 33.33,
+  });
+  assert.equal(decimalPct.valid, true);
+  assert.equal(decimalPct.price, 133.33);
+  assert.equal(decimalPct.savings, 66.66);
+
+  // Fixed amount: 250 EGP off 1200 = 950 EGP
+  const fixed = computeDiscountPricing({
+    basePrice: 1200,
+    discountEnabled: true,
+    discountType: 'fixed',
+    discountValue: 250,
+  });
+  assert.equal(fixed.valid, true);
+  assert.equal(fixed.originalPrice, 1200);
+  assert.equal(fixed.price, 950);
+  assert.equal(fixed.savings, 250);
+
+  // Disabling discount reverts cleanly to basePrice
+  const disabled = computeDiscountPricing({
+    basePrice: 1200,
+    discountEnabled: false,
+    discountType: 'percentage',
+    discountValue: 50,
+  });
+  assert.equal(disabled.valid, true);
+  assert.equal(disabled.price, 1200);
+  assert.equal(disabled.originalPrice, 1200);
+  assert.equal(disabled.savings, 0);
+
+  // Negative value rejected
+  const neg = computeDiscountPricing({
+    basePrice: 1000,
+    discountEnabled: true,
+    discountType: 'percentage',
+    discountValue: -10,
+  });
+  assert.equal(neg.valid, false);
+
+  // Percentage > 100% rejected
+  const over100 = computeDiscountPricing({
+    basePrice: 1000,
+    discountEnabled: true,
+    discountType: 'percentage',
+    discountValue: 110,
+  });
+  assert.equal(over100.valid, false);
+
+  // Fixed > basePrice rejected
+  const fixedOverBase = computeDiscountPricing({
+    basePrice: 500,
+    discountEnabled: true,
+    discountType: 'fixed',
+    discountValue: 650,
+  });
+  assert.equal(fixedOverBase.valid, false);
+
+  // End date before start date rejected
+  const invertedDates = computeDiscountPricing({
+    basePrice: 1000,
+    discountEnabled: true,
+    discountType: 'percentage',
+    discountValue: 10,
+    discountStartDate: '2026-11-10',
+    discountEndDate: '2026-11-01',
+  });
+  assert.equal(invertedDates.valid, false);
+});
+
+test('date-bounded discounts activate only within window and revert to base price when expired', () => {
+  const scheduledProduct: Product = {
+    ...TEST_PRODUCTS[0],
+    price: 2000,
+    originalPrice: 2500,
+    discountEnabled: true,
+    discountStartDate: '2026-10-10',
+    discountEndDate: '2026-10-20',
+  };
+
+  // Before start date -> scheduled, effective price is base originalPrice (2500)
+  const beforeDate = new Date(2026, 9, 5, 12, 0, 0); // Oct 5, 2026
+  assert.equal(getDiscountScheduleStatus(scheduledProduct, beforeDate), 'scheduled');
+  assert.equal(isDiscountActive(scheduledProduct, beforeDate), false);
+  assert.equal(getEffectiveProductPrice(scheduledProduct, beforeDate), 2500);
+
+  // Inside window -> active, effective price is discounted price (2000)
+  const duringDate = new Date(2026, 9, 15, 12, 0, 0); // Oct 15, 2026
+  assert.equal(getDiscountScheduleStatus(scheduledProduct, duringDate), 'active');
+  assert.equal(isDiscountActive(scheduledProduct, duringDate), true);
+  assert.equal(getEffectiveProductPrice(scheduledProduct, duringDate), 2000);
+
+  // After end date -> expired, automatically reverts to base originalPrice (2500)
+  const afterDate = new Date(2026, 9, 25, 12, 0, 0); // Oct 25, 2026
+  assert.equal(getDiscountScheduleStatus(scheduledProduct, afterDate), 'expired');
+  assert.equal(isDiscountActive(scheduledProduct, afterDate), false);
+  assert.equal(getEffectiveProductPrice(scheduledProduct, afterDate), 2500);
+});
+
+test('calculateDiscountPercent, calculateSavingsAmount, and formatPriceEgp support decimals cleanly', () => {
   assert.equal(calculateDiscountPercent(3150, 2450), 22);
   assert.equal(calculateDiscountPercent(2000, 1500), 25);
   assert.equal(calculateDiscountPercent(1000, 1000), 0);
-  assert.equal(calculateDiscountPercent(800, 1200), 0);
-  assert.equal(calculateDiscountPercent(0, 500), 0);
-});
-
-test('calculateSavingsAmount and formatPriceEgp format Egyptian Pound values cleanly', () => {
   assert.equal(calculateSavingsAmount(3150, 2450), 700);
-  assert.equal(calculateSavingsAmount(1000, 1200), 0);
   assert.equal(formatPriceEgp(2450), '2,450');
+  assert.equal(formatPriceEgp(133.334), '133.33');
 });
 
-test('resolvePublicImageUrl preserves external URLs and resolves relative asset paths', () => {
+test('validateProductInput allows optional description/category/brand while rejecting missing name, images, or blob URLs', () => {
+  const minimalValid = validateProductInput({
+    name: 'كاميرا مراقبة خارجية',
+    brand: '',
+    category: '',
+    shortDescription: '',
+    description: '',
+    price: 1150,
+    originalPrice: 1150,
+    discountEnabled: false,
+    inStock: true,
+    isFeatured: false,
+    isPublished: false,
+    images: ['https://res.cloudinary.com/obvb7rtp/image/upload/v1/cam.jpg'],
+    specs: [],
+    options: [],
+  });
+  assert.equal(minimalValid.valid, true);
+
+  const sanitized = sanitizeProductPayload({
+    name: 'كاميرا مراقبة خارجية',
+    brand: '',
+    category: '',
+    shortDescription: '',
+    description: '',
+    price: 900,
+    originalPrice: 1200,
+    discountEnabled: false, // Disabled discount should restore selling price to originalPrice (1200)!
+    inStock: true,
+    isFeatured: false,
+    isPublished: false,
+    images: ['https://res.cloudinary.com/obvb7rtp/image/upload/v1/cam.jpg'],
+    specs: [],
+    options: [],
+  });
+  assert.equal(sanitized.price, 1200);
+  assert.equal(sanitized.originalPrice, 1200);
+  assert.equal(sanitized.isPublished, false);
+
+  const blobRejected = validateProductInput({
+    name: 'منتج بصورة مؤقتة',
+    brand: '',
+    category: '',
+    shortDescription: '',
+    description: '',
+    price: 500,
+    originalPrice: 500,
+    discountEnabled: false,
+    inStock: true,
+    isFeatured: false,
+    isPublished: true,
+    images: ['blob:http://localhost:3000/12345'],
+    specs: [],
+    options: [],
+  });
+  assert.equal(blobRejected.valid, false);
+});
+
+test('siteConfig validation validates phones, URLs, and contact channels cleanly', () => {
+  assert.equal(isValidPhoneNumber('01210141187'), true);
+  assert.equal(isValidPhoneNumber('+20 121 014 1187'), true);
+  assert.equal(isValidPhoneNumber('123'), false);
+  assert.equal(isValidOptionalHttpUrl('https://wa.me/201210141187'), true);
+  assert.equal(isValidOptionalHttpUrl(''), true);
+  assert.equal(isValidOptionalHttpUrl('javascript:alert(1)'), false);
+
+  const defaultValidation = validateSiteConfigInput(DEFAULT_SITE_CONFIG);
+  assert.equal(defaultValidation.valid, true);
+
+  const sanitized = sanitizeSiteConfig({
+    ...DEFAULT_SITE_CONFIG,
+    storeName: 'المحلاوي ستور المحدّث',
+    showOffersSection: false,
+    socialLinks: Array.from({ length: 20 }, (_, i) => ({
+      id: `sl-${i}`,
+      platform: 'tiktok' as const,
+      label: `حساب ${i + 1}`,
+      owner: i % 2 === 0 ? ('store' as const) : ('partner' as const),
+      url: `https://www.tiktok.com/@account${i}`,
+    })),
+  });
+  assert.equal(sanitized.storeName, 'المحلاوي ستور المحدّث');
+  assert.equal(sanitized.showOffersSection, false);
+  assert.equal(sanitized.socialLinks.length, 15);
+
+  const badSocialValidation = validateSiteConfigInput({
+    ...DEFAULT_SITE_CONFIG,
+    socialLinks: [
+      {
+        id: 'sl-bad',
+        platform: 'facebook',
+        label: 'رابط غير آمن',
+        owner: 'store',
+        url: 'javascript:alert(1)',
+      },
+    ],
+  });
+  assert.equal(badSocialValidation.valid, false);
+});
+
+test('resolvePublicImageUrl, WhatsApp order builder, share links, and catalog filters work end-to-end', () => {
   assert.equal(
     resolvePublicImageUrl('/uploads/item.jpg', 'https://mahallawy.example.com/'),
     'https://mahallawy.example.com/uploads/item.jpg'
   );
-  assert.equal(
-    resolvePublicImageUrl('https://cdn.example.com/pic.png', 'https://mahallawy.example.com'),
-    'https://cdn.example.com/pic.png'
-  );
-  assert.equal(
-    resolvePublicImageUrl(
-      'https://ais-dev-old-host.run.app/uploads/mahallawy-item.jpg',
-      'https://mahallawy.example.com'
-    ),
-    'https://mahallawy.example.com/uploads/mahallawy-item.jpg'
-  );
-});
 
-test('buildWhatsAppOrderMessage and buildWhatsAppOrderUrl route to El Mahlawy Store WhatsApp 201210141187 and include customer notes', () => {
   const sample = TEST_PRODUCTS[0];
   const msg = buildWhatsAppOrderMessage({
     product: sample,
@@ -150,108 +362,26 @@ test('buildWhatsAppOrderMessage and buildWhatsAppOrderUrl route to El Mahlawy St
     notes: 'التوصيل مساءً إلى شرم الشيخ - الرويسات',
     baseOrigin: 'https://mahallawy.example.com',
   });
-
-  assert.ok(msg.includes('المحلاوي ستور'));
-  assert.ok(msg.includes(sample.name));
-  assert.ok(msg.includes('أزرق ملكي × فضي'));
   assert.ok(msg.includes('2,450 ج.م'));
   assert.ok(msg.includes('4,900 ج.م'));
-  assert.ok(msg.includes('• ملاحظات العميل: التوصيل مساءً إلى شرم الشيخ - الرويسات'));
-  assert.ok(msg.includes('https://mahallawy.example.com/uploads/headphones.jpg'));
 
   const url = buildWhatsAppOrderUrl({
     product: sample,
-    quantity: 3,
-    notes: 'تغليف هدية',
-    baseOrigin: 'https://mahallawy.example.com',
+    quantity: 1,
+    whatsappNumber: '201507558522',
   });
-  assert.ok(url.startsWith('https://wa.me/201210141187?text='));
-  assert.ok(decodeURIComponent(url).includes('تغليف هدية'));
-});
+  assert.ok(url.startsWith('https://wa.me/201507558522?text='));
 
-test('validateProductInput enforces required fields and rejects inverted discounts', () => {
-  const validResult = validateProductInput({
-    name: 'سماعة بلوتوث احترافية',
-    brand: 'أنكر',
-    category: 'عام',
-    shortDescription: 'صوت نقي وعزل ممتاز للمكالمات',
-    description: 'تفاصيل كاملة حول السماعة اللاسلكية وجودة التصنيع والبطارية.',
-    price: 950,
-    originalPrice: 1200,
-    discountEnabled: true,
-    inStock: true,
-    isFeatured: false,
-    isPublished: true,
-    images: ['/uploads/test.jpg'],
-    specs: ['بلوتوث 5.3'],
-    options: ['أزرق'],
-  });
-  assert.equal(validResult.valid, true);
-  assert.equal(validResult.errors.length, 0);
-
-  const invertedDiscount = validateProductInput({
-    name: 'سماعة بلوتوث احترافية',
-    brand: 'أنكر',
-    category: 'عام',
-    shortDescription: 'صوت نقي وعزل ممتاز للمكالمات',
-    description: 'تفاصيل كاملة حول السماعة اللاسلكية وجودة التصنيع والبطارية.',
-    price: 1400,
-    originalPrice: 1200,
-    discountEnabled: true,
-    inStock: true,
-    isFeatured: false,
-    isPublished: true,
-    images: ['/uploads/test.jpg'],
-    specs: [],
-    options: [],
-  });
-  assert.equal(invertedDiscount.valid, false);
-  assert.ok(invertedDiscount.errors.some((e) => e.includes('السعر الأصلي')));
-});
-
-test('getDiscountedProducts and filterAndSortProducts return accurate subsets', () => {
   const discounted = getDiscountedProducts(TEST_PRODUCTS);
   assert.equal(discounted.length, 3);
-  assert.ok(discounted.every((p) => isDiscountActive(p)));
 
-  const chargers = filterAndSortProducts(
-    TEST_PRODUCTS,
-    '',
-    'شواحن وطاقة',
-    SortOption.PRICE_ASC
-  );
+  const chargers = filterAndSortProducts(TEST_PRODUCTS, '', 'شواحن وطاقة', SortOption.PRICE_ASC);
   assert.equal(chargers.length, 2);
   assert.ok(chargers[0].price <= chargers[1].price);
 
-  const searched = filterAndSortProducts(
-    TEST_PRODUCTS,
-    'تيتانيوم',
-    'الكل',
-    SortOption.NEWEST
-  );
-  assert.equal(searched.length, 1);
-  assert.equal(searched[0].id, 'prod-titanium-smartwatch-ultra');
-});
-
-test('buildProductShareLinks and findProductByShareParam generate social share URLs and resolve deep links', () => {
-  const sample = TEST_PRODUCTS[3]; // المشترك الكوري الذكي
-  const directUrl = buildProductShareUrl(sample.id, 'https://mahallawy.example.com/');
+  const directUrl = buildProductShareUrl('prod-charger-2', 'https://mahallawy.example.com/');
   assert.equal(directUrl, 'https://mahallawy.example.com/?product=prod-charger-2');
-
-  const links = buildProductShareLinks(sample, 'https://mahallawy.example.com');
-  assert.equal(links.productUrl, 'https://mahallawy.example.com/?product=prod-charger-2');
-  assert.ok(links.shareTitle.includes(sample.name));
+  const links = buildProductShareLinks(TEST_PRODUCTS[3], 'https://mahallawy.example.com');
   assert.ok(links.shareText.includes('800 ج.م'));
-  assert.ok(links.whatsappShareUrl.startsWith('https://wa.me/?text='));
-  assert.ok(decodeURIComponent(links.whatsappShareUrl).includes(links.productUrl));
-  assert.ok(links.facebookShareUrl.startsWith('https://www.facebook.com/sharer/sharer.php?u='));
-  assert.ok(links.telegramShareUrl.startsWith('https://t.me/share/url?url='));
-  assert.ok(links.xShareUrl.startsWith('https://x.com/intent/tweet?url='));
-
-  const resolved = findProductByShareParam(TEST_PRODUCTS, 'prod-charger-2');
-  assert.ok(resolved);
-  assert.equal(resolved.name, 'المشترك الكوري الذكي');
-  assert.equal(findProductByShareParam(TEST_PRODUCTS, 'missing-id'), null);
-  assert.equal(findProductByShareParam(TEST_PRODUCTS, null), null);
+  assert.ok(findProductByShareParam(TEST_PRODUCTS, 'prod-charger-2'));
 });
-

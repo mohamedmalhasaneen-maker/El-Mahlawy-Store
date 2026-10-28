@@ -8,9 +8,8 @@ import {
   Truck,
   X,
 } from 'lucide-react';
-import { STORE_INFO } from '../../types/store';
+import { useSiteConfig } from '../../contexts/SiteConfigContext';
 import { useMobileOverlay } from '../../utils/useMobileOverlay';
-
 
 interface MobileMenuDrawerProps {
   isOpen: boolean;
@@ -29,17 +28,20 @@ export function MobileMenuDrawer({
   onAdminClick,
   hasDiscountOffers,
 }: MobileMenuDrawerProps) {
+  const siteConfig = useSiteConfig();
   useMobileOverlay(isOpen, onClose, 'mobile-menu-drawer');
 
   if (!isOpen) return null;
 
   const navItems = [
     { id: 'mobile-top', label: 'الرئيسية', Icon: Home },
-    ...(hasDiscountOffers
+    ...(hasDiscountOffers && siteConfig.showOffersSection
       ? [{ id: 'mobile-offers-section', label: 'عروض وخصومات المنتجات', Icon: Percent }]
       : []),
     { id: 'mobile-products-section', label: 'تصفح جميع المنتجات', Icon: Package },
-    { id: 'mobile-shipping-section', label: 'الشحن والتوصيل', Icon: Truck },
+    ...(siteConfig.showShippingSection
+      ? [{ id: 'mobile-shipping-section', label: 'الشحن والتوصيل', Icon: Truck }]
+      : []),
     { id: 'footer-contact', label: 'تواصل معنا', Icon: Phone },
     { id: 'about-us', label: 'من نحن | About Us', Icon: Building2 },
   ];
@@ -79,11 +81,13 @@ export function MobileMenuDrawer({
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-extrabold text-[#0B1F3A] truncate">
-                  {STORE_INFO.storeName}
+                  {siteConfig.storeName}
                 </p>
-                <p className="text-[11px] font-semibold text-[#0284C7] truncate">
-                  <bdi>{STORE_INFO.storeSubtitle}</bdi>
-                </p>
+                {siteConfig.storeSubtitle && (
+                  <p className="text-[11px] font-semibold text-[#0284C7] truncate">
+                    <bdi>{siteConfig.storeSubtitle}</bdi>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -120,12 +124,9 @@ export function MobileMenuDrawer({
               </button>
             ))}
           </nav>
-
-
-
         </div>
 
-        {/* Bottom Admin Gate Button */}
+        {/* Bottom Developer Settings Gate Button */}
         <div className="p-3.5 border-t border-[#E8F4FD]">
           <button
             type="button"
@@ -136,10 +137,11 @@ export function MobileMenuDrawer({
             className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-[#F2FAFF] hover:bg-[#E2F3FE] border border-[#CBE7FA] px-4 py-2.5 text-xs font-extrabold text-[#0F294A] cursor-pointer"
           >
             <LayoutDashboard className="h-4 w-4 text-[#1D4ED8] shrink-0" aria-hidden="true" />
-            <span>لوحة الإدارة</span>
+            <span>إعدادات المطور</span>
           </button>
         </div>
       </div>
     </div>
   );
 }
+

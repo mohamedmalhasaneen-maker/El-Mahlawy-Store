@@ -1,4 +1,5 @@
 import { Eye, MessageCircle } from 'lucide-react';
+import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { Product } from '../types/store';
 import {
   buildWhatsAppOrderUrl,
@@ -6,6 +7,7 @@ import {
   calculateSavingsAmount,
   formatPriceEgp,
   getDiscountedProducts,
+  getEffectiveProductPrice,
 } from '../utils/catalogLogic';
 import { ProductImage } from './ProductImage';
 
@@ -16,9 +18,10 @@ interface OffersSectionProps {
 }
 
 export function OffersSection({ products, onViewDetails, publicOrigin }: OffersSectionProps) {
+  const siteConfig = useSiteConfig();
   const discountedProducts = getDiscountedProducts(products);
 
-  if (discountedProducts.length === 0) {
+  if (!siteConfig.showOffersSection || discountedProducts.length === 0) {
     return null;
   }
 
@@ -40,7 +43,7 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
               className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]"
               style={{ textWrap: 'balance' }}
             >
-              عروض وخصومات المحلاوي ستور
+              عروض وخصومات {siteConfig.storeName}
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-md">
@@ -52,13 +55,17 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
         {/* Discounted Products Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
           {discountedProducts.map((product) => {
-            const discountPct = calculateDiscountPercent(product.originalPrice, product.price);
-            const savings = calculateSavingsAmount(product.originalPrice, product.price);
+            const effectivePrice = getEffectiveProductPrice(product);
+            const discountPct = calculateDiscountPercent(product.originalPrice, effectivePrice);
+            const savings = calculateSavingsAmount(product.originalPrice, effectivePrice);
             const whatsappUrl = buildWhatsAppOrderUrl({
               product,
               selectedOption: product.options[0],
               quantity: 1,
               baseOrigin: publicOrigin,
+              whatsappNumber: siteConfig.primaryWhatsApp,
+              storeName: siteConfig.storeName,
+              storeSubtitle: siteConfig.storeSubtitle,
             });
 
             return (
@@ -91,7 +98,8 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
                 <div className="flex flex-1 flex-col justify-between p-5">
                   <div>
                     <p className="text-xs font-semibold text-[#0284C7] dark:text-[#38BDF8] mb-1">
-                      {product.brand} · وفّر <span className="font-num">{formatPriceEgp(savings)}</span> ج.م
+                      {product.brand ? `${product.brand} · ` : ''}وفّر{' '}
+                      <span className="font-num">{formatPriceEgp(savings)}</span> ج.م
                     </p>
                     <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] leading-snug mb-2">
                       <button
@@ -111,10 +119,14 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
                     {/* Before & After Price Comparison */}
                     <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-[#EBF6FE] dark:border-[#1E3F73] pt-3 mb-3.5">
                       <div>
-                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">السعر بعد الخصم</span>
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+                          السعر بعد الخصم
+                        </span>
                         <span className="font-num text-xl sm:text-2xl font-extrabold text-[#1D4ED8] dark:text-[#38BDF8]">
-                          {formatPriceEgp(product.price)}{' '}
-                          <span className="text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE]">ج.م</span>
+                          {formatPriceEgp(effectivePrice)}{' '}
+                          <span className="text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE]">
+                            ج.م
+                          </span>
                         </span>
                       </div>
 
@@ -144,7 +156,10 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
                         aria-label={`تفاصيل العرض: ${product.name}`}
                         className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-[#F2FAFF] dark:bg-[#081830] hover:bg-[#E2F3FE] dark:hover:bg-[#153460] border border-[#CBE7FA] dark:border-[#1E3F73] px-3.5 py-2 text-xs sm:text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                       >
-                        <Eye className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]" aria-hidden="true" />
+                        <Eye
+                          className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]"
+                          aria-hidden="true"
+                        />
                         <span>التفاصيل</span>
                       </button>
                     </div>
@@ -158,3 +173,4 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
     </section>
   );
 }
+

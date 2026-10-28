@@ -11,12 +11,14 @@ import {
   ShoppingBag,
   X,
 } from 'lucide-react';
+import { useSiteConfig } from '../../contexts/SiteConfigContext';
 import { Product } from '../../types/store';
 import {
   buildProductShareLinks,
   calculateDiscountPercent,
   calculateSavingsAmount,
   formatPriceEgp,
+  getEffectiveProductPrice,
   isDiscountActive,
 } from '../../utils/catalogLogic';
 import { useMobileOverlay } from '../../utils/useMobileOverlay';
@@ -35,6 +37,7 @@ export function MobileProductSheet({
   onOrderProduct,
   publicOrigin,
 }: MobileProductSheetProps) {
+  const siteConfig = useSiteConfig();
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -63,14 +66,20 @@ export function MobileProductSheet({
 
   const images = product.images.length > 0 ? product.images : [''];
   const hasDiscount = isDiscountActive(product);
+  const effectivePrice = getEffectiveProductPrice(product);
   const discountPct = hasDiscount
-    ? calculateDiscountPercent(product.originalPrice, product.price)
+    ? calculateDiscountPercent(product.originalPrice, effectivePrice)
     : 0;
   const savings = hasDiscount
-    ? calculateSavingsAmount(product.originalPrice, product.price)
+    ? calculateSavingsAmount(product.originalPrice, effectivePrice)
     : 0;
 
-  const shareLinks = buildProductShareLinks(product, publicOrigin);
+  const shareLinks = buildProductShareLinks(
+    product,
+    publicOrigin,
+    siteConfig.storeName,
+    siteConfig.storeSubtitle
+  );
 
   const goPrevImage = () => {
     setActiveImageIdx((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -166,7 +175,7 @@ export function MobileProductSheet({
           />
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-bold text-[#0284C7] truncate">
-              {product.brand}
+              {product.brand || siteConfig.storeName}
               <span aria-hidden="true"> · </span>
               <span className={product.inStock ? 'text-emerald-700' : 'text-amber-700'}>
                 {product.inStock ? 'متوفر للطلب' : 'يرجى الاستفسار عن التوفر'}
@@ -279,7 +288,7 @@ export function MobileProductSheet({
             <div className="mt-3 rounded-2xl bg-[#F2FAFF] border border-[#D8EEFB] p-3.5 flex flex-wrap items-baseline justify-between gap-2">
               <div className="flex items-baseline gap-1.5">
                 <span className="font-num text-2xl font-extrabold text-[#1D4ED8]">
-                  {formatPriceEgp(product.price)}
+                  {formatPriceEgp(effectivePrice)}
                 </span>
                 <span className="text-xs font-bold text-[#0F294A]">ج.م</span>
                 {hasDiscount && (
@@ -301,7 +310,7 @@ export function MobileProductSheet({
           <div>
             <h3 className="text-xs font-extrabold text-[#0B1F3A] mb-1.5">تفاصيل ووصف المنتج</h3>
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
-              {product.description || product.shortDescription}
+              {product.description || product.shortDescription || `منتج مختار بعناية من ${siteConfig.storeName}.`}
             </p>
           </div>
 
