@@ -1,15 +1,26 @@
-import { ExternalLink, MessageCircle, Phone } from 'lucide-react';
+import { ArrowLeft, ExternalLink, LayoutDashboard, MessageCircle, Sparkles, Users } from 'lucide-react';
 import { PARTNER_INFO, STORE_INFO } from '../types/store';
 
-export function Footer() {
+interface FooterProps {
+  onAdminButtonClick?: () => void;
+  onNavigateAbout?: () => void;
+  showAboutSection?: boolean;
+}
+
+export function Footer({
+  onAdminButtonClick,
+  onNavigateAbout,
+  showAboutSection = true,
+}: FooterProps = {}) {
   return (
-    <footer
-      id="footer-contact"
-      className="bg-[#081A33] text-white border-t border-[#163663]"
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 sm:py-16">
+    <footer className="bg-[#081A33] text-white border-t border-[#163663]">
+      {/* 1. قسم «تواصل معنا» الحالي بكل محتوياته ووظائفه */}
+      <div
+        id="footer-contact"
+        className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-12 sm:pb-16"
+      >
         {/* Section Heading: تواصل معنا */}
-        <div className="mb-10">
+        <div className="mb-8 sm:mb-10">
           <p className="text-xs sm:text-sm font-bold text-[#38BDF8] mb-1.5">
             قنوات التواصل الرسمية والمباشرة
           </p>
@@ -17,7 +28,7 @@ export function Footer() {
         </div>
 
         {/* Dual Official Contact Cards: El Mahlawy Store & Infinity Corp */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Card 1: المحلاوي ستور | El Mahlawy Store */}
           <div className="flex flex-col justify-between rounded-3xl bg-[#0E264A] border border-[#1E3F73] p-6 sm:p-7">
             <div>
@@ -133,42 +144,60 @@ export function Footer() {
             </div>
 
             <div className="space-y-3 pt-2 border-t border-[#1E3F73]">
-              <div className="flex items-center justify-between gap-2 text-xs text-[#BAE6FD]">
-                <span>طلبات الشراء والاستفسارات</span>
-                <span dir="ltr" className="font-num text-xs font-bold text-white">
-                  {PARTNER_INFO.orderPhones.join(' / ')}
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-[#BAE6FD] bg-white/10 px-3 py-2 rounded-xl">
+                <span>طلبات الشراء والاستفسارات (واتساب):</span>
+                <div className="flex items-center gap-2 font-num text-sm font-extrabold">
+                  <a
+                    href={`https://wa.me/20${PARTNER_INFO.orderPhones[0]}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-white hover:text-[#25D366] transition-colors"
+                    title={`فتح واتساب لـ ${PARTNER_INFO.orderPhones[0]}`}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                    <span>{PARTNER_INFO.orderPhones[0]}</span>
+                  </a>
+                  <span className="text-white/40">/</span>
+                  <a
+                    href={`https://wa.me/20${PARTNER_INFO.orderPhones[1]}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-white hover:text-[#25D366] transition-colors"
+                    title={`فتح واتساب لـ ${PARTNER_INFO.orderPhones[1]}`}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                    <span>{PARTNER_INFO.orderPhones[1]}</span>
+                  </a>
+                </div>
               </div>
-              <div className="flex items-center justify-between gap-2 text-xs text-[#BAE6FD]">
-                <span>التركيب والصيانة الدورية</span>
+
+              <div className="flex items-center justify-between text-xs text-[#BAE6FD] bg-white/10 px-3 py-2 rounded-xl">
+                <span>التركيب والصيانة الدورية (واتساب):</span>
                 <a
-                  href={`tel:${PARTNER_INFO.maintenancePhone}`}
+                  href={`https://wa.me/20${PARTNER_INFO.maintenancePhone}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   dir="ltr"
-                  className="font-num text-xs font-bold text-white hover:text-[#38BDF8]"
+                  className="inline-flex items-center gap-1 font-num text-sm font-extrabold text-white hover:text-[#25D366] transition-colors"
+                  title={`فتح واتساب لـ ${PARTNER_INFO.maintenancePhone}`}
                 >
-                  {PARTNER_INFO.maintenancePhone}
+                  <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                  <span>{PARTNER_INFO.maintenancePhone}</span>
                 </a>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div className="flex items-center justify-between text-xs text-[#BAE6FD] bg-white/10 px-3 py-2 rounded-xl">
+                <span>خدمة ما بعد البيع (واتساب):</span>
                 <a
-                  href={PARTNER_INFO.orderWhatsAppUrl}
+                  href={`https://wa.me/20${PARTNER_INFO.afterSalesPhone}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#22bf5b] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors"
+                  dir="ltr"
+                  className="inline-flex items-center gap-1 font-num text-sm font-extrabold text-white hover:text-[#25D366] transition-colors"
+                  title={`فتح واتساب لـ ${PARTNER_INFO.afterSalesPhone}`}
                 >
-                  <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>واتساب الطلبات</span>
-                </a>
-
-                <a
-                  href={PARTNER_INFO.maintenanceWhatsAppUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#0284C7] hover:bg-[#0369A1] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors"
-                >
-                  <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>واتساب الصيانة</span>
+                  <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                  <span>{PARTNER_INFO.afterSalesPhone}</span>
                 </a>
               </div>
 
@@ -186,11 +215,51 @@ export function Footer() {
                 <span className="text-xs font-bold text-[#38BDF8]">✨ {PARTNER_INFO.closingPhrase}</span>
               </div>
             </div>
+
           </div>
         </div>
+      </div>
 
-        {/* Closing Partnership Summary & Copyright */}
-        <div className="border-t border-[#163663] pt-8 space-y-4">
+      {/* 2. زر ومعاينة «من نحن | About Us» للانتقال إلى الصفحة المستقلة */}
+      {showAboutSection && (
+        <div className="border-t border-[#1E3F73] bg-gradient-to-r from-[#0B1F3A] via-[#1545A3] to-[#0284C7] py-10 px-4 text-center text-white">
+          <div className="mx-auto max-w-4xl space-y-3.5">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-extrabold text-[#7DD3FC] border border-white/15">
+              <Sparkles className="h-4 w-4 text-[#38BDF8]" />
+              <span>المحلاوي ستور × Infinity Corp</span>
+            </div>
+            <h3 className="text-lg sm:text-2xl font-extrabold text-white">
+              تعرّف على كافة تفاصيل المحلاوي ستور وشريك النجاح <bdi>Infinity Corp</bdi>
+            </h3>
+            <p className="text-xs sm:text-sm text-[#E0F2FE] max-w-2xl mx-auto font-medium leading-relaxed">
+              اضغط على الزر أدناه للانتقال إلى الصفحة المستقلة لعرض معلومات المتجر، والمنتجات، والخدمات الفنية، ونطاق العمل، والعناوين وأرقام التواصل بالكامل.
+            </p>
+
+            {/* الزر الرئيسي المطلوب */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onNavigateAbout) {
+                    onNavigateAbout();
+                  } else if (typeof window !== 'undefined') {
+                    window.location.hash = '#about';
+                  }
+                }}
+                className="inline-flex min-h-[50px] items-center justify-center gap-3 rounded-2xl bg-white hover:bg-[#F0F9FF] text-[#0B1F3A] active:scale-95 px-7 py-3 text-sm sm:text-base font-extrabold shadow-xl hover:shadow-2xl transition-all cursor-pointer group"
+              >
+                <Users className="h-5 w-5 text-[#1D4ED8] group-hover:scale-110 transition-transform" />
+                <span>من نحن | About Us</span>
+                <ArrowLeft className="h-5 w-5 text-[#0284C7] group-hover:-translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. التذييل النهائي للموقع (Footer) */}
+      <div className="border-t border-[#163663] bg-[#061426]">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5 max-w-3xl">
               <p className="text-base font-extrabold text-white">
@@ -207,18 +276,31 @@ export function Footer() {
             </p>
           </div>
 
-          <div className="pt-4 border-t border-[#122C52] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
+          <div className="pt-4 border-t border-[#122C52] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
             <p>
               © {new Date().getFullYear()} {STORE_INFO.storeName} |{' '}
               <bdi>{STORE_INFO.storeSubtitle}</bdi>. جميع الحقوق محفوظة.
             </p>
-            <p className="text-[#BAE6FD]/75">
-              شركاء النجاح: <bdi>{PARTNER_INFO.partnerName}</bdi> ·{' '}
-              <bdi>{PARTNER_INFO.partnerSubtitle}</bdi>
-            </p>
+            <div className="flex items-center gap-4">
+              <span className="text-[#BAE6FD]/75">
+                شركاء النجاح: <bdi>{PARTNER_INFO.partnerName}</bdi> ·{' '}
+                <bdi>{PARTNER_INFO.partnerSubtitle}</bdi>
+              </span>
+              {onAdminButtonClick && (
+                <button
+                  type="button"
+                  onClick={onAdminButtonClick}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 hover:bg-white/10 px-2.5 py-1 text-xs font-bold text-[#BAE6FD] transition-colors cursor-pointer"
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5 text-[#38BDF8]" />
+                  <span>لوحة الإدارة</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
     </footer>
   );
 }
+

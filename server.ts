@@ -44,6 +44,58 @@ function writeStoredProducts(products: Record<string, unknown>[]): void {
   fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), 'utf8');
 }
 
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+
+const DEFAULT_SETTINGS = {
+  storeName: 'المحلاوي ستور',
+  storeEnglishName: 'El Mahlawy Store',
+  tagline: 'منتجات متنوعة وحلول ذكية لحياة أسهل',
+  address: 'جنوب سيناء – شرم الشيخ – الرويسات – مدخل 1 – شارع دستي، بجوار قسم الشرطة، الشارع الجانبي لمول الشيخ عيد، محل المحلاوي ستور.',
+  googleMapsUrl: 'https://maps.google.com/?q=27.9158,34.3300',
+  workingHours: 'يومياً من 10 صباحاً حتى 11 مساؤًا',
+  deliverySummary: 'شحن متاح لجميع محافظات مصر. وتوصيل داخل شرم الشيخ من خلال خدمة الدليفري.',
+  deliveryCost: 'يُحدد حسب المنطقة (خدمة الدليفري متاحة بشرم الشيخ)',
+  warrantyPolicy: 'ضمان معتمد ودعم فني طوال فترة الضمان',
+  afterSalesPolicy: 'نضمن لك الدعم والمساعدة خلال فترة الضمان. معاينة المنتج عن بُعد وتوجيه الدعم الفني.',
+  primaryPhone: '01210141187',
+  secondaryPhone: '01000000000',
+  primaryWhatsApp: '201210141187',
+  afterSalesWhatsApp: '201210141187',
+  infinityCorpPhone: '01000000000',
+  infinityCorpWhatsApp: '201000000000',
+  facebookUrl: 'https://facebook.com/elmahlawystore',
+  instagramUrl: 'https://instagram.com/elmahlawystore',
+  whatsappOrderTemplate: 'السلام عليكم، أرغب في طلب المنتج التالي:\n- المنتج: {productName}\n- السعر: {price} جنيه\n- الرابط: {productUrl}\n\nملاحظات العميل: {notes}',
+  orderConfirmationMessage: 'تم استلام طلبك بنجاح! سيتم التواصل معك قريباً لتأكيد التوصيل.',
+  htmlTitle: 'المحلاوي ستور | El Mahlawy Store',
+  seoDescription: 'المحلاوي ستور - تسوق أحدث المنتجات والإلكترونيات وحلول الذكاء التكنولوجي بشرم الشيخ وجميع محافظات مصر.',
+  seoKeywords: 'المحلاوي ستور, شرم الشيخ, تسوق, إلكترونيات, الرويسات, Infinity Corp',
+  ogImageUrl: '',
+  primaryColor: '#0284c7',
+  secondaryColor: '#0ea5e9',
+  bannerImageUrl: '',
+  announcementText: 'عروض خاصة لفترة محدودة على جميع المنتجات - شحن لجميع محافظات مصر!',
+  announcementEnabled: true,
+  maintenanceMode: false,
+  maintenanceMessage: 'الموقع تحت الصيانة الدورية وسيعود قريباً.',
+  activityLog: [],
+};
+
+function readStoredSettings(): Record<string, unknown> {
+  try {
+    if (!fs.existsSync(SETTINGS_FILE)) return DEFAULT_SETTINGS;
+    const raw = fs.readFileSync(SETTINGS_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null ? { ...DEFAULT_SETTINGS, ...parsed } : DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+function writeStoredSettings(settings: Record<string, unknown>): void {
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
+}
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     cb(null, UPLOADS_DIR);
@@ -60,7 +112,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max per image
+    fileSize: 50 * 1024 * 1024, // 50MB max per image
   },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
@@ -133,6 +185,28 @@ async function startServer() {
       return;
     }
     res.status(401).json({ ok: false, error: 'كلمة المرور غير صحيحة.' });
+  });
+
+  // Site Settings Endpoints
+  app.get('/api/settings', (_req: Request, res: Response) => {
+    const settings = readStoredSettings();
+    res.json(settings);
+  });
+
+  app.post('/api/settings', (req: Request, res: Response) => {
+    if (!isAuthorizedAdminRequest(req)) {
+      res.status(401).json({ error: 'غير مصرح بتنفيذ هذا الإجراء.' });
+      return;
+    }
+    const newSettings = req.body?.settings as Record<string, unknown> | undefined;
+    if (!newSettings || typeof newSettings !== 'object') {
+      res.status(400).json({ error: 'بيانات الإعدادات غير صالحة.' });
+      return;
+    }
+    const current = readStoredSettings();
+    const merged = { ...current, ...newSettings };
+    writeStoredSettings(merged);
+    res.json({ ok: true, settings: merged });
   });
 
   // Persistent Catalog Endpoints

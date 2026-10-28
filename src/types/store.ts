@@ -122,7 +122,7 @@ export const PARTNER_INFO: PartnerContactInfo = {
   orderWhatsAppUrl: 'https://wa.me/201210141187',
   maintenanceWhatsAppUrl: 'https://wa.me/201005089640',
   afterSalesWhatsAppUrl: 'https://wa.me/201507558522',
-  facebookUrl: 'https://www.facebook.com/share/1GZfQzyJrn/',
+  facebookUrl: 'https://www.facebook.com/InfinityCorp2?rdid=8XksJEQmMP0ddcZj&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F1GZfQzyJrn%2F#',
   closingPhrase: 'وما تنساش تصلي على النبي ﷺ',
 };
 

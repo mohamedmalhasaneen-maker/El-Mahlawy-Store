@@ -23,6 +23,7 @@ import {
   formatPriceEgp,
 } from '../../utils/catalogLogic';
 import { ProductImage } from '../ProductImage';
+import { Footer } from '../Footer';
 import { MobileMenuDrawer } from './MobileMenuDrawer';
 import { MobileOrderSheet } from './MobileOrderSheet';
 import { MobileProductCard } from './MobileProductCard';
@@ -38,6 +39,7 @@ interface MobileStorefrontProps {
   sortBy: SortOption;
   onSortChange: (sort: SortOption) => void;
   onAdminButtonClick: () => void;
+  onNavigateAbout?: () => void;
   publicOrigin?: string;
   initialProductId?: string | null;
   onConsumeInitialProduct?: () => void;
@@ -67,6 +69,7 @@ export function MobileStorefront({
   sortBy,
   onSortChange,
   onAdminButtonClick,
+  onNavigateAbout,
   publicOrigin,
   initialProductId,
   onConsumeInitialProduct,
@@ -87,12 +90,18 @@ export function MobileStorefront({
   }, [initialProductId, products, onConsumeInitialProduct]);
 
   const scrollToSection = (sectionId: string) => {
-    if (sectionId === 'mobile-top') {
+    if (sectionId === 'mobile-top' || sectionId === 'top') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+    const target = document.getElementById(sectionId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
+
 
   const isSearching = searchQuery.trim().length > 0;
 
@@ -107,23 +116,16 @@ export function MobileStorefront({
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="flex min-w-0 items-center gap-2.5 focus-visible:outline-2 focus-visible:outline-[#1D4ED8] rounded-lg"
+            className="flex items-center focus-visible:outline-2 focus-visible:outline-[#1D4ED8] rounded-lg"
+            title={STORE_INFO.storeName}
           >
             <img
               src="/logo.png"
               alt={STORE_INFO.storeName}
               className="h-9 w-9 rounded-xl object-contain shadow-xs shrink-0 bg-white"
             />
-
-            <div className="min-w-0 leading-tight">
-              <span className="block truncate text-sm font-extrabold text-[#0B1F3A]">
-                {STORE_INFO.storeName}
-              </span>
-              <span className="block truncate text-[11px] font-bold text-[#0284C7]">
-                <bdi>{STORE_INFO.storeSubtitle}</bdi>
-              </span>
-            </div>
           </a>
+
 
           <button
             type="button"
@@ -474,196 +476,19 @@ export function MobileStorefront({
               </div>
             </div>
           </div>
-
-          {/* Store Offerings & Infinity Corp Partnership Card */}
-          <div
-            id="mobile-infinity-corp"
-            className="rounded-2xl bg-white border border-[#D8EEFB] p-4 space-y-3"
-          >
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] text-[#1D4ED8]">
-                <Wrench className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold text-[#0284C7]">
-                  تكامل المنتجات والحلول الفنية
-                </p>
-                <h3 className="text-sm font-extrabold text-[#0B1F3A] leading-snug">
-                  المحلاوي ستور × <bdi>{PARTNER_INFO.partnerName}</bdi>
-                </h3>
-                <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                  يعرض المحلاوي ستور أحدث الأجهزة والموديلات، بينما تتولى{' '}
-                  <bdi className="font-bold text-[#0B1F3A]">{PARTNER_INFO.partnerName}</bdi> (شريك
-                  النجاح) خدمات الأنظمة الذكية والتركيب والصيانة والدعم الفني.
-                </p>
-              </div>
-            </div>
-
-            {showAllPartnerInfo && (
-              <div className="pt-2 border-t border-[#EBF6FE] space-y-3">
-                <div>
-                  <p className="text-xs font-extrabold text-[#0B1F3A] mb-1.5">
-                    ماذا يقدم المحلاوي ستور؟
-                  </p>
-                  <ul className="space-y-1.5">
-                    {MOBILE_STORE_OFFERINGS.map((item) => (
-                      <li
-                        key={item}
-                        className="flex items-start gap-2 text-xs text-slate-600 leading-relaxed"
-                      >
-                        <CheckCircle2
-                          className="h-3.5 w-3.5 text-[#0284C7] shrink-0 mt-0.5"
-                          aria-hidden="true"
-                        />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <p className="text-xs font-extrabold text-[#0B1F3A] mb-1.5">
-                    خدمات <bdi>Infinity Corp</bdi> التقنية:
-                  </p>
-                  <ul className="space-y-1.5">
-                    {MOBILE_PARTNER_SERVICES.map((srv) => (
-                      <li
-                        key={srv}
-                        className="flex items-start gap-2 text-xs text-slate-600 leading-relaxed"
-                      >
-                        <CheckCircle2
-                          className="h-3.5 w-3.5 text-[#1D4ED8] shrink-0 mt-0.5"
-                          aria-hidden="true"
-                        />
-                        <span>{srv}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setShowAllPartnerInfo((prev) => !prev)}
-              aria-expanded={showAllPartnerInfo}
-              className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-3 py-2 text-xs font-bold text-[#0F294A] cursor-pointer"
-            >
-              <span>
-                {showAllPartnerInfo
-                  ? 'إخفاء تفاصيل الخدمات'
-                  : 'عرض خدمات المتجر وشريك النجاح Infinity Corp'}
-              </span>
-              <ChevronDown
-                className={`h-4 w-4 text-[#1D4ED8] transition-transform ${
-                  showAllPartnerInfo ? 'rotate-180' : ''
-                }`}
-                aria-hidden="true"
-              />
-            </button>
-          </div>
         </section>
       </main>
 
-      {/* 7. Mobile Contact Information & Footer (with bottom safe-area inset) */}
-      <footer
-        id="mobile-footer-contact"
-        className="bg-[#0B1F3A] text-white px-4 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
-      >
-        <div className="space-y-5">
-          {/* Brand Summary */}
-          <div>
-            <p className="text-base font-extrabold text-white">
-              {STORE_INFO.storeName} <span className="text-[#38BDF8]">|</span>{' '}
-              <bdi className="text-[#BAE6FD]">{STORE_INFO.storeSubtitle}</bdi>
-            </p>
-            <p className="mt-1 text-xs text-slate-300 leading-relaxed">{STORE_INFO.tagline}</p>
-            <p className="mt-1.5 text-xs text-[#BAE6FD] flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span>{STORE_INFO.address}</span>
-            </p>
-          </div>
-
-          {/* El Mahlawy Store Official Contact Buttons */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-[#7DD3FC]">تواصل مع المحلاوي ستور</p>
-            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-              <a
-                href={STORE_INFO.whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-3 py-2.5 text-xs font-extrabold text-white whitespace-nowrap"
-              >
-                <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>
-                  واتساب <bdi className="font-num">{STORE_INFO.primaryPhone}</bdi>
-                </span>
-              </a>
-
-              <a
-                href={STORE_INFO.facebookUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/15 px-3 py-2.5 text-xs font-bold text-white whitespace-nowrap"
-              >
-                <ExternalLink className="h-4 w-4 text-[#38BDF8] shrink-0" aria-hidden="true" />
-                <span>صفحة <bdi>Facebook</bdi></span>
-              </a>
-            </div>
-          </div>
-
-          {/* Infinity Corp Partner Official Contact Buttons */}
-          <div className="space-y-2 border-t border-white/10 pt-4">
-            <p className="text-xs font-bold text-[#7DD3FC]">
-              شركاء النجاح | <bdi>{PARTNER_INFO.partnerName}</bdi> للأنظمة الذكية والتركيبات
-            </p>
-            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2">
-              <a
-                href={PARTNER_INFO.orderWhatsAppUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/15 px-3 py-2.5 text-xs font-bold text-white whitespace-nowrap"
-              >
-                <MessageCircle className="h-4 w-4 text-[#38BDF8] shrink-0" aria-hidden="true" />
-                <span>
-                  واتساب <bdi className="font-num">{PARTNER_INFO.orderPhones[0]}</bdi>
-                </span>
-              </a>
-
-              <a
-                href={PARTNER_INFO.facebookUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl bg-white/10 border border-white/15 px-3 py-2.5 text-xs font-bold text-white whitespace-nowrap"
-              >
-                <ExternalLink className="h-4 w-4 text-[#38BDF8] shrink-0" aria-hidden="true" />
-                <span>فيسبوك <bdi>Infinity Corp</bdi></span>
-              </a>
-            </div>
-          </div>
-
-          {/* Copyright & Admin Trigger */}
-          <div className="border-t border-white/10 pt-4 flex items-center justify-between gap-2 text-[11px] text-slate-400">
-            <span className="truncate">
-              © {new Date().getFullYear()} {STORE_INFO.storeName}
-            </span>
-            <button
-              type="button"
-              onClick={onAdminButtonClick}
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-300 hover:text-white whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5 text-[#38BDF8]" aria-hidden="true" />
-              <span>لوحة الإدارة</span>
-            </button>
-          </div>
-        </div>
-      </footer>
+      {/* 7. Unified Footer containing 1. Contact Us, 2. About Us, 3. Copyright Footer */}
+      <Footer onAdminButtonClick={onAdminButtonClick} onNavigateAbout={onNavigateAbout} />
 
       {/* Mobile Navigation Slide-Over Drawer */}
+
       <MobileMenuDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onNavigateSection={scrollToSection}
+        onNavigateAbout={onNavigateAbout}
         onAdminClick={onAdminButtonClick}
         hasDiscountOffers={discountedProducts.length > 0}
       />

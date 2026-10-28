@@ -2,8 +2,8 @@ import { LayoutDashboard } from 'lucide-react';
 import { STORE_INFO } from '../types/store';
 
 interface NavbarProps {
-  activeView: 'store' | 'admin';
-  onSwitchView: (view: 'store' | 'admin') => void;
+  activeView: 'store' | 'about' | 'admin';
+  onSwitchView: (view: 'store' | 'about' | 'admin') => void;
   onAdminButtonClick: () => void;
   hasDiscountOffers: boolean;
 }
@@ -18,10 +18,23 @@ export function Navbar({
     if (activeView !== 'store') {
       onSwitchView('store');
       setTimeout(() => {
-        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
-      }, 60);
+        const target = document.getElementById(sectionId);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }, 80);
+    } else {
+      const target = document.getElementById(sectionId);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
+
 
   return (
     <header className="sticky top-0 z-40 h-14 md:h-16 bg-white/95 backdrop-blur-md border-b border-[#D8EEFB]">
@@ -29,8 +42,10 @@ export function Navbar({
         {/* Zone 1: Single-element Brand Wordmark */}
         <a
           href="#top"
-          onClick={() => {
-            if (activeView !== 'store') onSwitchView('store');
+          onClick={(e) => {
+            e.preventDefault();
+            onSwitchView('store');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           className="inline-flex items-center gap-2.5 text-[13px] sm:text-lg font-extrabold tracking-tight text-[#0B1F3A] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] rounded-md"
         >
@@ -52,7 +67,11 @@ export function Navbar({
         >
           <a
             href="#top"
-            onClick={() => handleNavClick('top')}
+            onClick={(e) => {
+              e.preventDefault();
+              onSwitchView('store');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             className="hover:text-[#1D4ED8] transition-colors whitespace-nowrap shrink-0 py-1 border-b-2 border-transparent hover:border-[#38BDF8]"
           >
             الرئيسية
@@ -73,20 +92,13 @@ export function Navbar({
           >
             المنتجات
           </a>
-          <a
-            href="#about-store"
-            onClick={() => handleNavClick('about-store')}
-            className="hover:text-[#1D4ED8] transition-colors whitespace-nowrap shrink-0 py-1 border-b-2 border-transparent hover:border-[#38BDF8]"
+          <button
+            type="button"
+            onClick={() => onSwitchView('about')}
+            className="hover:text-[#1D4ED8] transition-colors whitespace-nowrap shrink-0 py-1 border-b-2 border-transparent hover:border-[#38BDF8] cursor-pointer"
           >
-            عن المتجر
-          </a>
-          <a
-            href="#infinity-corp"
-            onClick={() => handleNavClick('infinity-corp')}
-            className="hover:text-[#1D4ED8] transition-colors whitespace-nowrap shrink-0 py-1 border-b-2 border-transparent hover:border-[#38BDF8]"
-          >
-            <bdi>Infinity Corp</bdi>
-          </a>
+            من نحن | About Us
+          </button>
           <a
             href="#footer-contact"
             onClick={() => handleNavClick('footer-contact')}
@@ -95,6 +107,7 @@ export function Navbar({
             تواصل معنا
           </a>
         </nav>
+
 
         {/* Zone 3: 1 Primary Action */}
         <div className="flex items-center shrink-0">

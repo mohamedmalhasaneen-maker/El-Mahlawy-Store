@@ -1,10 +1,10 @@
 import {
+  Award,
   BellRing,
   Camera,
   CheckCircle2,
   ExternalLink,
-  Home,
-  KeyRound,
+  Flame,
   Lightbulb,
   MapPin,
   MessageCircle,
@@ -12,306 +12,275 @@ import {
   Phone,
   Radio,
   ShieldCheck,
+  Sparkles,
   Truck,
+  Volume2,
   Wrench,
 } from 'lucide-react';
 import { PARTNER_INFO, STORE_INFO } from '../types/store';
 
-const STORE_OFFERINGS = [
-  'عرض المنتجات والأجهزة المتاحة.',
-  'عرض صور المنتجات وتفاصيلها ومواصفاتها.',
-  'استعراض أحدث المنتجات والموديلات.',
-  'مساعدة العملاء على التعرف على الإمكانيات واختيار المنتجات المناسبة.',
-  'استقبال استفسارات العملاء عن المنتجات والأسعار والتوافر.',
-];
-
-const INFINITY_SERVICES = [
-  {
-    title: 'أنظمة المنزل الذكي (Smart Home)',
-    description: 'تجهيز وتركيب أنظمة التحكم الذكي في المنزل والأجهزة المتوافقة.',
-    Icon: Home,
-  },
+const STORE_PRODUCTS_LIST = [
   {
     title: 'كاميرات المراقبة',
-    description: 'توريد وتركيب وتجهيز أنظمة المراقبة.',
+    description: 'كاميرات IP وAnalog، وأجهزة التسجيل، ومستلزمات التوصيل.',
     Icon: Camera,
   },
   {
-    title: 'أنظمة الستالايت',
-    description: 'تركيب وتجهيز أنظمة الستالايت.',
+    title: 'الستالايت والرسيفرات',
+    description: 'رسيفرات متنوعة، وأطباق الدش، والعدسات، والريموتات، والكابلات، ومستلزمات الدش المركزي.',
     Icon: Radio,
   },
   {
-    title: 'إنذار الحريق (Fire Alarm)',
-    description: 'توريد وتركيب وتجهيز أنظمة الإنذار.',
-    Icon: BellRing,
+    title: 'أنظمة الصوتيات',
+    description: 'سماعات السقف والسماعات المعلقة ومستلزمات أنظمة الصوت والسويس سيستم.',
+    Icon: Volume2,
   },
   {
-    title: 'التحكم في الدخول (Access Control)',
-    description: 'تركيب أنظمة التحكم في الدخول وفقًا لاحتياجات المكان.',
-    Icon: KeyRound,
-  },
-  {
-    title: 'التحكم الذكي في الإضاءة والأجهزة المنزلية',
-    description: 'تجهيز حلول تساعد على التحكم في الأجهزة والإنارة بصورة ذكية.',
+    title: 'إضاءة LED Profile',
+    description: 'بروفايلات الإضاءة الديكورية ومستلزمات التركيب والتوصيل.',
     Icon: Lightbulb,
   },
   {
-    title: 'الصيانة والدعم الفني',
-    description: 'تقديم خدمات الصيانة والمساعدة الفنية للأنظمة التي تتولى الشركة تنفيذها.',
-    Icon: Wrench,
+    title: 'أنظمة الإنذار المبكر',
+    description: 'أجهزة الإنذار والاستشعار ومستلزماتها.',
+    Icon: BellRing,
   },
   {
-    title: 'الضمان وخدمة ما بعد البيع',
-    description: 'وفقًا لشروط الضمان وطبيعة كل منتج أو خدمة.',
-    Icon: ShieldCheck,
+    title: 'أنظمة إنذار الحريق',
+    description: 'كواشف الدخان والحرارة، وأجهزة التنبيه، ولوحات التحكم ومستلزماتها.',
+    Icon: Flame,
+  },
+];
+
+const INFINITY_SERVICES_LIST = [
+  {
+    num: '1',
+    title: 'تركيب كاميرات المراقبة',
+    description: 'تركيب كاميرات المراقبة بنظامي IP وAnalog، وتجهيز أنظمة التسجيل والمشاهدة عن بُعد، وصيانة الأنظمة التي قامت الشركة بتركيبها.',
+    Icon: Camera,
+  },
+  {
+    num: '2',
+    title: 'أنظمة الستالايت والدش المركزي',
+    description: 'تركيب وصيانة أنظمة الدش العادي والمركزي للمنازل والفنادق والمنتجعات والقرى السياحية.',
+    Icon: Radio,
+  },
+  {
+    num: '3',
+    title: 'أنظمة الصوتيات والسويس سيستم',
+    description: 'تركيب السماعات السقفية والمعلقة وتجهيز أنظمة الصوت للمحلات والفنادق والمنشآت التجارية.',
+    Icon: Volume2,
+  },
+  {
+    num: '4',
+    title: 'تركيب إضاءة LED Profile',
+    description: 'تنفيذ وتركيب إضاءة البروفايل الديكورية للأسقف والحوائط والمنازل والمحلات، مع توفير حلول تناسب طبيعة كل مكان والميزانية المتاحة.',
+    Icon: Lightbulb,
+  },
+  {
+    num: '5',
+    title: 'أنظمة الإنذار المبكر',
+    description: 'تركيب وتجهيز أنظمة الإنذار وأجهزة الاستشعار والتنبيه المناسبة للمباني والمنشآت.',
+    Icon: BellRing,
+  },
+  {
+    num: '6',
+    title: 'أنظمة إنذار الحريق',
+    description: 'تركيب وتجهيز أنظمة إنذار الحريق وكواشف الدخان والحرارة وأجهزة التنبيه، وفقًا لمتطلبات السلامة والمعايير المعمول بها.',
+    Icon: Flame,
   },
 ];
 
 export function PartnerAndAboutSection() {
   return (
-    <>
-      {/* 1. First Section: El Mahlawy Store */}
+    <div id="about-us" className="space-y-0">
+      {/* HEADER BANNER */}
+      <section className="bg-gradient-to-r from-[#0B1F3A] via-[#1D4ED8] to-[#0284C7] text-white py-12 sm:py-16 border-t border-b border-[#38BDF8]/20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center space-y-3">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-extrabold text-[#7DD3FC] border border-white/15">
+            <Sparkles className="h-4 w-4 text-[#38BDF8]" />
+            <span>من نحن | About Us</span>
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+            المحلاوي ستور <span className="text-[#7DD3FC]">×</span> Infinity Corp
+          </h1>
+          <p className="text-sm sm:text-base text-[#E0F2FE] max-w-2xl mx-auto font-medium leading-relaxed">
+            كل احتياجاتك من الأجهزة والأنظمة الفنية في مكان واحد! نوفر لك جودة المنتجات والأسعار التنافسية والتركيبات الفنية المعتمدة.
+          </p>
+        </div>
+      </section>
+
+      {/* 1. SECTION 1: EL MAHLAWY STORE */}
       <section
         id="about-store"
         aria-labelledby="about-store-heading"
-        className="bg-white border-t border-[#D8EEFB] py-14 sm:py-18"
+        className="bg-white py-12 sm:py-16 border-b border-[#D8EEFB]"
       >
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
-            {/* Right Column: Identity & Overview */}
-            <div className="lg:col-span-6 space-y-5">
-              <div>
-                <p className="text-xs sm:text-sm font-bold text-[#0284C7] mb-1">
-                  {STORE_INFO.storeName} · <bdi>{STORE_INFO.storeSubtitle}</bdi>
-                </p>
-                <h2
-                  id="about-store-heading"
-                  className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A] leading-snug"
-                  style={{ textWrap: 'balance' }}
-                >
-                  المحلاوي ستور | <bdi>El Mahlawy Store</bdi>
-                </h2>
-              </div>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
+          {/* Top Brand Identity */}
+          <div className="max-w-3xl space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-lg bg-[#F2FAFF] border border-[#CBE7FA] px-3 py-1 text-xs font-bold text-[#1D4ED8]">
+              <Package className="h-3.5 w-3.5" />
+              <span>المتجر الرسمي والبيع المباشر</span>
+            </div>
+            <h2
+              id="about-store-heading"
+              className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A]"
+            >
+              المحلاوي ستور | <bdi className="text-[#0284C7]">El Mahlawy Store</bdi>
+            </h2>
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-medium">
+              المحلاوي ستور هو وجهتك لشراء الأجهزة والمعدات ومستلزمات الأنظمة الفنية بأسعار تنافسية، مع توفير مجموعة متنوعة من المنتجات التي تلبي احتياجات الأفراد والشركات والمحلات والمنشآت التجارية. نوفر الشحن لجميع محافظات مصر، بالإضافة إلى خدمة التوصيل داخل شرم الشيخ.
+            </p>
+          </div>
 
-              <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-                هو الاسم الرئيسي للموقع والوجهة المتخصصة في عرض المنتجات والأجهزة الحديثة، واستعراض
-                أحدث الموديلات والصور والمواصفات والإمكانيات، لمساعدة العملاء على التعرف على
-                المنتجات المتاحة واختيار الأنسب لاحتياجاتهم.
+          {/* Products Grid */}
+          <div>
+            <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] mb-4 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-[#0284C7]" />
+              <span>منتجاتنا الأساسية والمتنوعة</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {STORE_PRODUCTS_LIST.map(({ title, description, Icon }) => (
+                <div
+                  key={title}
+                  className="rounded-2xl bg-[#F2FAFF] border border-[#CBE7FA] p-4 sm:p-5 flex flex-col justify-between hover:border-[#0284C7] transition-colors"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-[#D8EEFB] text-[#1D4ED8] shadow-xs">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <h4 className="text-sm sm:text-base font-extrabold text-[#0B1F3A]">
+                        {title}
+                      </h4>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-1">
+                      {description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Info Details Grid: Shipping, Address, After Sales, Contact */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+            {/* Address */}
+            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-2 shadow-xs">
+              <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-xs sm:text-sm">
+                <MapPin className="h-4 w-4 shrink-0 text-[#0284C7]" />
+                <span>📍 عنوان المتجر</span>
+              </div>
+              <p className="text-xs sm:text-sm text-[#0B1F3A] font-semibold leading-relaxed">
+                {STORE_INFO.address}
               </p>
-
-              {/* Address Card */}
-              <div className="rounded-2xl bg-[#F2FAFF] border border-[#CBE7FA] p-5 space-y-2">
-                <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-sm sm:text-base">
-                  <MapPin className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  <span>📍 عنوان المحل</span>
-                </div>
-                <p className="text-sm sm:text-base text-[#0B1F3A] font-semibold leading-relaxed">
-                  {STORE_INFO.address}
-                </p>
-              </div>
-
-
-
-
-
-              {/* Contact & WhatsApp */}
-              <div className="rounded-2xl bg-[#0B1F3A] text-white p-5 space-y-4">
-                <div className="flex items-center gap-2 text-[#38BDF8] font-extrabold text-sm sm:text-base">
-                  <Package className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  <span>📩 الحجز والاستفسارات</span>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-200">
-                  يمكن للعملاء التواصل عبر رسائل صفحة المتجر أو من خلال WhatsApp:
-                </p>
-
-                <div className="space-y-2 text-xs sm:text-sm font-bold">
-                  <div className="flex items-center justify-between bg-white/10 px-3.5 py-2.5 rounded-xl">
-                    <span className="text-[#BAE6FD] flex items-center gap-1.5">
-                      <Phone className="h-4 w-4 text-[#38BDF8]" />
-                      <span>رقم التواصل والطلبات</span>
-                    </span>
-                    <a
-                      href={`tel:${STORE_INFO.primaryPhone}`}
-                      dir="ltr"
-                      className="inline-flex items-center gap-1.5 font-num text-white hover:text-[#38BDF8] transition-colors"
-                    >
-                      <Phone className="h-3.5 w-3.5 text-[#38BDF8]" />
-                      <span>{STORE_INFO.primaryPhone}</span>
-                    </a>
-                  </div>
-                  <div className="flex items-center justify-between bg-white/10 px-3.5 py-2.5 rounded-xl">
-                    <span className="text-[#BAE6FD] flex items-center gap-1.5">
-                      <Phone className="h-4 w-4 text-[#38BDF8]" />
-                      <span>خدمة ما بعد البيع</span>
-                    </span>
-                    <a
-                      href={`tel:${STORE_INFO.secondaryPhone}`}
-                      dir="ltr"
-                      className="inline-flex items-center gap-1.5 font-num text-white hover:text-[#38BDF8] transition-colors"
-                    >
-                      <Phone className="h-3.5 w-3.5 text-[#38BDF8]" />
-                      <span>{STORE_INFO.secondaryPhone}</span>
-                    </a>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
-                  <a
-                    href={STORE_INFO.whatsappUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#22bf5b] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors"
-                  >
-                    <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span>واتساب الطلبات</span>
-                  </a>
-
-                  <a
-                    href={STORE_INFO.afterSalesWhatsAppUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#0284C7] hover:bg-[#0369A1] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-white transition-colors"
-                  >
-                    <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span>واتساب ما بعد البيع</span>
-                  </a>
-                </div>
-
-                <a
-                  href={STORE_INFO.facebookUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2 text-xs sm:text-sm font-bold text-white transition-colors"
-                >
-                  <ExternalLink className="h-4 w-4 text-[#38BDF8] shrink-0" aria-hidden="true" />
-                  <span>صفحة المحلاوي ستور على Facebook</span>
-                </a>
-              </div>
-
-
             </div>
 
-            {/* Left Column: 5 Store Offerings */}
-            <div className="lg:col-span-6">
-              <div className="rounded-3xl bg-[#F2FAFF] border border-[#D8EEFB] p-6 sm:p-8 sticky top-24">
-                <p className="text-xs font-bold text-[#1D4ED8] mb-4">
-                  ماذا يقدم المحلاوي ستور؟
-                </p>
-
-                <ul className="divide-y divide-[#DCEFFB]">
-                  {STORE_OFFERINGS.map((item, idx) => (
-                    <li
-                      key={item}
-                      className="flex items-start gap-3 py-3.5 first:pt-0 last:pb-0 text-sm sm:text-base font-semibold text-[#0B1F3A]"
-                    >
-                      <CheckCircle2
-                        className="h-5 w-5 text-[#0284C7] shrink-0 mt-0.5"
-                        aria-hidden="true"
-                      />
-                      <span className="flex-1 leading-relaxed">{item}</span>
-                      <span className="font-num text-xs font-bold text-slate-400 pt-1">
-                        {String(idx + 1).padStart(2, '0')}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+            {/* Shipping & Delivery */}
+            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-2 shadow-xs">
+              <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-xs sm:text-sm">
+                <Truck className="h-4 w-4 shrink-0 text-[#0284C7]" />
+                <span>الشحن والتوصيل</span>
               </div>
+              <ul className="space-y-1.5 text-xs sm:text-sm text-[#0B1F3A] font-medium">
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>📦 شحن إلى جميع محافظات مصر.</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>🛵 توصيل داخل شرم الشيخ عن طريق الدليفري.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Customer Service & After Sales */}
+            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-2 shadow-xs">
+              <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-xs sm:text-sm">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-[#0284C7]" />
+                <span>خدمة العملاء وما بعد البيع</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                مساعدة العملاء في معرفة المواصفات والأسعار. تتوفر إمكانية الاستبدال أو الاسترجاع وفقًا لسياسة المتجر وشروط الضمان.
+              </p>
+            </div>
+
+            {/* Direct Contact Card */}
+            <div className="rounded-2xl bg-[#0B1F3A] text-white p-4 space-y-3 flex flex-col justify-between shadow-xs">
+              <div>
+                <p className="text-xs font-extrabold text-[#7DD3FC] mb-1">تواصل مع المحلاوي ستور</p>
+                <div className="flex items-center justify-between text-xs font-bold bg-white/10 px-3 py-2 rounded-xl mb-2">
+                  <span className="text-[#BAE6FD]">طلبات الشراء:</span>
+                  <a
+                    href={`tel:${STORE_INFO.primaryPhone}`}
+                    dir="ltr"
+                    className="font-num text-white hover:text-[#7DD3FC]"
+                  >
+                    {STORE_INFO.primaryPhone}
+                  </a>
+                </div>
+              </div>
+              <a
+                href={STORE_INFO.whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#22bf5b] px-3 py-2 text-xs font-extrabold text-white transition-colors"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>تواصل عبر واتساب الطلبات</span>
+              </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2. Second Section: Infinity Corp – شريك النجاح */}
+      {/* 2. SECTION 2: INFINITY CORP */}
       <section
         id="infinity-corp"
         aria-labelledby="infinity-corp-heading"
-        className="bg-[#F2FAFF] border-t border-[#D8EEFB] py-14 sm:py-18"
+        className="bg-[#F2FAFF] py-12 sm:py-16 border-b border-[#D8EEFB]"
       >
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          {/* Partner Intro Header */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-end mb-10">
-            <div className="lg:col-span-12 space-y-4">
-              <p className="text-xs sm:text-sm font-bold text-[#0284C7]">
-                {PARTNER_INFO.partnerSubtitle}
-              </p>
-
-              <h2
-                id="infinity-corp-heading"
-                className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A] leading-snug"
-                style={{ textWrap: 'balance' }}
-              >
-                {PARTNER_INFO.roleTitle}
-              </h2>
-
-              <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-                تعمل <strong className="font-bold text-[#0B1F3A]">Infinity Corp</strong> بصفتها شريك
-                النجاح للمحلاوي ستور في تقديم الحلول التقنية والأنظمة الذكية وخدمات التركيب والتنفيذ
-                والصيانة والدعم الفني.
-              </p>
-
-              {/* Service Scope & Delivery */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-[#1D4ED8] font-bold text-sm">
-                    <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span>📍 نطاق الخدمة في جنوب سيناء</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {PARTNER_INFO.serviceScope.map((city) => (
-                      <span
-                        key={city}
-                        className="rounded-lg bg-[#F2FAFF] border border-[#D8EEFB] px-2.5 py-1 text-xs font-bold text-[#0B1F3A]"
-                      >
-                        {city}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-[#1D4ED8] font-bold text-sm">
-                    <Truck className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span>🚚 التوصيل والشحن</span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed pt-1">
-                    {PARTNER_INFO.deliveryScope}
-                  </p>
-                </div>
-              </div>
-
-              {/* After Sales Policy */}
-              <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-1.5">
-                <div className="flex items-center gap-2 text-[#1D4ED8] font-bold text-sm">
-                  <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>💬 خدمة ما بعد البيع</span>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                  {PARTNER_INFO.afterSalesPolicy}
-                </p>
-              </div>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
+          {/* Top Identity */}
+          <div className="max-w-3xl space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-lg bg-white border border-[#CBE7FA] px-3 py-1 text-xs font-bold text-[#1D4ED8]">
+              <Award className="h-3.5 w-3.5 text-[#0284C7]" />
+              <span>شريك النجاح | Infinity Corp</span>
             </div>
-
-
+            <h2
+              id="infinity-corp-heading"
+              className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A]"
+            >
+              شركة Infinity Corp للتركيبات الفنية والصيانة
+            </h2>
+            <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-medium">
+              تُعد Infinity Corp شركة متخصصة في التركيبات الفنية والصيانة الدورية وخدمة ما بعد البيع للأنظمة التي تقوم بتركيبها، وتقدم خدماتها للأفراد والشركات والفنادق والمنتجعات السياحية والمحلات التجارية داخل محافظة جنوب سيناء.
+            </p>
           </div>
 
-          {/* 8 Services Grid */}
-          <div className="mb-8 pt-4">
-            <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] mb-5">
-              خدمات <bdi>Infinity Corp</bdi> التقنية والفنية
+          {/* 6 Technical Services Grid */}
+          <div>
+            <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] mb-4 flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-[#1D4ED8]" />
+              <span>خدماتنا الفنية المتخصصة</span>
             </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-              {INFINITY_SERVICES.map(({ title, description, Icon }) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {INFINITY_SERVICES_LIST.map(({ num, title, description, Icon }) => (
                 <div
                   key={title}
-                  className="flex flex-col justify-between rounded-2xl bg-white border border-[#D8EEFB] p-5 transition-colors hover:border-[#7DD3FC] shadow-sm"
+                  className="rounded-2xl bg-white border border-[#CBE7FA] p-5 flex flex-col justify-between shadow-xs hover:border-[#1D4ED8] transition-colors"
                 >
-                  <div>
-                    <div className="mb-3.5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] text-[#1D4ED8]">
-                      <Icon className="h-5 w-5" aria-hidden="true" />
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F2FAFF] border border-[#D8EEFB] text-[#1D4ED8]">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="font-num text-xs font-extrabold bg-[#F2FAFF] border border-[#CBE7FA] px-2.5 py-1 rounded-lg text-[#1D4ED8]">
+                        خدمة #{num}
+                      </span>
                     </div>
-                    <h4 className="text-sm sm:text-base font-extrabold text-[#0B1F3A] leading-snug mb-2">
+                    <h4 className="text-sm sm:text-base font-extrabold text-[#0B1F3A]">
                       {title}
                     </h4>
                     <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
@@ -323,62 +292,173 @@ export function PartnerAndAboutSection() {
             </div>
           </div>
 
-          <p className="text-xs sm:text-sm font-semibold text-[#0F294A] leading-relaxed border-t border-[#D8EEFB] pt-5">
-            مع <bdi>Infinity Corp</bdi>، لا تقتصر الخدمة على شراء الجهاز فقط، بل تشمل أيضًا حلول
-            التركيب والتنفيذ والدعم الفني بما يناسب احتياجات العميل.
-          </p>
-        </div>
-      </section>
-
-      {/* 3. Collaboration Summary Section */}
-      <section
-        id="partnership-section"
-        aria-labelledby="partnership-heading"
-        className="bg-gradient-to-bl from-[#0B2354] via-[#1545A3] to-[#0284C7] text-white py-14 sm:py-18"
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-            <div className="lg:col-span-5 space-y-3">
-              <p className="text-xs sm:text-sm font-bold text-[#BAE6FD]">
-                تعاون متكامل لخدمة العميل
+          {/* Scope, Maintenance & Contact Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+            {/* Scope */}
+            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-5 space-y-3 shadow-xs">
+              <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-sm">
+                <MapPin className="h-4.5 w-4.5 text-[#0284C7]" />
+                <span>📍 نطاق خدماتنا</span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+                نقدم خدماتنا في جميع أنحاء جنوب سيناء:
               </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {PARTNER_INFO.serviceScope.map((city) => (
+                  <span
+                    key={city}
+                    className="rounded-lg bg-[#F2FAFF] border border-[#CBE7FA] px-2.5 py-1 text-xs font-bold text-[#0B1F3A]"
+                  >
+                    {city}
+                  </span>
+                ))}
+              </div>
+            </div>
 
-              <h2
-                id="partnership-heading"
-                className="text-2xl sm:text-3xl font-extrabold text-white leading-snug"
-                style={{ textWrap: 'balance' }}
-              >
-                المحلاوي ستور × <bdi>Infinity Corp</bdi>
-              </h2>
-
-              <p className="text-base sm:text-lg font-bold text-[#E0F2FE] leading-relaxed">
-                منتجات تختارها، وحلول تنفذها، وخدمة تستمر معاك
+            {/* Maintenance & Support */}
+            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-5 space-y-3 shadow-xs">
+              <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-sm">
+                <Wrench className="h-4.5 w-4.5 text-[#0284C7]" />
+                <span>🛠️ الصيانة وخدمة ما بعد البيع</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                نوفر الدعم الفني خلال فترة الضمان وفقًا لشروطه، والتشخيص عن بُعد متى أمكن، وإرسال فني متخصص عند الحاجة، بالإضافة إلى خدمات الصيانة الدورية للأنظمة التي قامت الشركة بتركيبها.
               </p>
             </div>
 
-            <div className="lg:col-span-7 space-y-4 text-sm sm:text-base text-[#E0F2FE]/95 leading-relaxed">
-              <p>
-                يجمع التعاون بين <strong className="font-extrabold text-white">المحلاوي ستور</strong>{' '}
-                و<strong className="font-extrabold text-white">Infinity Corp</strong> بين عرض
-                المنتجات والأجهزة ومساعدة العملاء على التعرف على مواصفاتها واختيار احتياجاتهم، وبين
-                توفير خدمات الحلول التقنية والتركيب والتنفيذ والصيانة من خلال شريك النجاح.
-              </p>
+            {/* Infinity Corp Direct Contacts */}
+            <div className="rounded-2xl bg-[#0E264A] border border-[#1E3F73] text-white p-5 space-y-3 shadow-xs flex flex-col justify-between">
+              <div className="space-y-2">
+                <p className="text-xs font-extrabold text-[#7DD3FC]">أرقام التواصل مع Infinity Corp (اضغط لفتح واتساب)</p>
+                <div className="space-y-2 text-xs font-bold">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 bg-white/10 px-3 py-2 rounded-xl">
+                    <span className="text-[#BAE6FD]">طلبات الشراء والاستفسارات:</span>
+                    <div className="flex items-center gap-2 font-num">
+                      <a
+                        href={`https://wa.me/20${PARTNER_INFO.orderPhones[0]}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-white hover:text-[#25D366] transition-colors"
+                        title={`فتح واتساب لـ ${PARTNER_INFO.orderPhones[0]}`}
+                      >
+                        <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                        <span>{PARTNER_INFO.orderPhones[0]}</span>
+                      </a>
+                      <span className="text-white/40">/</span>
+                      <a
+                        href={`https://wa.me/20${PARTNER_INFO.orderPhones[1]}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-white hover:text-[#25D366] transition-colors"
+                        title={`فتح واتساب لـ ${PARTNER_INFO.orderPhones[1]}`}
+                      >
+                        <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                        <span>{PARTNER_INFO.orderPhones[1]}</span>
+                      </a>
+                    </div>
+                  </div>
 
-              <p>
-                <strong className="font-extrabold text-white">المحلاوي ستور</strong> هو الوجهة
-                الرئيسية لاستعراض المنتجات والتواصل بشأن الأسعار والتوافر، بينما تتولى{' '}
-                <strong className="font-extrabold text-white">Infinity Corp</strong> تقديم خدمات
-                الأنظمة الذكية والتركيبات والحلول الفنية التي تدخل ضمن نطاق خدماتها.
-              </p>
+                  <div className="flex items-center justify-between bg-white/10 px-3 py-2 rounded-xl">
+                    <span className="text-[#BAE6FD]">التركيب والصيانة الدورية:</span>
+                    <a
+                      href={`https://wa.me/20${PARTNER_INFO.maintenancePhone}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      dir="ltr"
+                      className="inline-flex items-center gap-1 font-num text-white hover:text-[#25D366] transition-colors"
+                      title={`فتح واتساب لـ ${PARTNER_INFO.maintenancePhone}`}
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                      <span>{PARTNER_INFO.maintenancePhone}</span>
+                    </a>
+                  </div>
 
-              <p className="text-[#BAE6FD] font-semibold">
-                هدفنا هو تقديم تجربة متكاملة وواضحة للعميل، من مرحلة التعرف على المنتجات واختيارها،
-                إلى الاستفسار عن الخدمات المناسبة، ثم التركيب والدعم الفني عند الحاجة.
+                  <div className="flex items-center justify-between bg-white/10 px-3 py-2 rounded-xl">
+                    <span className="text-[#BAE6FD]">خدمة ما بعد البيع:</span>
+                    <a
+                      href={`https://wa.me/20${PARTNER_INFO.afterSalesPhone}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      dir="ltr"
+                      className="inline-flex items-center gap-1 font-num text-white hover:text-[#25D366] transition-colors"
+                      title={`فتح واتساب لـ ${PARTNER_INFO.afterSalesPhone}`}
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                      <span>{PARTNER_INFO.afterSalesPhone}</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <a
+                  href={PARTNER_INFO.facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-bold text-white transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-[#7DD3FC]" />
+                  <span>صفحة Infinity Corp على Facebook</span>
+                </a>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* 3. SECTION 3: OUR VISION (رؤيتنا) */}
+      <section
+        id="our-vision"
+        className="bg-gradient-to-br from-[#0B1F3A] via-[#1545A3] to-[#0284C7] text-white py-12 sm:py-16"
+      >
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
+          <div className="max-w-3xl space-y-3 text-center mx-auto">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-extrabold text-[#7DD3FC] border border-white/15">
+              <Award className="h-4 w-4 text-[#38BDF8]" />
+              <span>رؤيتنا | Our Vision</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+              هدفنا تقديم تجربة فنية متكاملة وموثوقة
+            </h2>
+            <p className="text-sm sm:text-base text-[#E0F2FE] leading-relaxed font-medium">
+              نسعى إلى توفير المنتجات والأجهزة الفنية المناسبة، وتقديم خدمات تركيب وصيانة موثوقة، مع الاهتمام بجودة الخدمة وسهولة التواصل مع العملاء.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {/* El Mahlawy Card */}
+            <div className="rounded-3xl bg-white/10 border border-white/20 p-6 space-y-3 backdrop-blur-xs">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1D4ED8] text-white font-extrabold text-lg">
+                  1
+                </span>
+                <h3 className="text-lg font-extrabold text-white">
+                  المحلاوي ستور | <bdi className="text-[#7DD3FC]">El Mahlawy Store</bdi>
+                </h3>
+              </div>
+              <p className="text-sm text-[#E0F2FE] font-medium leading-relaxed">
+                منتجات متنوعة، وأسعار تنافسية، وشحن لجميع محافظات مصر.
+              </p>
+            </div>
+
+            {/* Infinity Corp Card */}
+            <div className="rounded-3xl bg-white/10 border border-white/20 p-6 space-y-3 backdrop-blur-xs">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0284C7] text-white font-extrabold text-lg">
+                  2
+                </span>
+                <h3 className="text-lg font-extrabold text-white">
+                  Infinity Corp
+                </h3>
+              </div>
+              <p className="text-sm text-[#E0F2FE] font-medium leading-relaxed">
+                حلول فنية وتركيبات وصيانة ودعم ما بعد البيع في جنوب سيناء.
               </p>
             </div>
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }

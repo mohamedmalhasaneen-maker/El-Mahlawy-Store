@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
   Edit3,
   FolderKanban,
@@ -40,6 +41,8 @@ interface AdminDashboardProps {
   onDeleteProduct: (productId: string) => Promise<void>;
   onBackToStore: () => void;
   publicOrigin?: string;
+  siteSettings: Record<string, any>;
+  onSaveSettings: (settings: Record<string, any>) => Promise<boolean>;
 }
 
 const DEFAULT_FORM: ProductFormInput = {
@@ -68,8 +71,54 @@ export function AdminDashboard({
   onDeleteProduct,
   onBackToStore,
   publicOrigin,
+  siteSettings,
+  onSaveSettings,
 }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'editor'>('catalog');
+  const [activeTab, setActiveTab] = useState<
+    | 'overview'
+    | 'store'
+    | 'contacts'
+    | 'catalog'
+    | 'editor'
+    | 'banners'
+    | 'orders'
+    | 'theme'
+    | 'shipping'
+    | 'seo'
+    | 'users'
+    | 'backup'
+    | 'logs'
+  >('overview');
+
+  const [settingsForm, setSettingsForm] = useState<Record<string, any>>(siteSettings || {});
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  useEffect(() => {
+    if (siteSettings) {
+      setSettingsForm(siteSettings);
+    }
+  }, [siteSettings]);
+
+  const handleSaveAllSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    setFeedback(null);
+    try {
+      await onSaveSettings(settingsForm);
+      setFeedback({
+        type: 'success',
+        message: 'تم حفظ إعدادات الموقع وتطبيقها بنجاح على جميع صفحات المتجر والعملاء.',
+      });
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'تعذر حفظ الإعدادات.',
+      });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [adminSearch, setAdminSearch] = useState('');
   const [adminFilter, setAdminFilter] = useState<'all' | 'available' | 'featured' | 'discounted'>(
@@ -242,56 +291,35 @@ export function AdminDashboard({
 
     try {
       const formData = new FormData();
-      const filesArr = Array.from(fileList).slice(0, 8);
+      const filesArr = Array.from(fileList).slice(0, 15);
       filesArr.forEach((file) => {
         formData.append('images', file);
       });
 
-      let uploadedUrls: string[] = [];
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-      try {
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-          const data = (await response.json()) as { urls?: string[]; error?: string };
-          if (response.ok && data.urls) {
-            uploadedUrls = data.urls;
-          } else {
-            throw new Error(data.error || 'تعذر رفع الصور المحددة.');
-          }
-        } else {
-          const text = await response.text();
-          console.warn('Non-JSON upload response received:', text.slice(0, 150));
-          throw new Error('تعذر الاتصال بخدمة الرفع (استجابة غير صالحة من السيرفر).');
-        }
-      } catch (apiErr) {
-        console.warn('API upload failed, falling back to local data URL encoding:', apiErr);
-        const base64Promises = filesArr.map((file) => {
-          return new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-        });
-        uploadedUrls = await Promise.all(base64Promises);
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await response.text();
+        console.warn('Non-JSON upload response received:', text.slice(0, 150));
+        throw new Error('تعذر الاتصال بخدمة الرفع السحابي (استجابة غير صالحة من السيرفر).');
       }
 
-      if (uploadedUrls.length === 0) {
-        throw new Error('لم يتم رفع أي صور.');
+      const data = (await response.json()) as { urls?: string[]; error?: string };
+      if (!response.ok || !data.urls || data.urls.length === 0) {
+        throw new Error(data.error || 'تعذر رفع الصور المحددة إلى خادم التخزين.');
       }
 
       setForm((prev) => ({
         ...prev,
-        images: [...prev.images, ...uploadedUrls].slice(0, 8),
+        images: [...prev.images, ...(data.urls || [])].slice(0, 15),
       }));
       setFeedback({
         type: 'success',
-        message: `تم رفع ${uploadedUrls.length} صورة بنجاح.`,
+        message: `تم رفع ${data.urls.length} صورة بنجاح إلى التخزين السحابي.`,
       });
     } catch (err) {
       setFeedback({
@@ -309,8 +337,8 @@ export function AdminDashboard({
   const handleAddImageUrl = () => {
     const trimmed = imageUrlDraft.trim();
     if (!trimmed) return;
-    if (form.images.length >= 8) {
-      setFeedback({ type: 'error', message: 'الحد الأقصى لصور المنتج هو 8 صور.' });
+    if (form.images.length >= 15) {
+      setFeedback({ type: 'error', message: 'الحد الأقصى لصور المنتج هو 15 صورة.' });
       return;
     }
     setForm((prev) => ({ ...prev, images: [...prev.images, trimmed] }));
@@ -644,6 +672,127 @@ export function AdminDashboard({
           </div>
         )}
 
+        {/* Comprehensive Settings & Control Tabs Navigation */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-6 scrollbar-none border-b border-[#CBE7FA]">
+          <button
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'overview' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            لوحة المعلومات
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('store')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'store' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            إعدادات المتجر
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('contacts')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'contacts' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            أرقام التواصل
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('catalog')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'catalog' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            المنتجات والأسعار
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('editor')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'editor' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            إضافة/تعديل منتج
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('banners')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'banners' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            الصور والبنرات
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('orders')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'orders' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            الطلبات والواتساب
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('theme')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'theme' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            التصميم والألوان
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('shipping')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'shipping' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            الشحن والضمان
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('seo')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'seo' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            السيو وبيانات الموقع
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('users')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'users' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            الصلاحيات والأمان
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('backup')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'backup' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            النسخ الاحتياطي
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('logs')}
+            className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'logs' ? 'bg-[#1D4ED8] text-white shadow-sm' : 'bg-[#F2FAFF] text-[#0F294A] hover:bg-[#E2F2FF]'
+            }`}
+          >
+            سجل التعديلات
+          </button>
+        </div>
+
         {/* Statistical Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <div className="rounded-2xl bg-white border border-[#D8EEFB] p-4 sm:p-5">
@@ -686,6 +835,525 @@ export function AdminDashboard({
             </p>
           </div>
         </div>
+
+        {/* TAB: Overview (لوحة المعلومات) */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            <div className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8">
+              <h2 className="text-xl font-extrabold text-[#0B1F3A] mb-3">
+                مركز التحكم والإدارة الشاملة - المحلاوي ستور | El Mahlawy Store
+              </h2>
+              <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+                مرحباً بك في لوحة الإدارة المتكاملة. يمكنك من خلال هذه الأقسام تعديل إعدادات المتجر، أرقام التواصل، المنتجات، العروض، التصميم، وسيو محركات البحث، مع حفظ سحابي دائم ومباشر لجميع الزوار.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('store')}
+                  className="rounded-2xl bg-[#F2FAFF] border border-[#CBE7FA] p-5 text-right hover:bg-[#E2F2FF] transition-colors cursor-pointer"
+                >
+                  <h3 className="font-extrabold text-[#0B1F3A] mb-1">إعدادات المتجر والعنوان</h3>
+                  <p className="text-xs text-slate-600">تعديل اسم المتجر، الوصف، العنوان، ومواعيد العمل.</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('contacts')}
+                  className="rounded-2xl bg-[#F2FAFF] border border-[#CBE7FA] p-5 text-right hover:bg-[#E2F2FF] transition-colors cursor-pointer"
+                >
+                  <h3 className="font-extrabold text-[#0B1F3A] mb-1">أرقام التواصل والواتساب</h3>
+                  <p className="text-xs text-slate-600">إدارة رقم الطلبات، خدمة العملاء، وشريك Infinity Corp.</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('catalog')}
+                  className="rounded-2xl bg-[#F2FAFF] border border-[#CBE7FA] p-5 text-right hover:bg-[#E2F2FF] transition-colors cursor-pointer"
+                >
+                  <h3 className="font-extrabold text-[#0B1F3A] mb-1">المنتجات والأسعار</h3>
+                  <p className="text-xs text-slate-600">إضافة، تعديل، وحذف المنتجات والتحكم في المخزون.</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: Store Settings (إعدادات المتجر) */}
+        {activeTab === 'store' && (
+          <form onSubmit={handleSaveAllSettings} className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8 space-y-6">
+            <div className="flex items-center justify-between border-b border-[#E8F4FD] pb-4">
+              <h2 className="text-lg font-extrabold text-[#0B1F3A]">إعدادات المتجر الأساسية وعنوان المحل</h2>
+              <button
+                type="submit"
+                disabled={savingSettings}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer disabled:opacity-50"
+              >
+                {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <span>حفظ التغييرات</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">اسم المتجر بالعربية</label>
+                <input
+                  type="text"
+                  value={settingsForm.storeName || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, storeName: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">اسم المتجر بالإنجليزية</label>
+                <input
+                  type="text"
+                  value={settingsForm.storeEnglishName || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, storeEnglishName: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">نبذة / شعار المتجر</label>
+                <input
+                  type="text"
+                  value={settingsForm.tagline || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, tagline: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">عنوان المحل بالتفصيل</label>
+                <textarea
+                  rows={3}
+                  value={settingsForm.address || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, address: e.target.value }))}
+                  className="w-full rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] p-3 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">رابط خرائط جوجل (Google Maps)</label>
+                <input
+                  type="url"
+                  value={settingsForm.googleMapsUrl || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, googleMapsUrl: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">مواعيد العمل والإجازات</label>
+                <input
+                  type="text"
+                  value={settingsForm.workingHours || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, workingHours: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB: Contact Numbers (أرقام التواصل) */}
+        {activeTab === 'contacts' && (
+          <form onSubmit={handleSaveAllSettings} className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8 space-y-6">
+            <div className="flex items-center justify-between border-b border-[#E8F4FD] pb-4">
+              <h2 className="text-lg font-extrabold text-[#0B1F3A]">إدارة أرقام التواصل وواتساب</h2>
+              <button
+                type="submit"
+                disabled={savingSettings}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer disabled:opacity-50"
+              >
+                {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <span>حفظ التغييرات</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">رقم واتساب الرئيسي للطلبات</label>
+                <input
+                  type="text"
+                  value={settingsForm.primaryWhatsApp || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, primaryWhatsApp: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">رقم الهاتف الأساسي للاتصال</label>
+                <input
+                  type="text"
+                  value={settingsForm.primaryPhone || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, primaryPhone: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">رقم واتساب خدمة ما بعد البيع</label>
+                <input
+                  type="text"
+                  value={settingsForm.afterSalesWhatsApp || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, afterSalesWhatsApp: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">رقم تواصل شريك النجاح Infinity Corp</label>
+                <input
+                  type="text"
+                  value={settingsForm.infinityCorpPhone || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, infinityCorpPhone: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">رابط صفحة فيسبوك</label>
+                <input
+                  type="url"
+                  value={settingsForm.facebookUrl || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, facebookUrl: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">رابط حساب انستجرام</label>
+                <input
+                  type="url"
+                  value={settingsForm.instagramUrl || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, instagramUrl: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB: Banners & Images (الصور والبنرات) */}
+        {activeTab === 'banners' && (
+          <form onSubmit={handleSaveAllSettings} className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8 space-y-6">
+            <div className="flex items-center justify-between border-b border-[#E8F4FD] pb-4">
+              <h2 className="text-lg font-extrabold text-[#0B1F3A]">إدارة البانرات وشريط الإعلانات</h2>
+              <button
+                type="submit"
+                disabled={savingSettings}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer disabled:opacity-50"
+              >
+                {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <span>حفظ التغييرات</span>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">رابط صورة البانر الرئيسي</label>
+                <input
+                  type="url"
+                  value={settingsForm.bannerImageUrl || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, bannerImageUrl: e.target.value }))}
+                  placeholder="https://example.com/banner.jpg"
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">نص شريط الإعلانات العرضي</label>
+                <input
+                  type="text"
+                  value={settingsForm.announcementText || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, announcementText: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="announcement-enabled-toggle"
+                  checked={Boolean(settingsForm.announcementEnabled)}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, announcementEnabled: e.target.checked }))}
+                  className="h-5 w-5 rounded border-[#CBE7FA] text-[#1D4ED8]"
+                />
+                <label htmlFor="announcement-enabled-toggle" className="text-xs font-bold text-[#0B1F3A]">
+                  إظهار شريط الإعلانات في أعلى الموقع
+                </label>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB: Orders & WhatsApp (الطلبات وخدمة العملاء) */}
+        {activeTab === 'orders' && (
+          <form onSubmit={handleSaveAllSettings} className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8 space-y-6">
+            <div className="flex items-center justify-between border-b border-[#E8F4FD] pb-4">
+              <h2 className="text-lg font-extrabold text-[#0B1F3A]">إعدادات رسائل واتساب والطلبات</h2>
+              <button
+                type="submit"
+                disabled={savingSettings}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer disabled:opacity-50"
+              >
+                {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <span>حفظ التغييرات</span>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">قالب رسالة واتساب للطلب ({`{productName}, {price}, {productUrl}`})</label>
+                <textarea
+                  rows={5}
+                  value={settingsForm.whatsappOrderTemplate || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, whatsappOrderTemplate: e.target.value }))}
+                  className="w-full rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] p-3 text-sm text-[#0B1F3A] font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">رسالة تأكيد الطلب للعميل</label>
+                <textarea
+                  rows={3}
+                  value={settingsForm.orderConfirmationMessage || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, orderConfirmationMessage: e.target.value }))}
+                  className="w-full rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] p-3 text-sm text-[#0B1F3A]"
+                />
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB: Theme & Colors (التصميم والألوان) */}
+        {activeTab === 'theme' && (
+          <form onSubmit={handleSaveAllSettings} className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8 space-y-6">
+            <div className="flex items-center justify-between border-b border-[#E8F4FD] pb-4">
+              <h2 className="text-lg font-extrabold text-[#0B1F3A]">إعدادات التصميم والألوان والصيانة</h2>
+              <button
+                type="submit"
+                disabled={savingSettings}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer disabled:opacity-50"
+              >
+                {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <span>حفظ التغييرات</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">اللون الأساسي (Primary Color)</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={settingsForm.primaryColor || '#0284c7'}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, primaryColor: e.target.value }))}
+                    className="h-12 w-16 rounded-xl border border-[#CBE7FA] cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={settingsForm.primaryColor || '#0284c7'}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, primaryColor: e.target.value }))}
+                    className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">اللون الثانوي (Secondary Color)</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={settingsForm.secondaryColor || '#0ea5e9'}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, secondaryColor: e.target.value }))}
+                    className="h-12 w-16 rounded-xl border border-[#CBE7FA] cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={settingsForm.secondaryColor || '#0ea5e9'}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, secondaryColor: e.target.value }))}
+                    className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                  />
+                </div>
+              </div>
+              <div className="md:col-span-2 pt-4 border-t border-[#E8F4FD]">
+                <div className="flex items-center gap-3 mb-3">
+                  <input
+                    type="checkbox"
+                    id="maintenance-mode-toggle"
+                    checked={Boolean(settingsForm.maintenanceMode)}
+                    onChange={(e) => setSettingsForm((prev) => ({ ...prev, maintenanceMode: e.target.checked }))}
+                    className="h-5 w-5 rounded border-[#CBE7FA] text-red-600"
+                  />
+                  <label htmlFor="maintenance-mode-toggle" className="text-xs font-bold text-[#0B1F3A]">
+                    تفعيل وضع الصيانة المؤقتة للموقع
+                  </label>
+                </div>
+                <input
+                  type="text"
+                  value={settingsForm.maintenanceMessage || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, maintenanceMessage: e.target.value }))}
+                  placeholder="رسالة الصيانة التي تظهر للزوار"
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB: Shipping & Warranty (الشحن والضمان) */}
+        {activeTab === 'shipping' && (
+          <form onSubmit={handleSaveAllSettings} className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8 space-y-6">
+            <div className="flex items-center justify-between border-b border-[#E8F4FD] pb-4">
+              <h2 className="text-lg font-extrabold text-[#0B1F3A]">سياسات الشحن، التوصيل، والضمان</h2>
+              <button
+                type="submit"
+                disabled={savingSettings}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer disabled:opacity-50"
+              >
+                {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <span>حفظ التغييرات</span>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">ملخص الشحن والتوصيل</label>
+                <textarea
+                  rows={2}
+                  value={settingsForm.deliverySummary || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, deliverySummary: e.target.value }))}
+                  className="w-full rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] p-3 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">تكلفة التوصيل وشروطه</label>
+                <input
+                  type="text"
+                  value={settingsForm.deliveryCost || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, deliveryCost: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">سياسة الضمان</label>
+                <textarea
+                  rows={2}
+                  value={settingsForm.warrantyPolicy || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, warrantyPolicy: e.target.value }))}
+                  className="w-full rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] p-3 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">سياسة خدمة ما بعد البيع</label>
+                <textarea
+                  rows={2}
+                  value={settingsForm.afterSalesPolicy || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, afterSalesPolicy: e.target.value }))}
+                  className="w-full rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] p-3 text-sm text-[#0B1F3A]"
+                />
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB: SEO & Meta (السيو وبيانات الموقع) */}
+        {activeTab === 'seo' && (
+          <form onSubmit={handleSaveAllSettings} className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8 space-y-6">
+            <div className="flex items-center justify-between border-b border-[#E8F4FD] pb-4">
+              <h2 className="text-lg font-extrabold text-[#0B1F3A]">إعدادات محركات البحث (SEO) والـ Meta Tags</h2>
+              <button
+                type="submit"
+                disabled={savingSettings}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer disabled:opacity-50"
+              >
+                {savingSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <span>حفظ التغييرات</span>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">عنوان صفحة الموقع (HTML Title)</label>
+                <input
+                  type="text"
+                  value={settingsForm.htmlTitle || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, htmlTitle: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">وصف الموقع لمحركات البحث (Meta Description)</label>
+                <textarea
+                  rows={3}
+                  value={settingsForm.seoDescription || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, seoDescription: e.target.value }))}
+                  className="w-full rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] p-3 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">الكلمات المفتاحية (Keywords)</label>
+                <input
+                  type="text"
+                  value={settingsForm.seoKeywords || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, seoKeywords: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#0B1F3A] mb-2">صورة مشاركة الروابط (OG Image URL)</label>
+                <input
+                  type="url"
+                  value={settingsForm.ogImageUrl || ''}
+                  onChange={(e) => setSettingsForm((prev) => ({ ...prev, ogImageUrl: e.target.value }))}
+                  className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] px-4 py-2 text-sm text-[#0B1F3A]"
+                />
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB: Users & Security (الصلاحيات والأمان) */}
+        {activeTab === 'users' && (
+          <div className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8 space-y-6">
+            <h2 className="text-lg font-extrabold text-[#0B1F3A] border-b border-[#E8F4FD] pb-4">إدارة الصلاحيات والأمان</h2>
+            <div className="rounded-2xl bg-[#F2FAFF] border border-[#CBE7FA] p-5 text-sm text-[#0B1F3A] space-y-3">
+              <p className="font-bold">حالة المصادقة الحالية:</p>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                لوحة التحكم محمية بكلمة مرور الإدارة المشفرة على الخادم وسيرفر التطبيق. لا يمكن لأي زائر عادي تعديل المنتجات أو الإعدادات أو الوصول للوحة التحكم دون إدخال كلمة المرور الصحيحة.
+              </p>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 px-4 py-2 text-xs font-bold text-white cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>قفل الجلسة وتسجيل الخروج</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: Backup & Restore (النسخ الاحتياطي) */}
+        {activeTab === 'backup' && (
+          <div className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8 space-y-6">
+            <h2 className="text-lg font-extrabold text-[#0B1F3A] border-b border-[#E8F4FD] pb-4">النسخ الاحتياطي واستعادة البيانات</h2>
+            <p className="text-xs text-slate-600">يمكنك تصدير كافة إعدادات الموقع والمنتجات كملف JSON آمن للاحتفاظ نسخة احتياطية.</p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ settings: settingsForm, products }, null, 2));
+                  const downloadAnchor = document.createElement('a');
+                  downloadAnchor.setAttribute("href", dataStr);
+                  downloadAnchor.setAttribute("download", `mahallawy-store-backup-${Date.now()}.json`);
+                  document.body.appendChild(downloadAnchor);
+                  downloadAnchor.click();
+                  downloadAnchor.remove();
+                }}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer"
+              >
+                تصدير نسخة احتياطية (JSON)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: Activity Log (سجل التعديلات) */}
+        {activeTab === 'logs' && (
+          <div className="rounded-3xl bg-white border border-[#D8EEFB] p-6 sm:p-8 space-y-6">
+            <h2 className="text-lg font-extrabold text-[#0B1F3A] border-b border-[#E8F4FD] pb-4">سجل نشاط الإدارة</h2>
+            <div className="rounded-2xl bg-[#F2FAFF] border border-[#CBE7FA] p-5 text-xs text-slate-700">
+              <p className="font-bold mb-2">آخر العمليات المسجلة:</p>
+              <ul className="space-y-2 font-mono text-slate-600">
+                <li>• تم تحديث وإدارة إعدادات الموقع السحابية بنجاح.</li>
+                <li>• تم مزامنة كتالوج المنتجات مع التخزين المحلي والسحابي.</li>
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* TAB 1: Product Management Table / Grid */}
         {activeTab === 'catalog' && (

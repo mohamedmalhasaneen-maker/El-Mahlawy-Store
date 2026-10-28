@@ -15,6 +15,7 @@ import { OffersSection } from './components/OffersSection';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { PartnerAndAboutSection } from './components/PartnerAndAboutSection';
+import { AboutUsPage } from './components/AboutUsPage';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
@@ -39,7 +40,7 @@ function loadCachedProducts(): Product[] {
 }
 
 export default function App() {
-  const [activeView, setActiveView] = useState<'store' | 'admin'>('store');
+  const [activeView, setActiveView] = useState<'store' | 'about' | 'admin'>('store');
   const [products, setProducts] = useState<Product[]>(loadCachedProducts);
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(
     () => loadCachedProducts().length === 0
@@ -49,7 +50,102 @@ export default function App() {
   const [adminPassword, setAdminPassword] = useState<string>('');
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
+  useEffect(() => {
+    const syncViewWithUrl = () => {
+      const hash = typeof window !== 'undefined' ? window.location.hash : '';
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      if (hash === '#about' || search.includes('view=about')) {
+        setActiveView('about');
+      }
+    };
+    syncViewWithUrl();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hashchange', syncViewWithUrl);
+      return () => window.removeEventListener('hashchange', syncViewWithUrl);
+    }
+  }, []);
+
+  const navigateToView = (view: 'store' | 'about' | 'admin') => {
+    if (view === 'about') {
+      setActiveView('about');
+      if (typeof window !== 'undefined') {
+        try {
+          window.history.pushState(null, '', '#about');
+        } catch {
+          // ignore history restriction
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } else if (view === 'store') {
+      setActiveView('store');
+      if (typeof window !== 'undefined') {
+        if (window.location.hash === '#about') {
+          try {
+            window.history.pushState(null, '', window.location.pathname);
+          } catch {
+            // ignore history restriction
+          }
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } else if (view === 'admin') {
+      handleAdminButtonClick();
+    }
+  };
+
   const isAdminUnlocked = Boolean(adminPassword);
+
+  const [siteSettings, setSiteSettings] = useState<Record<string, any>>({
+    storeName: 'المحلاوي ستور',
+    storeEnglishName: 'El Mahlawy Store',
+    tagline: 'منتجات متنوعة وحلول ذكية لحياة أسهل',
+    address: 'جنوب سيناء – شرم الشيخ – الرويسات – مدخل 1 – شارع دستي، بجوار قسم الشرطة، الشارع الجانبي لمول الشيخ عيد، محل المحلاوي ستور.',
+    googleMapsUrl: 'https://maps.google.com/?q=27.9158,34.3300',
+    workingHours: 'يومياً من 10 صباحاً حتى 11 مساؤًا',
+    deliverySummary: 'شحن متاح لجميع محافظات مصر. وتوصيل داخل شرم الشيخ من خلال خدمة الدليفري.',
+    deliveryCost: 'يُحدد حسب المنطقة (خدمة الدليفري متاحة بشرم الشيخ)',
+    warrantyPolicy: 'ضمان معتمد ودعم فني طوال فترة الضمان',
+    afterSalesPolicy: 'نضمن لك الدعم والمساعدة خلال فترة الضمان. معاينة المنتج عن بُعد وتوجيه الدعم الفني.',
+    primaryPhone: '01210141187',
+    secondaryPhone: '01000000000',
+    primaryWhatsApp: '201210141187',
+    afterSalesWhatsApp: '201210141187',
+    infinityCorpPhone: '01000000000',
+    infinityCorpWhatsApp: '201000000000',
+    facebookUrl: 'https://facebook.com/elmahlawystore',
+    instagramUrl: 'https://instagram.com/elmahlawystore',
+    whatsappOrderTemplate: 'السلام عليكم، أرغب في طلب المنتج التالي:\n- المنتج: {productName}\n- السعر: {price} جنيه\n- الرابط: {productUrl}\n\nملاحظات العميل: {notes}',
+    orderConfirmationMessage: 'تم استلام طلبك بنجاح! سيتم التواصل معك قريباً لتأكيد التوصيل.',
+    htmlTitle: 'المحلاوي ستور | El Mahlawy Store',
+    seoDescription: 'المحلاوي ستور - تسوق أحدث المنتجات والإلكترونيات وحلول الذكاء التكنولوجي بشرم الشيخ وجميع محافظات مصر.',
+    seoKeywords: 'المحلاوي ستور, شرم الشيخ, تسوق, إلكترونيات, الرويسات, Infinity Corp',
+    ogImageUrl: '',
+    primaryColor: '#0284c7',
+    secondaryColor: '#0ea5e9',
+    bannerImageUrl: '',
+    announcementText: 'عروض خاصة لفترة محدودة على جميع المنتجات - شحن لجميع محافظات مصر!',
+    announcementEnabled: true,
+    maintenanceMode: false,
+    maintenanceMessage: 'الموقع تحت الصيانة الدورية وسيعود قريباً.',
+    activityLog: [],
+  });
+
+  const handleSaveSettings = async (newSettings: Record<string, any>): Promise<boolean> => {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-password': adminPassword,
+      },
+      body: JSON.stringify({ settings: newSettings }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || 'تعذر حفظ الإعدادات.');
+    }
+    setSiteSettings(data.settings);
+    return true;
+  };
 
   // Storefront search, sort & detail modal
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,6 +226,15 @@ export default function App() {
       .finally(() => {
         setIsLoadingProducts(false);
       });
+
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data === 'object') {
+          setSiteSettings((prev) => ({ ...prev, ...data }));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleVerifyAdminPassword = async (candidate: string): Promise<boolean> => {
@@ -277,10 +382,10 @@ export default function App() {
             <Navbar
               activeView={activeView}
               onSwitchView={(view) => {
-                if (view === 'store') {
-                  handleAdminLogout();
-                } else {
+                if (view === 'admin') {
                   handleAdminButtonClick();
+                } else {
+                  navigateToView(view);
                 }
               }}
               onAdminButtonClick={handleAdminButtonClick}
@@ -297,9 +402,16 @@ export default function App() {
               onDeleteProduct={handleDeleteProduct}
               onBackToStore={handleAdminLogout}
               publicOrigin={publicOrigin}
+              siteSettings={siteSettings}
+              onSaveSettings={handleSaveSettings}
             />
           </main>
         </>
+      ) : activeView === 'about' ? (
+        <AboutUsPage
+          onBackToStore={() => navigateToView('store')}
+          onAdminButtonClick={handleAdminButtonClick}
+        />
       ) : (
         <>
           {/* Dedicated Rebuilt Mobile Storefront (< 768px) */}
@@ -313,20 +425,21 @@ export default function App() {
             sortBy={sortBy}
             onSortChange={setSortBy}
             onAdminButtonClick={handleAdminButtonClick}
+            onNavigateAbout={() => navigateToView('about')}
             publicOrigin={publicOrigin}
             initialProductId={sharedProductId}
             onConsumeInitialProduct={clearSharedProductParam}
           />
 
-          {/* Existing Desktop Storefront (>= 768px) — Kept Completely Unchanged */}
+          {/* Existing Desktop Storefront (>= 768px) */}
           <div className="hidden md:flex md:flex-col min-h-screen">
             <Navbar
               activeView={activeView}
               onSwitchView={(view) => {
-                if (view === 'store') {
-                  handleAdminLogout();
-                } else {
+                if (view === 'admin') {
                   handleAdminButtonClick();
+                } else {
+                  navigateToView(view);
                 }
               }}
               onAdminButtonClick={handleAdminButtonClick}
@@ -471,12 +584,12 @@ export default function App() {
                   )}
                 </div>
               </section>
-
-              {/* 4. Store Offerings, Infinity Corp Smart Solutions & Partnership */}
-              <PartnerAndAboutSection />
             </main>
 
-            <Footer />
+            <Footer
+              onAdminButtonClick={handleAdminButtonClick}
+              onNavigateAbout={() => navigateToView('about')}
+            />
 
             {/* Desktop Product Details Modal */}
             <ProductDetailModal
@@ -497,3 +610,4 @@ export default function App() {
     </div>
   );
 }
+

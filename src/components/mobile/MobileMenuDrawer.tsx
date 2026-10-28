@@ -1,22 +1,22 @@
 import {
   Building2,
-  ExternalLink,
   Home,
   LayoutDashboard,
-  MessageCircle,
   Package,
   Percent,
   Phone,
   Truck,
   X,
 } from 'lucide-react';
-import { PARTNER_INFO, STORE_INFO } from '../../types/store';
+import { STORE_INFO } from '../../types/store';
 import { useMobileOverlay } from '../../utils/useMobileOverlay';
+
 
 interface MobileMenuDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigateSection: (sectionId: string) => void;
+  onNavigateAbout?: () => void;
   onAdminClick: () => void;
   hasDiscountOffers: boolean;
 }
@@ -25,6 +25,7 @@ export function MobileMenuDrawer({
   isOpen,
   onClose,
   onNavigateSection,
+  onNavigateAbout,
   onAdminClick,
   hasDiscountOffers,
 }: MobileMenuDrawerProps) {
@@ -38,9 +39,9 @@ export function MobileMenuDrawer({
       ? [{ id: 'mobile-offers-section', label: 'عروض وخصومات المنتجات', Icon: Percent }]
       : []),
     { id: 'mobile-products-section', label: 'تصفح جميع المنتجات', Icon: Package },
-    { id: 'mobile-shipping-section', label: 'الشحن والتوصيل وخدمات المتجر', Icon: Truck },
-    { id: 'mobile-infinity-corp', label: 'شركاء النجاح | Infinity Corp', Icon: Building2 },
-    { id: 'mobile-footer-contact', label: 'بيانات التواصل والفوتر', Icon: Phone },
+    { id: 'mobile-shipping-section', label: 'الشحن والتوصيل', Icon: Truck },
+    { id: 'footer-contact', label: 'تواصل معنا', Icon: Phone },
+    { id: 'about-us', label: 'من نحن | About Us', Icon: Building2 },
   ];
 
   return (
@@ -104,7 +105,11 @@ export function MobileMenuDrawer({
                 type="button"
                 onClick={() => {
                   onClose();
-                  setTimeout(() => onNavigateSection(id), 40);
+                  if (id === 'about-us' && onNavigateAbout) {
+                    onNavigateAbout();
+                  } else {
+                    setTimeout(() => onNavigateSection(id), 40);
+                  }
                 }}
                 className="flex min-h-[46px] w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-right text-sm font-bold text-[#0F294A] hover:bg-[#F2FAFF] active:bg-[#E2F3FE] transition-colors cursor-pointer"
               >
@@ -116,41 +121,8 @@ export function MobileMenuDrawer({
             ))}
           </nav>
 
-          {/* Direct Official Contact Shortcuts */}
-          <div className="mx-3 mt-1 rounded-2xl bg-[#F2FAFF] border border-[#D8EEFB] p-3.5 space-y-2.5">
-            <p className="text-xs font-extrabold text-[#0B1F3A]">تواصل مباشر سريع</p>
-            <a
-              href={STORE_INFO.whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] px-3 py-2 text-xs font-extrabold text-white whitespace-nowrap"
-            >
-              <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>واتساب المحلاوي ستور</span>
-            </a>
 
-            <div className="grid grid-cols-2 gap-2">
-              <a
-                href={STORE_INFO.facebookUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-white border border-[#CBE7FA] px-2.5 py-2 text-[11px] font-bold text-[#0F294A] whitespace-nowrap"
-              >
-                <ExternalLink className="h-3.5 w-3.5 text-[#0284C7] shrink-0" aria-hidden="true" />
-                <span>فيسبوك المتجر</span>
-              </a>
 
-              <a
-                href={PARTNER_INFO.orderWhatsAppUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-white border border-[#CBE7FA] px-2.5 py-2 text-[11px] font-bold text-[#0F294A] whitespace-nowrap"
-              >
-                <MessageCircle className="h-3.5 w-3.5 text-[#1D4ED8] shrink-0" aria-hidden="true" />
-                <span><bdi>Infinity Corp</bdi></span>
-              </a>
-            </div>
-          </div>
         </div>
 
         {/* Bottom Admin Gate Button */}
