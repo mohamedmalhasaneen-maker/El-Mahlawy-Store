@@ -604,7 +604,8 @@ export function Footer({
                 <button
                   type="button"
                   onClick={onAdminButtonClick}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-white/5 hover:bg-white/10 px-2.5 py-1 text-xs font-bold text-[#BAE6FD] transition-colors cursor-pointer"
+                  style={{ display: 'none' }}
+                  className="hidden inline-flex items-center gap-1.5 rounded-lg bg-white/5 hover:bg-white/10 px-2.5 py-1 text-xs font-bold text-[#BAE6FD] transition-colors cursor-pointer"
                 >
                   <LayoutDashboard className="h-3.5 w-3.5 text-[#38BDF8]" />
                   <span>إعدادات المطور</span>

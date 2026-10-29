@@ -103,6 +103,11 @@ export function MobileStorefront({
       id="mobile-top"
       className="flex min-h-dvh flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] md:hidden"
     >
+      <style>{`
+        div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div#mobile-top:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1) {
+          display: none !important;
+        }
+      `}</style>
       {/* 1. Simple Sticky Mobile Top Bar (<= 56px, safe-area top, <= 15% viewport height) */}
       <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#081A33]/95 backdrop-blur-md border-b border-[#D8EEFB] dark:border-[#163663] pt-[env(safe-area-inset-top)]">
         <div className="flex h-14 items-center justify-between gap-2 px-3.5">
