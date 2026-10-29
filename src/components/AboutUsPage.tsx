@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   ArrowRight,
   Award,
@@ -17,6 +18,7 @@ import {
   Truck,
   Volume2,
   Wrench,
+  X,
 } from 'lucide-react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { PARTNER_INFO } from '../types/store';

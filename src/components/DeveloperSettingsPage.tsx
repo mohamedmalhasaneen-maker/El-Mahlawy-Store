@@ -3,6 +3,7 @@ import {
   AlertCircle,
   ArrowRight,
   Calendar,
+  Camera,
   Check,
   CheckCircle2,
   Edit3,
@@ -68,6 +69,7 @@ import { DiscountModal } from './DiscountModal';
 import { ProductImage } from './ProductImage';
 import { AccountSettingsSection } from './developer/AccountSettingsSection';
 import { BranchesMapsSection } from './developer/BranchesMapsSection';
+import { EssentialProductsSection } from './developer/EssentialProductsSection';
 import { ContentSectionsSettings } from './developer/ContentSectionsSettings';
 import { DeveloperSectionId, OverviewSection } from './developer/OverviewSection';
 import { PhonesWhatsAppSection } from './developer/PhonesWhatsAppSection';
@@ -1282,6 +1284,12 @@ export function DeveloperSettingsPage({
       label: 'معلومات الموقع ومن نحن',
       subtitle: 'الهوية والنصوص والشركاء',
       Icon: FileText,
+    },
+    {
+      id: 'essential-products',
+      label: 'صور المنتجات الأساسية',
+      subtitle: `${configDraft.essentialCategories?.length || 7} فئات بصفحة من نحن`,
+      Icon: Camera,
     },
     {
       id: 'sections',
@@ -2971,6 +2979,17 @@ export function DeveloperSettingsPage({
           {/* ================================================================ */}
           {activeTab === 'site-info' && (
             <SiteAndAboutSection
+              configDraft={configDraft}
+              isSiteConfigDirty={isSiteConfigDirty}
+              savingSiteConfig={savingSiteConfig}
+              onUpdateField={updateConfigField}
+              onSaveSubmit={handleSaveConfigSubmit}
+              onCancelChanges={handleCancelConfigChanges}
+            />
+          )}
+
+          {activeTab === 'essential-products' && (
+            <EssentialProductsSection
               configDraft={configDraft}
               isSiteConfigDirty={isSiteConfigDirty}
               savingSiteConfig={savingSiteConfig}

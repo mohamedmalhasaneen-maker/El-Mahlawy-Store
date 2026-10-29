@@ -24,6 +24,7 @@
   body {
     margin: 0;
     overflow-x: hidden;
+    scroll-behavior: smooth;
     background-color: #FFFFFF;
     color: #0B1F3A;
     transition: background-color 200ms ease, color 200ms ease;
@@ -32,6 +33,10 @@
   html.dark body {
     background-color: #061325;
     color: #F0F9FF;
+  }
+
+  section[id], div[id] {
+    scroll-margin-top: 80px;
   }
 }
 

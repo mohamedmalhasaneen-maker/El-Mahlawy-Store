@@ -33,6 +33,7 @@ export type DeveloperSectionId =
   | 'social'
   | 'branches'
   | 'site-info'
+  | 'essential-products'
   | 'sections'
   | 'account';
 
