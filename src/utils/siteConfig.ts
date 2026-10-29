@@ -341,6 +341,10 @@ export function validateSiteConfigInput(config: SiteConfig): ValidationResult {
     [config.partnerSubtitle, 200, 'الاسم الفرعي لشريك النجاح'],
     [config.partnerRoleTitle, 200, 'المسمى الوظيفي للشريك'],
     [config.partnerServiceScopeText, 800, 'مدن نطاق خدمة الشريك'],
+    [config.partnerOrderPhone1, 30, 'رقم طلبات الشريك الأول'],
+    [config.partnerOrderPhone2, 30, 'رقم طلبات الشريك الثاني'],
+    [config.partnerMaintenancePhone, 30, 'رقم التركيب والصيانة الدورية للشريك'],
+    [config.partnerAfterSalesPhone, 30, 'رقم خدمة ما بعد البيع للشريك'],
     [config.aboutHeroTitle, 300, 'عنوان صفحة «من نحن» الرئيسي'],
     [config.aboutHeroSubtitle, 1500, 'مقدمة صفحة «من نحن»'],
     [config.aboutStoreIntro, 5000, 'النبذة التعريفية للمحلاوي ستور'],
@@ -396,6 +400,14 @@ export function validateSiteConfigInput(config: SiteConfig): ValidationResult {
   for (const br of config.branches) {
     if (!(br.name || '').trim() || !(br.address || '').trim()) {
       errors.push('يرجى إدخال اسم الفرع وعنوانه لكل فرع مضاف.');
+      break;
+    }
+    if ((br.name || '').trim().length > 120 || (br.address || '').trim().length > 1000) {
+      errors.push(`بيانات الفرع "${br.name}" تتجاوز الحد الأقصى المسموح به للنص.`);
+      break;
+    }
+    if ((br.workingHours || '').trim().length > 300 || (br.phone || '').trim().length > 30) {
+      errors.push(`مواعيد العمل أو الهاتف في فرع "${br.name}" تتجاوز الحد المسموح به.`);
       break;
     }
     if (!isValidOptionalHttpUrl(br.mapUrl)) {
@@ -513,9 +525,9 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     return {
       id: safeId,
       name: cleanStr(br?.name, 'فرع المحلاوي ستور', 120, 1),
-      address: cleanStr(br?.address, STORE_INFO.address, 400, 1),
+      address: cleanStr(br?.address, STORE_INFO.address, 1000, 1),
       mapUrl: isValidOptionalHttpUrl(rawMapUrl) ? rawMapUrl : '',
-      workingHours: cleanStr(br?.workingHours, '', 160, 0),
+      workingHours: cleanStr(br?.workingHours, '', 300, 0),
       phone: cleanStr(br?.phone, '', 30, 0),
     };
   });
@@ -858,4 +870,94 @@ export function buildTargetedSiteConfigUpdateFields(
     updatedBy: string;
   };
 }
+
+/**
+ * Builds an explicit, schema-locked 51-key Firestore document payload for `siteConfig/main`
+ * with zero extra or undefined keys—matching the working `buildFirestoreProductRecord` pattern.
+ */
+export function buildFirestoreSiteConfigPayload(
+  sanitized: SiteConfig,
+  updatedBy: string,
+  updatedAtValue: unknown
+): Record<string, unknown> {
+  const clean = sanitizeSiteConfig(sanitized, updatedBy);
+  return {
+    id: 'main',
+    storeName: clean.storeName,
+    storeSubtitle: clean.storeSubtitle,
+    tagline: clean.tagline,
+    heroDescription: clean.heroDescription,
+    announcementText: clean.announcementText,
+    seoTitle: clean.seoTitle,
+    seoDescription: clean.seoDescription,
+    copyrightText: clean.copyrightText,
+    primaryPhone: clean.primaryPhone,
+    secondaryPhone: clean.secondaryPhone,
+    primaryWhatsApp: clean.primaryWhatsApp,
+    whatsappUrl: clean.whatsappUrl,
+    afterSalesWhatsAppUrl: clean.afterSalesWhatsAppUrl,
+    facebookUrl: clean.facebookUrl,
+    instagramUrl: clean.instagramUrl,
+    address: clean.address,
+    googleMapsUrl: clean.googleMapsUrl,
+    workingHours: clean.workingHours,
+    shippingSummary: clean.shippingSummary,
+    afterSalesPolicy: clean.afterSalesPolicy,
+    closingPhrase: clean.closingPhrase,
+    contactSectionTitle: clean.contactSectionTitle,
+    contactSectionSubtitle: clean.contactSectionSubtitle,
+    partnerName: clean.partnerName,
+    partnerSubtitle: clean.partnerSubtitle,
+    partnerRoleTitle: clean.partnerRoleTitle,
+    partnerServiceScopeText: clean.partnerServiceScopeText,
+    partnerOrderPhone1: clean.partnerOrderPhone1,
+    partnerOrderPhone2: clean.partnerOrderPhone2,
+    partnerMaintenancePhone: clean.partnerMaintenancePhone,
+    partnerAfterSalesPhone: clean.partnerAfterSalesPhone,
+    partnerFacebookUrl: clean.partnerFacebookUrl,
+    aboutHeroTitle: clean.aboutHeroTitle,
+    aboutHeroSubtitle: clean.aboutHeroSubtitle,
+    aboutStoreIntro: clean.aboutStoreIntro,
+    aboutPartnerIntro: clean.aboutPartnerIntro,
+    visionTitle: clean.visionTitle,
+    visionDescription: clean.visionDescription,
+    contactChannels: clean.contactChannels.map((ch) => ({
+      id: ch.id,
+      label: ch.label,
+      role: ch.role,
+      owner: ch.owner,
+      phone: ch.phone,
+      whatsappUrl: ch.whatsappUrl,
+    })),
+    branches: clean.branches.map((br) => ({
+      id: br.id,
+      name: br.name,
+      address: br.address,
+      mapUrl: br.mapUrl,
+      workingHours: br.workingHours,
+      phone: br.phone,
+    })),
+    socialLinks: clean.socialLinks.map((sl) => ({
+      id: sl.id,
+      platform: sl.platform,
+      label: sl.label,
+      owner: sl.owner,
+      url: sl.url,
+    })),
+    categories: clean.categories.map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      order: cat.order,
+    })),
+    showHeroSpotlight: Boolean(clean.showHeroSpotlight),
+    showValueStrip: Boolean(clean.showValueStrip),
+    showOffersSection: Boolean(clean.showOffersSection),
+    showShippingSection: Boolean(clean.showShippingSection),
+    showPartnerCard: Boolean(clean.showPartnerCard),
+    showAboutBanner: Boolean(clean.showAboutBanner),
+    updatedBy: clean.updatedBy,
+    updatedAt: updatedAtValue,
+  };
+}
+
 

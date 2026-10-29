@@ -116,6 +116,7 @@ export function PhonesWhatsAppSection({
               type="text"
               dir="ltr"
               required
+              maxLength={30}
               value={configDraft.primaryPhone}
               onChange={(e) => onUpdateField('primaryPhone', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white tabular-nums focus:outline-none focus:border-[#D4AF37]"
@@ -133,6 +134,7 @@ export function PhonesWhatsAppSection({
               id="cfg-secondary-phone"
               type="text"
               dir="ltr"
+              maxLength={30}
               value={configDraft.secondaryPhone}
               onChange={(e) => onUpdateField('secondaryPhone', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white tabular-nums focus:outline-none focus:border-[#D4AF37]"
@@ -151,6 +153,7 @@ export function PhonesWhatsAppSection({
               type="text"
               dir="ltr"
               required
+              maxLength={25}
               value={configDraft.primaryWhatsApp}
               onChange={(e) => onUpdateField('primaryWhatsApp', e.target.value)}
               placeholder="201210141187"
@@ -182,6 +185,7 @@ export function PhonesWhatsAppSection({
               id="cfg-wa-url"
               type="url"
               dir="ltr"
+              maxLength={600}
               value={configDraft.whatsappUrl}
               onChange={(e) => onUpdateField('whatsappUrl', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -210,6 +214,7 @@ export function PhonesWhatsAppSection({
               id="cfg-aftersales-wa-url"
               type="url"
               dir="ltr"
+              maxLength={600}
               value={configDraft.afterSalesWhatsAppUrl}
               onChange={(e) => onUpdateField('afterSalesWhatsAppUrl', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -238,6 +243,7 @@ export function PhonesWhatsAppSection({
               id="cfg-p-order1"
               type="text"
               dir="ltr"
+              maxLength={30}
               value={configDraft.partnerOrderPhone1}
               onChange={(e) => onUpdateField('partnerOrderPhone1', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white tabular-nums focus:outline-none focus:border-[#D4AF37]"
@@ -252,6 +258,7 @@ export function PhonesWhatsAppSection({
               id="cfg-p-order2"
               type="text"
               dir="ltr"
+              maxLength={30}
               value={configDraft.partnerOrderPhone2}
               onChange={(e) => onUpdateField('partnerOrderPhone2', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white tabular-nums focus:outline-none focus:border-[#D4AF37]"
@@ -266,6 +273,7 @@ export function PhonesWhatsAppSection({
               id="cfg-p-maint"
               type="text"
               dir="ltr"
+              maxLength={30}
               value={configDraft.partnerMaintenancePhone}
               onChange={(e) => onUpdateField('partnerMaintenancePhone', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white tabular-nums focus:outline-none focus:border-[#D4AF37]"
@@ -280,6 +288,7 @@ export function PhonesWhatsAppSection({
               id="cfg-p-after"
               type="text"
               dir="ltr"
+              maxLength={30}
               value={configDraft.partnerAfterSalesPhone}
               onChange={(e) => onUpdateField('partnerAfterSalesPhone', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white tabular-nums focus:outline-none focus:border-[#D4AF37]"
@@ -383,6 +392,7 @@ export function PhonesWhatsAppSection({
                   id="ch-phone"
                   type="text"
                   dir="ltr"
+                  maxLength={30}
                   value={channelDraft.phone}
                   onChange={(e) =>
                     setChannelDraft((prev) => (prev ? { ...prev, phone: e.target.value } : null))
@@ -400,6 +410,7 @@ export function PhonesWhatsAppSection({
                   id="ch-wa"
                   type="url"
                   dir="ltr"
+                  maxLength={600}
                   value={channelDraft.whatsappUrl}
                   onChange={(e) =>
                     setChannelDraft((prev) =>

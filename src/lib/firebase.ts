@@ -53,7 +53,7 @@ import {
   DEFAULT_SITE_CONFIG,
   MAX_FIRESTORE_DOC_SAFE_BYTES,
   SiteConfig,
-  buildTargetedSiteConfigUpdateFields,
+  buildFirestoreSiteConfigPayload,
   estimateJsonUtf8Bytes,
   mergeSafeSiteConfigForSave,
   sanitizeSiteConfig,
@@ -639,22 +639,16 @@ export async function saveCloudSiteConfig(
       );
     }
 
-    const targetedFields = buildTargetedSiteConfigUpdateFields(
-      existingServerRaw,
+    const firestoreRecord = buildFirestoreSiteConfigPayload(
       mergedConfig,
-      effectiveUid
+      effectiveUid,
+      serverTimestamp()
     );
-    const firestorePayload: Record<string, unknown> = {
-      ...targetedFields,
-      id: 'main',
-      updatedBy: effectiveUid,
-      updatedAt: serverTimestamp(),
-    };
-    fieldCount = Object.keys(firestorePayload).length;
+    fieldCount = Object.keys(firestoreRecord).length;
 
     currentStage = 'firestore_write';
     await executeWriteWithAuthRebindRetry(verifiedUser, () =>
-      setDoc(configRef, firestorePayload, { merge: true })
+      setDoc(configRef, firestoreRecord)
     );
 
     currentStage = 'server_readback_confirm';
@@ -664,9 +658,15 @@ export async function saveCloudSiteConfig(
     }
     return mapSnapshotToSiteConfig(serverSnap.data() as Record<string, unknown>);
   } catch (error) {
+    const resolvedOpType =
+      existedOnServerBeforeWrite === false
+        ? OperationType.CREATE
+        : existedOnServerBeforeWrite === true
+          ? OperationType.UPDATE
+          : OperationType.WRITE;
     logSafeCloudWriteDiagnostic({
       operationName: 'saveCloudSiteConfig',
-      operationType: OperationType.WRITE,
+      operationType: resolvedOpType,
       targetPath: path,
       failedStage: currentStage,
       error,
@@ -676,7 +676,7 @@ export async function saveCloudSiteConfig(
         existedOnServerBeforeWrite,
       },
     });
-    handleFirestoreError(error, OperationType.WRITE, path, {
+    handleFirestoreError(error, resolvedOpType, path, {
       operationName: 'saveCloudSiteConfig',
       failedStage: currentStage,
     });

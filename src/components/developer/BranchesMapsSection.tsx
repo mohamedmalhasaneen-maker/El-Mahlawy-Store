@@ -120,7 +120,7 @@ export function BranchesMapsSection({
             <textarea
               id="cfg-address"
               rows={2}
-              maxLength={500}
+              maxLength={1000}
               value={configDraft.address}
               onChange={(e) => onUpdateField('address', e.target.value)}
               className="w-full rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -148,6 +148,7 @@ export function BranchesMapsSection({
               id="cfg-maps-url"
               type="url"
               dir="ltr"
+              maxLength={600}
               value={configDraft.googleMapsUrl}
               onChange={(e) => onUpdateField('googleMapsUrl', e.target.value)}
               placeholder="https://maps.google.com/..."
@@ -165,7 +166,7 @@ export function BranchesMapsSection({
             <input
               id="cfg-working-hours"
               type="text"
-              maxLength={160}
+              maxLength={300}
               value={configDraft.workingHours}
               onChange={(e) => onUpdateField('workingHours', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -179,7 +180,7 @@ export function BranchesMapsSection({
             <textarea
               id="cfg-shipping"
               rows={2}
-              maxLength={400}
+              maxLength={1500}
               value={configDraft.shippingSummary}
               onChange={(e) => onUpdateField('shippingSummary', e.target.value)}
               className="w-full rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -196,7 +197,7 @@ export function BranchesMapsSection({
             <textarea
               id="cfg-aftersales"
               rows={2}
-              maxLength={800}
+              maxLength={2500}
               value={configDraft.afterSalesPolicy}
               onChange={(e) => onUpdateField('afterSalesPolicy', e.target.value)}
               className="w-full rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -213,7 +214,7 @@ export function BranchesMapsSection({
             <input
               id="cfg-contact-title"
               type="text"
-              maxLength={120}
+              maxLength={200}
               value={configDraft.contactSectionTitle}
               onChange={(e) => onUpdateField('contactSectionTitle', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -230,7 +231,7 @@ export function BranchesMapsSection({
             <input
               id="cfg-contact-sub"
               type="text"
-              maxLength={200}
+              maxLength={400}
               value={configDraft.contactSectionSubtitle}
               onChange={(e) => onUpdateField('contactSectionSubtitle', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -289,6 +290,7 @@ export function BranchesMapsSection({
                   id="br-phone"
                   type="text"
                   dir="ltr"
+                  maxLength={30}
                   value={branchDraft.phone}
                   onChange={(e) =>
                     setBranchDraft((prev) => (prev ? { ...prev, phone: e.target.value } : null))
@@ -304,7 +306,7 @@ export function BranchesMapsSection({
                 <input
                   id="br-address"
                   type="text"
-                  maxLength={400}
+                  maxLength={1000}
                   value={branchDraft.address}
                   onChange={(e) =>
                     setBranchDraft((prev) => (prev ? { ...prev, address: e.target.value } : null))
@@ -321,6 +323,7 @@ export function BranchesMapsSection({
                   id="br-map"
                   type="url"
                   dir="ltr"
+                  maxLength={600}
                   value={branchDraft.mapUrl}
                   onChange={(e) =>
                     setBranchDraft((prev) => (prev ? { ...prev, mapUrl: e.target.value } : null))
@@ -337,7 +340,7 @@ export function BranchesMapsSection({
                 <input
                   id="br-hours"
                   type="text"
-                  maxLength={160}
+                  maxLength={300}
                   value={branchDraft.workingHours}
                   onChange={(e) =>
                     setBranchDraft((prev) =>

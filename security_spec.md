@@ -10,8 +10,9 @@
 2. **Multi-Developer Zero-Trust Gate (Immutable UIDs + Verified Owner Emails)**:
    - No client-side password, UID string input, or unverified claim is trusted. Only a real Firebase Authentication session whose server-signed `request.auth.uid` matches an authorized developer UID (`'eGi5P37ztLe5Nn77sEFvmFFcZWp1'` for Primary Store Developer or `'ILSbnyLsRWXvV9n2viqoMgFyDpr2'` for Infinity Corp Developer, regardless of `email_verified` flag) OR a verified owner email (`abdulazizriadvip@gmail.com` / `companycamerasinfinitycorp@gmail.com` / `mohamed.m.alhasaneen@gmail.com` strictly with `'email_verified' in request.auth.token && request.auth.token.email_verified == true`) may read unpublished products, create/update/delete `/products/{productId}`, or write `/siteConfig/main`.
    - Public frontend sign-up (`createUserWithEmailAndPassword`) and client-side privilege creation (`/admins` writes) are strictly prohibited.
-3. **Strict Schema & Key Whitelisting**:
+3. **Strict Schema, Key Whitelisting & CEL Expression Budget (<1,000 Limit)**:
    - Every write to `/products/{productId}` and `/siteConfig/{configId}` enforces exact `hasAll` and `hasOnly` field sets, string `.size()` bounds (`category` 0..80, `categoryId` 0..60), bounded list sizes (`images` 1..15, `specs` 0..15, `options` 0..10, `contactChannels` 0..20, `socialLinks` 0..15, `branches` 0..10, `categories` 1..20 ordered maps `{ id, name, order }`), and regex ID constraints (`^[a-zA-Z0-9_\-]+$`).
+   - `/siteConfig/main` writes always persist the complete sanitized 51-key `SiteConfig` document (matching `/products/{productId}` full-document writes) and validate fields via compact `isStr`/`isReqStr` primitives so total evaluated CEL expressions remain well below Cloud Firestore's 1,000-expression hard limit per request.
 4. **Pricing & Discount Integrity**:
    - `price > 0`, `originalPrice >= price`, and whenever `discountEnabled == true`, `originalPrice > price` must hold. Optional `discountType` must be `'percentage'` or `'fixed'`, and `discountValue >= 0`.
 5. **Immutable Provenance & Server Timestamps**:

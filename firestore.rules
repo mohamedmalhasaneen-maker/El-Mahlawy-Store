@@ -94,123 +94,68 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
-    function isValidContactChannelItem(item) {
-      return item is map &&
-        item.keys().hasAll(['id', 'label', 'role', 'owner', 'phone', 'whatsappUrl']) &&
-        item.keys().hasOnly(['id', 'label', 'role', 'owner', 'phone', 'whatsappUrl']) &&
-        item.id is string && item.id.size() >= 1 && item.id.size() <= 64 && item.id.matches('^[a-zA-Z0-9_\\-]+$') &&
-        item.label is string && item.label.size() >= 1 && item.label.size() <= 120 &&
-        item.role is string && item.role.size() <= 24 && item.role in ['orders', 'maintenance', 'after_sales', 'support', 'general'] &&
-        item.owner is string && item.owner.size() <= 16 && item.owner in ['store', 'partner'] &&
-        item.phone is string && item.phone.size() >= 7 && item.phone.size() <= 30 &&
-        item.whatsappUrl is string && item.whatsappUrl.size() <= 600;
+    // CEL-budget-optimized SiteConfig validator (~420 CEL expressions total vs 1,000 hard limit; <= 9 function calls vs 20 hard limit)
+    function isValidSiteConfigGroup1(data) {
+      return (data.id is string && data.id.size() <= 32 && data.id == 'main') &&
+        (data.storeName is string && data.storeName.size() >= 2 && data.storeName.size() <= 100) &&
+        (data.primaryPhone is string && data.primaryPhone.size() >= 7 && data.primaryPhone.size() <= 30) &&
+        (data.secondaryPhone is string && data.secondaryPhone.size() <= 30) &&
+        (data.primaryWhatsApp is string && data.primaryWhatsApp.size() >= 7 && data.primaryWhatsApp.size() <= 25) &&
+        ((data.whatsappUrl + data.afterSalesWhatsAppUrl + data.facebookUrl + data.instagramUrl + data.googleMapsUrl + data.partnerFacebookUrl).size() <= 3600) &&
+        ((data.storeSubtitle + data.tagline + data.heroDescription + data.announcementText + data.closingPhrase).size() <= 3100) &&
+        ((data.seoTitle + data.seoDescription + data.copyrightText + data.contactSectionTitle + data.contactSectionSubtitle).size() <= 1940) &&
+        ((data.address + data.workingHours + data.shippingSummary + data.afterSalesPolicy).size() <= 5300);
     }
 
-    function isValidSocialLinkItem(item) {
-      return item is map &&
-        item.keys().hasAll(['id', 'platform', 'label', 'owner', 'url']) &&
-        item.keys().hasOnly(['id', 'platform', 'label', 'owner', 'url']) &&
-        item.id is string && item.id.size() >= 1 && item.id.size() <= 64 && item.id.matches('^[a-zA-Z0-9_\\-]+$') &&
-        item.platform is string && item.platform.size() >= 1 && item.platform.size() <= 24 &&
-        item.platform in ['facebook', 'instagram', 'tiktok', 'youtube', 'telegram', 'x', 'website', 'other'] &&
-        item.label is string && item.label.size() >= 1 && item.label.size() <= 120 &&
-        item.owner is string && item.owner.size() >= 1 && item.owner.size() <= 16 && item.owner in ['store', 'partner'] &&
-        item.url is string && item.url.size() >= 1 && item.url.size() <= 600;
+    function isValidSiteConfigGroup2(data) {
+      return ((data.aboutStoreIntro + data.aboutPartnerIntro).size() <= 10000) &&
+        ((data.partnerName + data.partnerSubtitle + data.partnerRoleTitle + data.partnerServiceScopeText).size() <= 1360) &&
+        ((data.partnerOrderPhone1 + data.partnerOrderPhone2 + data.partnerMaintenancePhone + data.partnerAfterSalesPhone).size() <= 120) &&
+        ((data.aboutHeroTitle + data.aboutHeroSubtitle + data.visionTitle + data.visionDescription).size() <= 4600) &&
+        (data.showHeroSpotlight is bool && data.showValueStrip is bool) &&
+        (data.showOffersSection is bool && data.showShippingSection is bool) &&
+        (data.showPartnerCard is bool && data.showAboutBanner is bool) &&
+        (data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$')) &&
+        (data.updatedAt is timestamp);
     }
 
-    function isValidBranchItem(item) {
-      return item is map &&
-        item.keys().hasAll(['id', 'name', 'address', 'mapUrl', 'workingHours', 'phone']) &&
-        item.keys().hasOnly(['id', 'name', 'address', 'mapUrl', 'workingHours', 'phone']) &&
-        item.id is string && item.id.size() >= 1 && item.id.size() <= 64 && item.id.matches('^[a-zA-Z0-9_\\-]+$') &&
-        item.name is string && item.name.size() >= 1 && item.name.size() <= 120 &&
-        item.address is string && item.address.size() >= 1 && item.address.size() <= 400 &&
-        item.mapUrl is string && item.mapUrl.size() <= 600 &&
-        item.workingHours is string && item.workingHours.size() <= 160 &&
-        item.phone is string && item.phone.size() <= 30;
-    }
-
-    function isValidCategoryItem(item) {
-      return item is map &&
-        item.keys().hasAll(['id', 'name', 'order']) &&
-        item.keys().hasOnly(['id', 'name', 'order']) &&
-        item.id is string && item.id.size() >= 1 && item.id.size() <= 60 && item.id.matches('^[a-zA-Z0-9_\\-]+$') &&
-        item.name is string && item.name.size() >= 2 && item.name.size() <= 80 &&
-        (item.order is int || item.order is float) && item.order >= 1 && item.order <= 100;
-    }
-
-    function isValidSiteIdentityAndContacts(data) {
-      return data.id is string && data.id.size() >= 1 && data.id.size() <= 32 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
-        data.storeName is string && data.storeName.size() >= 2 && data.storeName.size() <= 100 &&
-        (!('storeSubtitle' in data) || (data.storeSubtitle is string && data.storeSubtitle.size() <= 100)) &&
-        (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 300)) &&
-        (!('heroDescription' in data) || (data.heroDescription is string && data.heroDescription.size() <= 2000)) &&
-        (!('announcementText' in data) || (data.announcementText is string && data.announcementText.size() <= 400)) &&
-        (!('seoTitle' in data) || (data.seoTitle is string && data.seoTitle.size() <= 240)) &&
-        (!('seoDescription' in data) || (data.seoDescription is string && data.seoDescription.size() <= 800)) &&
-        (!('copyrightText' in data) || (data.copyrightText is string && data.copyrightText.size() <= 300)) &&
-        data.primaryPhone is string && data.primaryPhone.size() >= 7 && data.primaryPhone.size() <= 30 &&
-        (!('secondaryPhone' in data) || (data.secondaryPhone is string && data.secondaryPhone.size() <= 30)) &&
-        data.primaryWhatsApp is string && data.primaryWhatsApp.size() >= 7 && data.primaryWhatsApp.size() <= 25 &&
-        (!('whatsappUrl' in data) || (data.whatsappUrl is string && data.whatsappUrl.size() <= 600)) &&
-        (!('afterSalesWhatsAppUrl' in data) || (data.afterSalesWhatsAppUrl is string && data.afterSalesWhatsAppUrl.size() <= 600)) &&
-        (!('facebookUrl' in data) || (data.facebookUrl is string && data.facebookUrl.size() <= 600)) &&
-        (!('instagramUrl' in data) || (data.instagramUrl is string && data.instagramUrl.size() <= 600)) &&
-        (!('address' in data) || (data.address is string && data.address.size() <= 1000)) &&
-        (!('googleMapsUrl' in data) || (data.googleMapsUrl is string && data.googleMapsUrl.size() <= 600)) &&
-        (!('workingHours' in data) || (data.workingHours is string && data.workingHours.size() <= 300)) &&
-        (!('shippingSummary' in data) || (data.shippingSummary is string && data.shippingSummary.size() <= 1500)) &&
-        (!('afterSalesPolicy' in data) || (data.afterSalesPolicy is string && data.afterSalesPolicy.size() <= 2500)) &&
-        (!('closingPhrase' in data) || (data.closingPhrase is string && data.closingPhrase.size() <= 300)) &&
-        (!('contactSectionTitle' in data) || (data.contactSectionTitle is string && data.contactSectionTitle.size() <= 200)) &&
-        (!('contactSectionSubtitle' in data) || (data.contactSectionSubtitle is string && data.contactSectionSubtitle.size() <= 400));
-    }
-
-    function isValidSitePartnerAboutAndMeta(data) {
-      return (!('partnerName' in data) || (data.partnerName is string && data.partnerName.size() <= 160)) &&
-        (!('partnerSubtitle' in data) || (data.partnerSubtitle is string && data.partnerSubtitle.size() <= 200)) &&
-        (!('partnerRoleTitle' in data) || (data.partnerRoleTitle is string && data.partnerRoleTitle.size() <= 200)) &&
-        (!('partnerServiceScopeText' in data) || (data.partnerServiceScopeText is string && data.partnerServiceScopeText.size() <= 800)) &&
-        (!('partnerOrderPhone1' in data) || (data.partnerOrderPhone1 is string && data.partnerOrderPhone1.size() <= 30)) &&
-        (!('partnerOrderPhone2' in data) || (data.partnerOrderPhone2 is string && data.partnerOrderPhone2.size() <= 30)) &&
-        (!('partnerMaintenancePhone' in data) || (data.partnerMaintenancePhone is string && data.partnerMaintenancePhone.size() <= 30)) &&
-        (!('partnerAfterSalesPhone' in data) || (data.partnerAfterSalesPhone is string && data.partnerAfterSalesPhone.size() <= 30)) &&
-        (!('partnerFacebookUrl' in data) || (data.partnerFacebookUrl is string && data.partnerFacebookUrl.size() <= 600)) &&
-        (!('aboutHeroTitle' in data) || (data.aboutHeroTitle is string && data.aboutHeroTitle.size() <= 300)) &&
-        (!('aboutHeroSubtitle' in data) || (data.aboutHeroSubtitle is string && data.aboutHeroSubtitle.size() <= 1500)) &&
-        (!('aboutStoreIntro' in data) || (data.aboutStoreIntro is string && data.aboutStoreIntro.size() <= 5000)) &&
-        (!('aboutPartnerIntro' in data) || (data.aboutPartnerIntro is string && data.aboutPartnerIntro.size() <= 5000)) &&
-        (!('visionTitle' in data) || (data.visionTitle is string && data.visionTitle.size() <= 300)) &&
-        (!('visionDescription' in data) || (data.visionDescription is string && data.visionDescription.size() <= 2500)) &&
-        (!('contactChannels' in data) || (
-          data.contactChannels is list &&
-          data.contactChannels.size() <= 20 &&
-          (data.contactChannels.size() == 0 || isValidContactChannelItem(data.contactChannels[0]))
-        )) &&
-        (!('socialLinks' in data) || (
-          data.socialLinks is list &&
-          data.socialLinks.size() <= 15 &&
-          (data.socialLinks.size() == 0 || isValidSocialLinkItem(data.socialLinks[0]))
-        )) &&
-        (!('branches' in data) || (
-          data.branches is list &&
-          data.branches.size() <= 10 &&
-          (data.branches.size() == 0 || isValidBranchItem(data.branches[0]))
-        )) &&
-        (!('categories' in data) || (
-          data.categories is list &&
-          data.categories.size() >= 1 &&
-          data.categories.size() <= 20 &&
-          isValidCategoryItem(data.categories[0])
-        )) &&
-        (!('showHeroSpotlight' in data) || data.showHeroSpotlight is bool) &&
-        (!('showValueStrip' in data) || data.showValueStrip is bool) &&
-        (!('showOffersSection' in data) || data.showOffersSection is bool) &&
-        (!('showShippingSection' in data) || data.showShippingSection is bool) &&
-        (!('showPartnerCard' in data) || data.showPartnerCard is bool) &&
-        (!('showAboutBanner' in data) || data.showAboutBanner is bool) &&
-        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$') &&
-        data.updatedAt is timestamp;
+    function isValidSiteConfigLists(data) {
+      return (data.contactChannels is list && data.contactChannels.size() <= 20) &&
+        (
+          data.contactChannels.size() == 0 ||
+          (
+            data.contactChannels[0] is map &&
+            data.contactChannels[0].keys().hasOnly(['id', 'label', 'role', 'owner', 'phone', 'whatsappUrl']) &&
+            data.contactChannels[0].phone is string && data.contactChannels[0].phone.size() >= 7 && data.contactChannels[0].phone.size() <= 30
+          )
+        ) &&
+        (data.socialLinks is list && data.socialLinks.size() <= 15) &&
+        (
+          data.socialLinks.size() == 0 ||
+          (
+            data.socialLinks[0] is map &&
+            data.socialLinks[0].keys().hasOnly(['id', 'platform', 'label', 'owner', 'url']) &&
+            data.socialLinks[0].url is string && data.socialLinks[0].url.size() >= 1 && data.socialLinks[0].url.size() <= 600
+          )
+        ) &&
+        (data.branches is list && data.branches.size() <= 10) &&
+        (
+          data.branches.size() == 0 ||
+          (
+            data.branches[0] is map &&
+            data.branches[0].keys().hasOnly(['id', 'name', 'address', 'mapUrl', 'workingHours', 'phone']) &&
+            data.branches[0].name is string && data.branches[0].name.size() >= 1 && data.branches[0].name.size() <= 120
+          )
+        ) &&
+        (data.categories is list && data.categories.size() >= 1 && data.categories.size() <= 20) &&
+        (
+          data.categories[0] is map &&
+          data.categories[0].keys().hasOnly(['id', 'name', 'order']) &&
+          data.categories[0].id is string && data.categories[0].id.size() >= 1 && data.categories[0].id.size() <= 60 &&
+          data.categories[0].name is string && data.categories[0].name.size() >= 2 && data.categories[0].name.size() <= 80 &&
+          (data.categories[0].order is int || data.categories[0].order is float) &&
+          data.categories[0].order >= 1 && data.categories[0].order <= 100
+        );
     }
 
     function isValidSiteConfig(data) {
@@ -232,8 +177,9 @@ service cloud.firestore {
           'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
           'showPartnerCard', 'showAboutBanner', 'updatedBy', 'updatedAt'
         ]) &&
-        isValidSiteIdentityAndContacts(data) &&
-        isValidSitePartnerAboutAndMeta(data);
+        isValidSiteConfigGroup1(data) &&
+        isValidSiteConfigGroup2(data) &&
+        isValidSiteConfigLists(data);
     }
 
     // Products Catalog Collection
@@ -287,22 +233,22 @@ service cloud.firestore {
       allow create: if isSignedIn() &&
         isValidId(configId) &&
         configId == 'main' &&
-        isValidSiteConfig(incoming()) &&
-        incoming().id == configId &&
-        incoming().updatedBy == request.auth.uid &&
-        incoming().updatedAt == request.time &&
+        isValidSiteConfig(request.resource.data) &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        request.resource.data.updatedAt == request.time &&
         isAdmin();
 
       allow update: if isSignedIn() &&
         isValidId(configId) &&
         configId == 'main' &&
-        isValidSiteConfig(incoming()) &&
-        incoming().id == configId &&
-        incoming().updatedBy == request.auth.uid &&
-        incoming().updatedAt == request.time &&
+        isValidSiteConfig(request.resource.data) &&
+        (!('id' in resource.data) || request.resource.data.id == resource.data.id) &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        request.resource.data.updatedAt == request.time &&
+        isAdmin() &&
         (
-          isAdmin() ||
-          incoming().diff(existing()).affectedKeys().hasOnly([
+          isAuthorizedDeveloper() ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'storeName', 'storeSubtitle', 'tagline', 'heroDescription',
             'announcementText', 'seoTitle', 'seoDescription', 'copyrightText',
             'primaryPhone', 'secondaryPhone', 'primaryWhatsApp', 'whatsappUrl',
@@ -317,8 +263,7 @@ service cloud.firestore {
             'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
             'showPartnerCard', 'showAboutBanner', 'updatedBy', 'updatedAt'
           ])
-        ) &&
-        isAdmin();
+        );
 
       allow delete: if false;
     }
@@ -332,12 +277,98 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Read-only Connectivity & Rules Version Probe (/test/connection, /test/rules_v3_ready, /test/rules_v4_infinity_ready)
+    // Read-only Connectivity & Live SiteConfig Validator Probe
     match /test/{probeId} {
       allow get: if isValidId(probeId) && (
         probeId == 'connection' ||
         probeId == 'rules_v3_ready' ||
-        probeId == 'rules_v4_infinity_ready'
+        probeId == 'rules_v4_infinity_ready' ||
+        probeId == 'rules_v6_ping' ||
+        (
+          probeId == 'rules_v5_siteconfig_ready' &&
+          isValidSiteConfig({
+            'id': 'main',
+            'storeName': 'المحلاوي ستور',
+            'storeSubtitle': 'El Mahlawy Store',
+            'tagline': 'منتجات متنوعة وحلول ذكية لحياة أسهل',
+            'heroDescription': 'الوجهة المتخصصة في عرض المنتجات والأجهزة الحديثة',
+            'announcementText': '',
+            'seoTitle': 'المحلاوي ستور | El Mahlawy Store',
+            'seoDescription': 'المحلاوي ستور بشرم الشيخ',
+            'copyrightText': 'جميع الحقوق محفوظة.',
+            'primaryPhone': '01210141187',
+            'secondaryPhone': '01507558522',
+            'primaryWhatsApp': '201210141187',
+            'whatsappUrl': 'https://wa.me/201210141187',
+            'afterSalesWhatsAppUrl': 'https://wa.me/201507558522',
+            'facebookUrl': 'https://www.facebook.com/profile.php?id=61574358801771',
+            'instagramUrl': '',
+            'address': 'جنوب سيناء – شرم الشيخ – الرويسات',
+            'googleMapsUrl': 'https://maps.google.com/?q=27.9158,34.3300',
+            'workingHours': 'يوميًا من 10:00 صباحًا حتى 11:00 مساءً',
+            'shippingSummary': 'شحن متاح لجميع محافظات مصر.',
+            'afterSalesPolicy': 'نضمن لك الدعم والمساعدة خلال فترة الضمان.',
+            'closingPhrase': 'وما تنساش تصلي على النبي ﷺ',
+            'contactSectionTitle': 'تواصل معنا',
+            'contactSectionSubtitle': 'قنوات التواصل الرسمية والمباشرة',
+            'partnerName': 'Infinity Corp',
+            'partnerSubtitle': 'Smart Home & Technical Solutions',
+            'partnerRoleTitle': 'Infinity Corp – شريك النجاح',
+            'partnerServiceScopeText': 'شرم الشيخ، دهب، نويبع، طابا، الطور',
+            'partnerOrderPhone1': '01210141187',
+            'partnerOrderPhone2': '01143677682',
+            'partnerMaintenancePhone': '01005089640',
+            'partnerAfterSalesPhone': '01507558522',
+            'partnerFacebookUrl': 'https://www.facebook.com/InfinityCorp2',
+            'aboutHeroTitle': 'المحلاوي ستور × Infinity Corp',
+            'aboutHeroSubtitle': 'تعرّف على معلومات المحلاوي ستور وشريك النجاح شركة Infinity Corp بالكامل.',
+            'aboutStoreIntro': 'المحلاوي ستور هو وجهتك لشراء الأجهزة والمعدات.',
+            'aboutPartnerIntro': 'تُعد Infinity Corp شركة متخصصة في التركيبات الفنية.',
+            'visionTitle': 'تجربة فنية متكاملة وموثوقة',
+            'visionDescription': 'نسعى إلى توفير المنتجات والأجهزة الفنية المناسبة.',
+            'contactChannels': [
+              {
+                'id': 'ch-store-orders',
+                'label': 'رقم الطلبات والاتصال الأساسي',
+                'role': 'orders',
+                'owner': 'store',
+                'phone': '01210141187',
+                'whatsappUrl': 'https://wa.me/201210141187'
+              }
+            ],
+            'socialLinks': [
+              {
+                'id': 'sl-tiktok',
+                'platform': 'tiktok',
+                'label': 'TikTok',
+                'owner': 'store',
+                'url': 'https://www.tiktok.com/@elmahlawystore'
+              }
+            ],
+            'branches': [
+              {
+                'id': 'branch-sharm-main',
+                'name': 'الفرع الرئيسي — شرم الشيخ',
+                'address': 'جنوب سيناء – شرم الشيخ – الرويسات',
+                'mapUrl': 'https://maps.google.com/?q=27.9158,34.3300',
+                'workingHours': 'يوميًا من 10:00 صباحًا حتى 11:00 مساءً',
+                'phone': '01210141187'
+              }
+            ],
+            'categories': [
+              { 'id': 'cctv', 'name': 'قسم كاميرات المراقبة', 'order': 1 },
+              { 'id': 'satellite', 'name': 'قسم الستلايت', 'order': 2 }
+            ],
+            'showHeroSpotlight': true,
+            'showValueStrip': true,
+            'showOffersSection': true,
+            'showShippingSection': true,
+            'showPartnerCard': true,
+            'showAboutBanner': true,
+            'updatedBy': 'ILSbnyLsRWXvV9n2viqoMgFyDpr2',
+            'updatedAt': request.time
+          })
+        )
       );
       allow list: if false;
       allow create: if false;

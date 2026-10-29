@@ -2,7 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { DEFAULT_SITE_CONFIG, sanitizeSiteConfig } from './src/utils/siteConfig';
+import {
+  DEFAULT_SITE_CONFIG,
+  buildFirestoreSiteConfigPayload,
+  mergeSafeSiteConfigForSave,
+  sanitizeSiteConfig,
+} from './src/utils/siteConfig';
 
 const rulesSource = fs.readFileSync(path.join(process.cwd(), 'firestore.rules'), 'utf8');
 const blueprint = JSON.parse(
@@ -147,6 +152,7 @@ function isValidProductRuleSimulator(data: Record<string, unknown>): boolean {
 function isValidSiteConfigRuleSimulator(data: Record<string, unknown>): boolean {
   const keys = Object.keys(data);
   if (!REQUIRED_SITE_CONFIG_KEYS.every((k) => keys.includes(k))) return false;
+  if (!ALLOWED_SITE_CONFIG_KEYS.every((k) => keys.includes(k))) return false;
   if (!keys.every((k) => ALLOWED_SITE_CONFIG_KEYS.includes(k))) return false;
   if (!isValidId(data.id, 32)) return false;
   if (typeof data.storeName !== 'string' || data.storeName.length < 2 || data.storeName.length > 100) {
@@ -158,27 +164,25 @@ function isValidSiteConfigRuleSimulator(data: Record<string, unknown>): boolean 
   if (typeof data.primaryWhatsApp !== 'string' || data.primaryWhatsApp.length < 7 || data.primaryWhatsApp.length > 25) {
     return false;
   }
-  if ('aboutStoreIntro' in data && (typeof data.aboutStoreIntro !== 'string' || data.aboutStoreIntro.length > 5000)) {
+  if (typeof data.aboutStoreIntro !== 'string' || data.aboutStoreIntro.length > 5000) {
     return false;
   }
-  if ('aboutPartnerIntro' in data && (typeof data.aboutPartnerIntro !== 'string' || data.aboutPartnerIntro.length > 5000)) {
+  if (typeof data.aboutPartnerIntro !== 'string' || data.aboutPartnerIntro.length > 5000) {
     return false;
   }
-  if ('contactChannels' in data && (!Array.isArray(data.contactChannels) || data.contactChannels.length > 20)) {
+  if (!Array.isArray(data.contactChannels) || data.contactChannels.length > 20) {
     return false;
   }
-  if ('socialLinks' in data && (!Array.isArray(data.socialLinks) || data.socialLinks.length > 15)) {
+  if (!Array.isArray(data.socialLinks) || data.socialLinks.length > 15) {
     return false;
   }
-  if ('branches' in data && (!Array.isArray(data.branches) || data.branches.length > 10)) {
+  if (!Array.isArray(data.branches) || data.branches.length > 10) {
     return false;
   }
-  if ('categories' in data) {
-    if (!Array.isArray(data.categories) || data.categories.length < 1 || data.categories.length > 20) {
-      return false;
-    }
-    if (!isValidCategoryItemSimulator(data.categories[0])) return false;
+  if (!Array.isArray(data.categories) || data.categories.length < 1 || data.categories.length > 20) {
+    return false;
   }
+  if (!isValidCategoryItemSimulator(data.categories[0])) return false;
   if (!isValidId(data.updatedBy)) return false;
   if (typeof data.updatedAt !== 'string') return false;
   return true;
@@ -207,7 +211,9 @@ function evaluateConnectionProbe(
     isValidId(probeId) &&
     (probeId === 'connection' ||
       probeId === 'rules_v3_ready' ||
-      probeId === 'rules_v4_infinity_ready')
+      probeId === 'rules_v4_infinity_ready' ||
+      probeId === 'rules_v5_siteconfig_ready' ||
+      probeId === 'rules_v6_ping')
   ) {
     return 'ALLOWED';
   }
@@ -319,8 +325,9 @@ test('firestore.rules structural guards match security_spec invariants and cover
     rulesSource.includes("request.auth.token.email == 'companycamerasinfinitycorp@gmail.com'")
   );
   assert.ok(rulesSource.includes('request.auth.token.email_verified == true'));
-  assert.ok(rulesSource.includes('isValidSocialLinkItem'));
-  assert.ok(rulesSource.includes('isValidCategoryItem'));
+  assert.ok(rulesSource.includes('isValidSiteConfigGroup1'));
+  assert.ok(rulesSource.includes('isValidSiteConfigGroup2'));
+  assert.ok(rulesSource.includes('isValidSiteConfigLists'));
   assert.ok(rulesSource.includes('incoming().createdAt == request.time'));
   assert.ok(rulesSource.includes('incoming().updatedAt == request.time'));
   assert.ok(rulesSource.includes('affectedKeys().hasOnly'));
@@ -365,20 +372,24 @@ test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 (with emailVerified:
     updatedAt: REQUEST_TIME,
   } as unknown as Record<string, unknown>;
 
-  // Targeted { merge: true } update payload (core required keys + only modified About Us fields)
-  const targetedAboutUpdate: Record<string, unknown> = {
-    id: 'main',
-    storeName: 'المحلاوي ستور',
-    primaryPhone: '01210141187',
-    primaryWhatsApp: '201210141187',
-    aboutHeroTitle: 'المحلاوي ستور × Infinity Corp — شرم الشيخ',
-    aboutStoreIntro: 'فقرة تعريفية موسعة '.repeat(140), // ~2800 Arabic chars (well over legacy 1200 limit, within 5000 limit)
-    aboutPartnerIntro: 'نبذة تفصيلية عن خدمات Infinity Corp '.repeat(80),
-    updatedBy: AUTHORIZED_UID,
-    updatedAt: REQUEST_TIME,
-  };
+  // Full 51-key Firestore payload built via mergeSafeSiteConfigForSave + buildFirestoreSiteConfigPayload
+  const mergedAboutConfig = mergeSafeSiteConfigForSave(
+    null,
+    {
+      aboutHeroTitle: 'المحلاوي ستور × Infinity Corp — شرم الشيخ',
+      aboutStoreIntro: 'فقرة تعريفية موسعة '.repeat(140),
+      aboutPartnerIntro: 'نبذة تفصيلية عن خدمات Infinity Corp '.repeat(80),
+    },
+    AUTHORIZED_UID
+  );
+  const fullAboutPayload = buildFirestoreSiteConfigPayload(
+    mergedAboutConfig,
+    AUTHORIZED_UID,
+    REQUEST_TIME
+  );
+  assert.equal(Object.keys(fullAboutPayload).length, 51);
   assert.equal(
-    evaluateSiteConfigWrite('main', targetedAboutUpdate, authorizedDeveloperUidAuth),
+    evaluateSiteConfigWrite('main', fullAboutPayload, authorizedDeveloperUidAuth),
     'ALLOWED'
   );
 
@@ -397,10 +408,12 @@ test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 (with emailVerified:
     'PERMISSION_DENIED'
   );
 
-  // Connectivity & rules v3/v4 probe check
+  // Connectivity & rules v3/v4/v5 probe check
   assert.equal(evaluateConnectionProbe('connection', 'get'), 'ALLOWED');
   assert.equal(evaluateConnectionProbe('rules_v3_ready', 'get'), 'ALLOWED');
   assert.equal(evaluateConnectionProbe('rules_v4_infinity_ready', 'get'), 'ALLOWED');
+  assert.equal(evaluateConnectionProbe('rules_v5_siteconfig_ready', 'get'), 'ALLOWED');
+  assert.equal(evaluateConnectionProbe('rules_v6_ping', 'get'), 'ALLOWED');
   assert.equal(evaluateConnectionProbe('other', 'get'), 'PERMISSION_DENIED');
   assert.equal(evaluateConnectionProbe('connection', 'write'), 'PERMISSION_DENIED');
   assert.equal(evaluateConnectionProbe('connection', 'list'), 'PERMISSION_DENIED');
@@ -442,21 +455,29 @@ test('Infinity Corp developer UID ILSbnyLsRWXvV9n2viqoMgFyDpr2 succeeds on siteC
   );
 
   // 4. Infinity Corp writes siteConfig/main (Site info, About Us, Contact numbers, Categories/Sections)
-  const infinitySiteConfigUpdate: Record<string, unknown> = {
-    id: 'main',
-    storeName: 'المحلاوي ستور',
-    primaryPhone: '01210141187',
-    primaryWhatsApp: '201210141187',
-    partnerName: 'Infinity Corp',
-    partnerOrderPhone1: '01092662575',
-    aboutPartnerIntro: 'تحديث بيانات Infinity Corp الشريك التقني المعتمد لكاميرات المراقبة والأنظمة الأمنية.',
-    categories: [
-      { id: 'cctv', name: 'قسم كاميرات المراقبة', order: 1 },
-      { id: 'satellite', name: 'قسم الستلايت', order: 2 },
-    ],
-    updatedBy: INFINITY_CORP_UID,
-    updatedAt: REQUEST_TIME,
-  };
+  const mergedInfinityConfig = mergeSafeSiteConfigForSave(
+    null,
+    {
+      storeName: 'المحلاوي ستور',
+      primaryPhone: '01210141187',
+      primaryWhatsApp: '201210141187',
+      partnerName: 'Infinity Corp',
+      partnerOrderPhone1: '01092662575',
+      aboutPartnerIntro:
+        'تحديث بيانات Infinity Corp الشريك التقني المعتمد لكاميرات المراقبة والأنظمة الأمنية.',
+      categories: [
+        { id: 'cctv', name: 'قسم كاميرات المراقبة', order: 1 },
+        { id: 'satellite', name: 'قسم الستلايت', order: 2 },
+      ],
+    },
+    INFINITY_CORP_UID
+  );
+  const infinitySiteConfigUpdate = buildFirestoreSiteConfigPayload(
+    mergedInfinityConfig,
+    INFINITY_CORP_UID,
+    REQUEST_TIME
+  );
+  assert.equal(Object.keys(infinitySiteConfigUpdate).length, 51);
   assert.equal(
     evaluateSiteConfigWrite('main', infinitySiteConfigUpdate, infinityCorpDeveloperAuth),
     'ALLOWED'
