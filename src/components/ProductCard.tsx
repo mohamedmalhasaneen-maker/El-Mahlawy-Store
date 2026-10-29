@@ -66,8 +66,6 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
     }
   };
 
-  const showCategory = Boolean(product.category && product.category.trim() !== 'عام');
-
   return (
     <article className="group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[#7DD3FC] dark:hover:border-[#38BDF8]">
       <div>
@@ -121,13 +119,13 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
         {/* Product Info */}
         <div className="px-5 pt-4 pb-3">
           {/* Unboxed Metadata */}
-          {(product.brand || showCategory) && (
+          {(product.brand || product.categoryId) && (
             <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0284C7] dark:text-[#38BDF8] mb-1.5">
               {product.brand && <span>{product.brand}</span>}
-              {product.brand && showCategory && <span aria-hidden="true">·</span>}
-              {showCategory && (
+              {product.brand && product.categoryId && <span aria-hidden="true">·</span>}
+              {product.categoryId && (
                 <span className="text-slate-500 dark:text-slate-400 font-normal">
-                  {product.category}
+                  {product.category || 'بدون قسم'}
                 </span>
               )}
             </div>

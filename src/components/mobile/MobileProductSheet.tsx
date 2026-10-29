@@ -21,6 +21,7 @@ import {
   getEffectiveProductPrice,
   isDiscountActive,
 } from '../../utils/catalogLogic';
+import { getCategoryName } from '../../constants/categories';
 import { useMobileOverlay } from '../../utils/useMobileOverlay';
 import { ProductImage } from '../ProductImage';
 
@@ -176,6 +177,7 @@ export function MobileProductSheet({
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-bold text-[#0284C7] truncate">
               {product.brand || siteConfig.storeName}
+              {product.category ? ` · ${getCategoryName(product.category)}` : ''}
               <span aria-hidden="true"> · </span>
               <span className={product.inStock ? 'text-emerald-700' : 'text-amber-700'}>
                 {product.inStock ? 'متوفر للطلب' : 'يرجى الاستفسار عن التوفر'}

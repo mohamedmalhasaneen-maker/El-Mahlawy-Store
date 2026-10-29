@@ -1,5 +1,18 @@
-import { Check, Eye, EyeOff, Loader2, RotateCcw } from 'lucide-react';
-import { SiteConfig } from '../../utils/siteConfig';
+import { useState } from 'react';
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Eye,
+  EyeOff,
+  Layers,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react';
+import { PRODUCT_CATEGORIES, getOrderedCategories } from '../../constants/categories';
+import { MAX_CATEGORIES, SiteConfig, StoreCategoryItem } from '../../utils/siteConfig';
 
 interface ContentSectionsSettingsProps {
   configDraft: SiteConfig;
@@ -61,11 +74,83 @@ export function ContentSectionsSettings({
   onSaveSubmit,
   onCancelChanges,
 }: ContentSectionsSettingsProps) {
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryFeedback, setCategoryFeedback] = useState<string | null>(null);
+
+  const orderedCategories = getOrderedCategories(configDraft.categories);
   const enabledCount = SECTION_TOGGLE_ITEMS.filter((item) => configDraft[item.key]).length;
+
+  const commitCategories = (nextList: StoreCategoryItem[]) => {
+    const normalized = nextList.map((cat, idx) => ({
+      ...cat,
+      order: idx + 1,
+    }));
+    onUpdateField('categories', normalized);
+  };
+
+  const handleMoveCategory = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= orderedCategories.length) return;
+    const next = [...orderedCategories];
+    const [moved] = next.splice(index, 1);
+    next.splice(targetIndex, 0, moved);
+    setCategoryFeedback(null);
+    commitCategories(next);
+  };
+
+  const handleRenameCategory = (id: string, name: string) => {
+    const next = orderedCategories.map((cat) => (cat.id === id ? { ...cat, name } : cat));
+    setCategoryFeedback(null);
+    commitCategories(next);
+  };
+
+  const handleAddCategory = () => {
+    const cleanName = newCategoryName.trim();
+    if (cleanName.length < 2) {
+      setCategoryFeedback('يرجى إدخال اسم قسم واضح لا يقل عن حرفين.');
+      return;
+    }
+    if (orderedCategories.length >= MAX_CATEGORIES) {
+      setCategoryFeedback(`الحد الأقصى لعدد الأقسام هو ${MAX_CATEGORIES} قسمًا.`);
+      return;
+    }
+    if (orderedCategories.some((c) => c.name.trim() === cleanName)) {
+      setCategoryFeedback('يوجد قسم مسجّل بنفس هذا الاسم بالفعل.');
+      return;
+    }
+
+    const generatedId = `cat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const next: StoreCategoryItem[] = [
+      ...orderedCategories,
+      {
+        id: generatedId,
+        name: cleanName.slice(0, 80),
+        order: orderedCategories.length + 1,
+      },
+    ];
+    setNewCategoryName('');
+    setCategoryFeedback(null);
+    commitCategories(next);
+  };
+
+  const handleRemoveCategory = (id: string) => {
+    if (orderedCategories.length <= 1) {
+      setCategoryFeedback('يجب الاحتفاظ بقسم واحد على الأقل في المتجر.');
+      return;
+    }
+    const next = orderedCategories.filter((cat) => cat.id !== id);
+    setCategoryFeedback(null);
+    commitCategories(next);
+  };
+
+  const handleResetDefaultCategories = () => {
+    setCategoryFeedback(null);
+    commitCategories(PRODUCT_CATEGORIES.map((c) => ({ ...c })));
+  };
 
   return (
     <form
-      onSubmit={(e) => void onSaveSubmit(e, 'إعدادات المحتوى والأقسام')}
+      onSubmit={(e) => void onSaveSubmit(e, 'إعدادات المحتوى وأقسام المنتجات')}
       className="space-y-6"
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#D4AF37]/25">
@@ -74,8 +159,8 @@ export function ContentSectionsSettings({
             إعدادات المحتوى والأقسام
           </h2>
           <p className="text-xs sm:text-sm text-gray-400 mt-1 tabular-nums">
-            تحكم فوري في إظهار أو إخفاء أقسام الواجهة العامة للزوار ({enabledCount}/
-            {SECTION_TOGGLE_ITEMS.length} أقسام ظاهرة حاليًا).
+            إدارة أقسام المنتجات وترتيبها في المتجر ({orderedCategories.length} أقسام) والتحكم في
+            إظهار أو إخفاء أقسام الواجهة ({enabledCount}/{SECTION_TOGGLE_ITEMS.length} ظاهرة).
           </p>
         </div>
 
@@ -91,10 +176,140 @@ export function ContentSectionsSettings({
         )}
       </div>
 
+      {/* 01. Product Categories & Ordering */}
+      <div className="rounded-2xl bg-[#141414] border border-[#D4AF37]/25 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <Layers className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
+            <h3 className="text-base font-extrabold text-[#D4AF37]">
+              01. أقسام المنتجات وترتيب ظهورها في المتجر
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetDefaultCategories}
+            className="rounded-lg bg-[#0B0B0B] hover:bg-[#1E1E1E] border border-[#D4AF37]/40 px-3 py-1.5 text-xs font-bold text-[#D4AF37] cursor-pointer"
+          >
+            استعادة الترتيب الافتراضي للأقسام الستة
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-400 leading-relaxed">
+          يمكنك إعادة ترتيب الأقسام بالسهمين (أعلى/أسفل)، أو تعديل اسم القسم المعروض للعملاء، أو
+          إضافة قسم جديد، ثم الضغط على زر الحفظ السحابي بالأسفل ليظهر الترتيب الجديد لجميع الزوار
+          على كل المتصفحات والأجهزة.
+        </p>
+
+        {categoryFeedback && (
+          <div className="rounded-xl bg-[#0F4C5C]/20 border border-[#0F4C5C] px-4 py-2.5 text-xs font-bold text-[#A0D2EB]">
+            {categoryFeedback}
+          </div>
+        )}
+
+        <div className="space-y-2.5">
+          {orderedCategories.map((cat, idx) => {
+            const isBuiltIn = PRODUCT_CATEGORIES.some((def) => def.id === cat.id);
+            return (
+              <div
+                key={cat.id}
+                className="flex flex-col sm:flex-row sm:items-center gap-2.5 rounded-xl bg-[#0B0B0B] border border-white/15 p-3"
+              >
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#141414] border border-[#D4AF37]/40 text-xs font-extrabold text-[#D4AF37] tabular-nums">
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <label htmlFor={`cat-name-${cat.id}`} className="sr-only">
+                      اسم القسم رقم {idx + 1}
+                    </label>
+                    <input
+                      id={`cat-name-${cat.id}`}
+                      type="text"
+                      maxLength={80}
+                      value={cat.name}
+                      onChange={(e) => handleRenameCategory(cat.id, e.target.value)}
+                      className="w-full min-h-[40px] rounded-lg bg-[#141414] border border-white/15 px-3 py-1.5 text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-1.5 shrink-0">
+                  <span className="font-mono text-[11px] text-gray-500 px-2">
+                    <bdi>{cat.id}</bdi>
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={() => handleMoveCategory(idx, 'up')}
+                    aria-label={`تحريك ${cat.name} لأعلى`}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#141414] hover:bg-[#1E1E1E] disabled:opacity-35 border border-white/15 text-gray-200 cursor-pointer"
+                  >
+                    <ArrowUp className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={idx === orderedCategories.length - 1}
+                    onClick={() => handleMoveCategory(idx, 'down')}
+                    aria-label={`تحريك ${cat.name} لأسفل`}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#141414] hover:bg-[#1E1E1E] disabled:opacity-35 border border-white/15 text-gray-200 cursor-pointer"
+                  >
+                    <ArrowDown className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
+                  </button>
+
+                  {!isBuiltIn && orderedCategories.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCategory(cat.id)}
+                      aria-label={`حذف القسم ${cat.name}`}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#0F4C5C]/20 hover:bg-[#0F4C5C] border border-[#0F4C5C]/70 text-[#A0D2EB] hover:text-white cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Add Custom Category Row */}
+        <div className="flex flex-col sm:flex-row gap-2.5 pt-2 border-t border-white/10">
+          <label htmlFor="new-category-name-input" className="sr-only">
+            إضافة قسم منتجات جديد
+          </label>
+          <input
+            id="new-category-name-input"
+            type="text"
+            maxLength={80}
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAddCategory();
+              }
+            }}
+            placeholder="إضافة قسم جديد (مثال: قسم أنظمة الإنتركوم والصوتيات)..."
+            className="flex-1 min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-xs sm:text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
+          />
+          <button
+            type="button"
+            onClick={handleAddCategory}
+            className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37]/60 px-4 py-2 text-xs sm:text-sm font-extrabold text-white whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
+            <span>إضافة قسم</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 02. Storefront Section Visibility Toggles */}
       <div className="rounded-2xl bg-[#141414] border border-[#D4AF37]/25 p-5 sm:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/10">
           <h3 className="text-base font-extrabold text-[#D4AF37]">
-            أقسام الواجهة الرئيسية والفوتر
+            02. إظهار وإخفاء أقسام الواجهة الرئيسية والفوتر
           </h3>
           <div className="flex items-center gap-2">
             <button
@@ -172,7 +387,9 @@ export function ContentSectionsSettings({
             <Check className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
           )}
           <span>
-            {savingSiteConfig ? 'جاري الحفظ السحابي...' : 'حفظ إعدادات الأقسام سحابيًا'}
+            {savingSiteConfig
+              ? 'جاري الحفظ والتحقق من السحابة...'
+              : 'حفظ الأقسام وإعدادات المحتوى سحابيًا'}
           </span>
         </button>
 

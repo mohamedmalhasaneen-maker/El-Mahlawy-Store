@@ -24,6 +24,7 @@ import {
   normalizeImageSrc,
   roundCurrency,
 } from '../utils/catalogLogic';
+import { getCategoryName } from '../constants/categories';
 import { ProductImage } from './ProductImage';
 
 interface ProductDetailModalProps {
@@ -119,7 +120,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
       '====================================',
       `المنتج: ${product.name}`,
       product.brand ? `الماركة: ${product.brand}` : '',
-      product.category ? `القسم: ${product.category}` : '',
+      product.category ? `القسم: ${getCategoryName(product.category)}` : '',
       `السعر الحالي: ${formatPriceEgp(effectivePrice)} ج.م`,
       hasDiscount
         ? `السعر قبل الخصم: ${formatPriceEgp(product.originalPrice)} ج.م (خصم ${discountPct}%)`
@@ -168,7 +169,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
         <div className="flex items-center justify-between gap-4 border-b border-[#E2F1FC] dark:border-[#1E3F73] px-5 py-3.5 bg-[#F8FCFF] dark:bg-[#0E264A] shrink-0">
           <p className="text-xs sm:text-sm font-semibold text-[#0284C7] dark:text-[#38BDF8] truncate">
             {product.brand || siteConfig.storeName}
-            {showCategory ? ` · ${product.category}` : ''}
+            {showCategory ? ` · ${getCategoryName(product.category)}` : ''}
           </p>
           <button
             type="button"

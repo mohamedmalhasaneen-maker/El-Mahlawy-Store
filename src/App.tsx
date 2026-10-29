@@ -8,7 +8,7 @@ import {
   findProductByShareParam,
   getDiscountedProducts,
 } from './utils/catalogLogic';
-import { DEFAULT_SITE_CONFIG, SiteConfig } from './utils/siteConfig';
+import { DEFAULT_SITE_CONFIG, SiteConfig, sanitizeSiteConfig } from './utils/siteConfig';
 import {
   DiscountQuickUpdatePayload,
   User,
@@ -42,6 +42,7 @@ import { Footer } from './components/Footer';
 import { MobileStorefront } from './components/mobile/MobileStorefront';
 import { TechBackground } from './components/TechBackground';
 import { useTheme } from './utils/useTheme';
+import { getCategoryName, getOrderedCategories } from './constants/categories';
 
 const LOCAL_STORAGE_KEY = 'mahallawy_store_catalog_v1';
 const SITE_CONFIG_CACHE_KEY = 'mahallawy_site_config_v1';
@@ -67,7 +68,10 @@ function loadCachedSiteConfig(): SiteConfig {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<SiteConfig>;
       if (parsed && typeof parsed === 'object' && typeof parsed.storeName === 'string') {
-        return { ...DEFAULT_SITE_CONFIG, ...parsed };
+        return sanitizeSiteConfig(
+          parsed,
+          typeof parsed.updatedBy === 'string' ? parsed.updatedBy : 'system'
+        );
       }
     }
   } catch {
@@ -125,6 +129,7 @@ export default function App() {
   const [publicOrigin, setPublicOrigin] = useState<string>(() =>
     typeof window !== 'undefined' ? window.location.origin : ''
   );
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
 
   // Sync URL hash <-> activeView
   useEffect(() => {
@@ -410,36 +415,67 @@ export default function App() {
     };
   }, [isCloudAdmin, handleDeveloperLogout]);
 
+  const syncAuthoritativeProductIntoState = useCallback((saved: Product) => {
+    setProducts((prev) => {
+      const withoutTarget = prev.filter((item) => item.id !== saved.id);
+      const next = saved.isPublished ? [saved, ...withoutTarget] : withoutTarget;
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Ignore storage quota warnings
+      }
+      return next;
+    });
+    setAdminProducts((prev) => {
+      if (!prev) return prev;
+      const withoutTarget = prev.filter((item) => item.id !== saved.id);
+      return [saved, ...withoutTarget];
+    });
+  }, []);
+
   const handleSaveProduct = async (input: ProductFormInput, editingId?: string) => {
     const currentUid = auth.currentUser?.uid;
     if (!currentUid) {
       throw new Error('يرجى تسجيل الدخول بحساب المطور أولًا.');
     }
-    if (editingId) {
-      const existingList = adminProducts ?? products;
-      const existingItem = existingList.find((p) => p.id === editingId);
-      await updateCloudProduct(editingId, input, existingItem?.authorUid || currentUid);
-    } else {
-      await createCloudProduct(input, currentUid);
-    }
+    const saved = editingId
+      ? await updateCloudProduct(
+          editingId,
+          input,
+          (adminProducts ?? products).find((p) => p.id === editingId)?.authorUid || currentUid
+        )
+      : await createCloudProduct(input, currentUid);
+    syncAuthoritativeProductIntoState(saved);
   };
 
   const handleDeleteProduct = async (productId: string) => {
     await deleteCloudProduct(productId);
+    setProducts((prev) => {
+      const next = prev.filter((item) => item.id !== productId);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Ignore storage quota warnings
+      }
+      return next;
+    });
+    setAdminProducts((prev) => (prev ? prev.filter((item) => item.id !== productId) : prev));
   };
 
   const handleSaveProductDiscount = async (
     productId: string,
     payload: DiscountQuickUpdatePayload
   ) => {
-    await updateCloudProductDiscount(productId, payload);
+    const saved = await updateCloudProductDiscount(productId, payload);
+    syncAuthoritativeProductIntoState(saved);
   };
 
   const handleQuickUpdateProductFlags = async (
     product: Product,
     updates: Partial<Pick<Product, 'isPublished' | 'inStock' | 'isFeatured'>>
   ) => {
-    await updateCloudProductFlags(product.id, updates);
+    const saved = await updateCloudProductFlags(product.id, updates);
+    syncAuthoritativeProductIntoState(saved);
   };
 
   const handleSaveSiteConfig = async (nextConfig: SiteConfig) => {
@@ -449,14 +485,32 @@ export default function App() {
     }
     const saved = await saveCloudSiteConfig(nextConfig, currentUid);
     setSiteConfig(saved);
+    try {
+      localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(saved));
+    } catch {
+      // Ignore storage quota warnings
+    }
   };
+
+  const orderedStoreCategories = useMemo(
+    () => getOrderedCategories(siteConfig.categories),
+    [siteConfig.categories]
+  );
+
+  useEffect(() => {
+    if (
+      selectedCategoryId !== 'all' &&
+      !orderedStoreCategories.some((c) => c.id === selectedCategoryId)
+    ) {
+      setSelectedCategoryId('all');
+    }
+  }, [selectedCategoryId, orderedStoreCategories]);
 
   const discountedProducts = useMemo(() => getDiscountedProducts(products), [products]);
 
-  const filteredProducts = useMemo(
-    () => filterAndSortProducts(products, searchQuery, 'الكل', sortBy),
-    [products, searchQuery, sortBy]
-  );
+  const filteredProducts = useMemo(() => {
+    return filterAndSortProducts(products, searchQuery, selectedCategoryId, sortBy);
+  }, [products, searchQuery, sortBy, selectedCategoryId]);
 
   const heroSpotlightProduct = useMemo(() => {
     if (!siteConfig.showHeroSpotlight) return undefined;
@@ -524,6 +578,8 @@ export default function App() {
               publicOrigin={publicOrigin}
               initialProductId={sharedProductId}
               onConsumeInitialProduct={clearSharedProductParam}
+              selectedCategoryId={selectedCategoryId}
+              onCategoryChange={setSelectedCategoryId}
             />
 
             {/* Desktop Storefront (>= 768px) */}
@@ -628,6 +684,37 @@ export default function App() {
                       )}
                     </div>
 
+                    {/* Category Filter Bar */}
+                    <div className="mb-10 overflow-x-auto pb-2 scrollbar-hide">
+                      <div className="flex items-center gap-3 min-w-max">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCategoryId('all')}
+                          className={`min-h-[44px] px-6 py-2.5 rounded-2xl text-sm font-extrabold transition-all border ${
+                            selectedCategoryId === 'all'
+                              ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
+                              : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
+                          } cursor-pointer`}
+                        >
+                          الكل
+                        </button>
+                        {orderedStoreCategories.map((cat) => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setSelectedCategoryId(cat.id)}
+                            className={`min-h-[44px] px-6 py-2.5 rounded-2xl text-sm font-extrabold transition-all border ${
+                              selectedCategoryId === cat.id
+                                ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
+                                : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
+                            } cursor-pointer`}
+                          >
+                            {cat.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Product Cards Grid or Empty State */}
                     {filteredProducts.length === 0 ? (
                       <div className="rounded-3xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-10 sm:p-14 text-center">
@@ -646,6 +733,23 @@ export default function App() {
                             >
                               <RotateCcw className="h-4 w-4" aria-hidden="true" />
                               <span>عرض جميع المنتجات</span>
+                            </button>
+                          </>
+                        ) : selectedCategoryId !== 'all' ? (
+                          <>
+                            <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2">
+                              لا توجد منتجات في «
+                              {getCategoryName(selectedCategoryId, orderedStoreCategories)}» حاليًا
+                            </p>
+                            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-5 max-w-lg mx-auto">
+                              يتم تحديث قائمة المنتجات باستمرار. يمكنك استعراض كافة الأقسام أو التواصل معنا للاستفسار.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedCategoryId('all')}
+                              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer"
+                            >
+                              عرض جميع الأقسام
                             </button>
                           </>
                         ) : (

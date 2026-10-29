@@ -1,4 +1,5 @@
 import { PARTNER_INFO, STORE_INFO, ValidationResult } from '../types/store';
+import { Category, PRODUCT_CATEGORIES } from '../constants/categories';
 
 export type ContactChannelRole =
   | 'orders'
@@ -44,6 +45,8 @@ export interface SocialLinkItem {
   owner: ContactChannelOwner;
   url: string;
 }
+
+export type StoreCategoryItem = Category;
 
 export interface SiteConfig {
   id: string;
@@ -97,6 +100,7 @@ export interface SiteConfig {
   contactChannels: ContactChannelItem[];
   branches: BranchLocationItem[];
   socialLinks: SocialLinkItem[];
+  categories: StoreCategoryItem[];
 
   // 6. Section Visibility Toggles
   showHeroSpotlight: boolean;
@@ -138,6 +142,20 @@ export const SOCIAL_PLATFORM_LABELS: Record<SocialPlatform, string> = {
 export const MAX_CONTACT_CHANNELS = 20;
 export const MAX_BRANCHES = 10;
 export const MAX_SOCIAL_LINKS = 15;
+export const MAX_CATEGORIES = 20;
+export const MAX_FIRESTORE_DOC_SAFE_BYTES = 900_000;
+
+export function estimateJsonUtf8Bytes(value: unknown): number {
+  try {
+    const serialized = JSON.stringify(value ?? {});
+    if (typeof TextEncoder !== 'undefined') {
+      return new TextEncoder().encode(serialized).length;
+    }
+    return serialized.length * 3;
+  } catch {
+    return Number.MAX_SAFE_INTEGER;
+  }
+}
 
 export const DEFAULT_SITE_CONFIG: SiteConfig = {
   id: 'main',
@@ -229,6 +247,8 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
 
   socialLinks: [],
 
+  categories: PRODUCT_CATEGORIES.map((cat) => ({ ...cat })),
+
   showHeroSpotlight: true,
   showValueStrip: true,
   showOffersSection: true,
@@ -299,8 +319,40 @@ export function validateSiteConfigInput(config: SiteConfig): ValidationResult {
   }
 
   const whatsAppDigits = (config.primaryWhatsApp || '').replace(/\D/g, '');
-  if (whatsAppDigits.length < 8 || whatsAppDigits.length > 16) {
+  if (whatsAppDigits.length < 7 || whatsAppDigits.length > 16) {
     errors.push('رقم واتساب الأساسي للطلبات غير صالح (مثال: 201210141187).');
+  }
+
+  const textBoundsChecks: Array<[string | undefined, number, string]> = [
+    [config.tagline, 300, 'الشعار الترحيبي الرئيسي'],
+    [config.heroDescription, 2000, 'الوصف التعريفي بأعلى الصفحة الرئيسية'],
+    [config.announcementText, 400, 'شريط الإعلان العلوي'],
+    [config.seoTitle, 240, 'عنوان محركات البحث (SEO Title)'],
+    [config.seoDescription, 800, 'وصف محركات البحث (Meta Description)'],
+    [config.copyrightText, 300, 'نص حقوق الملكية'],
+    [config.address, 1000, 'العنوان الرئيسي'],
+    [config.workingHours, 300, 'مواعيد العمل'],
+    [config.shippingSummary, 1500, 'ملخص الشحن والتوصيل'],
+    [config.afterSalesPolicy, 2500, 'سياسة ما بعد البيع'],
+    [config.closingPhrase, 300, 'العبارة الختامية'],
+    [config.contactSectionTitle, 200, 'عنوان قسم تواصل معنا'],
+    [config.contactSectionSubtitle, 400, 'العنوان الفرعي لقسم تواصل معنا'],
+    [config.partnerName, 160, 'اسم شريك النجاح'],
+    [config.partnerSubtitle, 200, 'الاسم الفرعي لشريك النجاح'],
+    [config.partnerRoleTitle, 200, 'المسمى الوظيفي للشريك'],
+    [config.partnerServiceScopeText, 800, 'مدن نطاق خدمة الشريك'],
+    [config.aboutHeroTitle, 300, 'عنوان صفحة «من نحن» الرئيسي'],
+    [config.aboutHeroSubtitle, 1500, 'مقدمة صفحة «من نحن»'],
+    [config.aboutStoreIntro, 5000, 'النبذة التعريفية للمحلاوي ستور'],
+    [config.aboutPartnerIntro, 5000, 'النبذة التعريفية لشركة Infinity Corp'],
+    [config.visionTitle, 300, 'عنوان قسم الرؤية'],
+    [config.visionDescription, 2500, 'نص قسم الرؤية'],
+  ];
+
+  for (const [val, maxLen, label] of textBoundsChecks) {
+    if ((val || '').trim().length > maxLen) {
+      errors.push(`حقل «${label}» يتجاوز الحد الأقصى المسموح به (${maxLen} حرفًا).`);
+    }
   }
 
   const urlChecks: Array<[string, string]> = [
@@ -367,6 +419,36 @@ export function validateSiteConfigInput(config: SiteConfig): ValidationResult {
     }
   }
 
+  const rawCategories = config.categories || [];
+  if (rawCategories.length < 1 || rawCategories.length > MAX_CATEGORIES) {
+    errors.push(`يجب أن يحتوي الموقع على قسم واحد على الأقل وحتى ${MAX_CATEGORIES} قسمًا.`);
+  } else {
+    const seenIds = new Set<string>();
+    for (const cat of rawCategories) {
+      const catId = (cat.id || '').trim();
+      const catName = (cat.name || '').trim();
+      if (!catId || catId.length > 60 || !SAFE_ID_REGEX.test(catId)) {
+        errors.push('معرّف أحد الأقسام غير صالح.');
+        break;
+      }
+      if (seenIds.has(catId)) {
+        errors.push(`يوجد تكرار في معرّف القسم (${catId}).`);
+        break;
+      }
+      seenIds.add(catId);
+      if (catName.length < 2 || catName.length > 80) {
+        errors.push('اسم كل قسم يجب أن يكون بين حرفين و80 حرفًا.');
+        break;
+      }
+    }
+  }
+
+  if (estimateJsonUtf8Bytes(config) > MAX_FIRESTORE_DOC_SAFE_BYTES) {
+    errors.push(
+      'حجم بيانات إعدادات الموقع يتجاوز الحد الأقصى المسموح به لمستند Cloud Firestore (1 ميجابايت).'
+    );
+  }
+
   return {
     valid: errors.length === 0,
     errors,
@@ -379,9 +461,10 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     ...input,
   };
 
-  const cleanStr = (val: unknown, fallback: string, maxLen: number): string => {
-    const str = typeof val === 'string' ? val.trim() : fallback;
-    return str.slice(0, maxLen);
+  const cleanStr = (val: unknown, fallback: string, maxLen: number, minLen = 0): string => {
+    const candidate = typeof val === 'string' ? val.trim() : fallback.trim();
+    const effective = candidate.length >= minLen ? candidate : fallback.trim();
+    return effective.slice(0, maxLen);
   };
 
   const rawChannels = Array.isArray(input.contactChannels)
@@ -392,27 +475,28 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     .slice(0, MAX_CONTACT_CHANNELS)
     .map((ch, idx) => {
       const safeId =
-        typeof ch?.id === 'string' && SAFE_ID_REGEX.test(ch.id)
-          ? ch.id.slice(0, 64)
+        typeof ch?.id === 'string' && SAFE_ID_REGEX.test(ch.id.trim())
+          ? ch.id.trim().slice(0, 64)
           : `ch-${idx + 1}`;
       const role: ContactChannelRole =
         ch?.role && ['orders', 'maintenance', 'after_sales', 'support', 'general'].includes(ch.role)
           ? ch.role
           : 'general';
       const owner: ContactChannelOwner = ch?.owner === 'partner' ? 'partner' : 'store';
-      const phone = cleanStr(ch?.phone, STORE_INFO.primaryPhone, 30);
-      const whatsappUrl = cleanStr(
+      const phone = cleanStr(ch?.phone, STORE_INFO.primaryPhone, 30, 7);
+      const rawWaUrl = cleanStr(
         ch?.whatsappUrl,
         buildWhatsAppLinkFromPhone(phone),
-        600
+        600,
+        0
       );
       return {
         id: safeId,
-        label: cleanStr(ch?.label, CONTACT_ROLE_LABELS[role], 120),
+        label: cleanStr(ch?.label, CONTACT_ROLE_LABELS[role], 120, 1),
         role,
         owner,
         phone,
-        whatsappUrl,
+        whatsappUrl: isValidOptionalHttpUrl(rawWaUrl) ? rawWaUrl : buildWhatsAppLinkFromPhone(phone),
       };
     });
 
@@ -422,16 +506,17 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
 
   const branches: BranchLocationItem[] = rawBranches.slice(0, MAX_BRANCHES).map((br, idx) => {
     const safeId =
-      typeof br?.id === 'string' && SAFE_ID_REGEX.test(br.id)
-        ? br.id.slice(0, 64)
+      typeof br?.id === 'string' && SAFE_ID_REGEX.test(br.id.trim())
+        ? br.id.trim().slice(0, 64)
         : `branch-${idx + 1}`;
+    const rawMapUrl = cleanStr(br?.mapUrl, '', 600, 0);
     return {
       id: safeId,
-      name: cleanStr(br?.name, 'فرع المحلاوي ستور', 120),
-      address: cleanStr(br?.address, STORE_INFO.address, 400),
-      mapUrl: cleanStr(br?.mapUrl, '', 600),
-      workingHours: cleanStr(br?.workingHours, '', 160),
-      phone: cleanStr(br?.phone, '', 30),
+      name: cleanStr(br?.name, 'فرع المحلاوي ستور', 120, 1),
+      address: cleanStr(br?.address, STORE_INFO.address, 400, 1),
+      mapUrl: isValidOptionalHttpUrl(rawMapUrl) ? rawMapUrl : '',
+      workingHours: cleanStr(br?.workingHours, '', 160, 0),
+      phone: cleanStr(br?.phone, '', 30, 0),
     };
   });
 
@@ -453,126 +538,198 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     .slice(0, MAX_SOCIAL_LINKS)
     .map((sl, idx) => {
       const safeId =
-        typeof sl?.id === 'string' && SAFE_ID_REGEX.test(sl.id)
-          ? sl.id.slice(0, 64)
+        typeof sl?.id === 'string' && SAFE_ID_REGEX.test(sl.id.trim())
+          ? sl.id.trim().slice(0, 64)
           : `social-${idx + 1}`;
       const platform: SocialPlatform =
         sl?.platform && allowedPlatforms.includes(sl.platform) ? sl.platform : 'other';
       const owner: ContactChannelOwner = sl?.owner === 'partner' ? 'partner' : 'store';
-      const url = cleanStr(sl?.url, '', 600);
+      const url = cleanStr(sl?.url, '', 600, 0);
       return {
         id: safeId,
         platform,
-        label: cleanStr(sl?.label, SOCIAL_PLATFORM_LABELS[platform], 120) || SOCIAL_PLATFORM_LABELS[platform],
+        label: cleanStr(sl?.label, SOCIAL_PLATFORM_LABELS[platform], 120, 1),
         owner,
         url,
       };
     })
     .filter((sl) => sl.url.length > 0 && isValidOptionalHttpUrl(sl.url));
 
-  const primaryWhatsAppDigits = normalizeDigitsForWhatsApp(
-    merged.primaryWhatsApp || merged.primaryPhone || STORE_INFO.primaryWhatsApp
+  const rawCategories =
+    Array.isArray(input.categories) && input.categories.length > 0
+      ? input.categories
+      : DEFAULT_SITE_CONFIG.categories;
+
+  const seenCategoryIds = new Set<string>();
+  const sanitizedCategories: StoreCategoryItem[] = [];
+  for (let idx = 0; idx < rawCategories.length && sanitizedCategories.length < MAX_CATEGORIES; idx += 1) {
+    const cat = rawCategories[idx];
+    const safeId =
+      typeof cat?.id === 'string' && SAFE_ID_REGEX.test(cat.id.trim())
+        ? cat.id.trim().slice(0, 60)
+        : `cat-${idx + 1}`;
+    if (seenCategoryIds.has(safeId)) continue;
+    seenCategoryIds.add(safeId);
+
+    const defaultMatch = PRODUCT_CATEGORIES.find((d) => d.id === safeId);
+    const fallbackName = defaultMatch?.name || `قسم ${idx + 1}`;
+    const safeName = cleanStr(cat?.name, fallbackName, 80, 2);
+    const rawOrder =
+      typeof cat?.order === 'number' && Number.isFinite(cat.order)
+        ? Math.round(cat.order)
+        : idx + 1;
+    const safeOrder = Math.min(100, Math.max(1, rawOrder));
+
+    sanitizedCategories.push({
+      id: safeId,
+      name: safeName,
+      order: safeOrder,
+    });
+  }
+
+  sanitizedCategories.sort((a, b) => a.order - b.order);
+  const categories: StoreCategoryItem[] =
+    sanitizedCategories.length > 0
+      ? sanitizedCategories.map((c, idx) => ({ ...c, order: idx + 1 }))
+      : DEFAULT_SITE_CONFIG.categories.map((c) => ({ ...c }));
+
+  const primaryPhone = cleanStr(merged.primaryPhone, DEFAULT_SITE_CONFIG.primaryPhone, 30, 7);
+  const rawPrimaryWhatsAppDigits = normalizeDigitsForWhatsApp(
+    merged.primaryWhatsApp || primaryPhone || STORE_INFO.primaryWhatsApp
   );
+  const safePrimaryWhatsApp =
+    rawPrimaryWhatsAppDigits.length >= 7
+      ? rawPrimaryWhatsAppDigits.slice(0, 25)
+      : DEFAULT_SITE_CONFIG.primaryWhatsApp;
+
+  const safeUpdatedBy =
+    typeof updatedBy === 'string' && SAFE_ID_REGEX.test(updatedBy.trim())
+      ? updatedBy.trim().slice(0, 128)
+      : 'admin';
 
   return {
     id: 'main',
-    storeName: cleanStr(merged.storeName, DEFAULT_SITE_CONFIG.storeName, 100) || DEFAULT_SITE_CONFIG.storeName,
-    storeSubtitle: cleanStr(merged.storeSubtitle, DEFAULT_SITE_CONFIG.storeSubtitle, 100),
-    tagline: cleanStr(merged.tagline, DEFAULT_SITE_CONFIG.tagline, 200),
-    heroDescription: cleanStr(merged.heroDescription, DEFAULT_SITE_CONFIG.heroDescription, 600),
-    announcementText: cleanStr(merged.announcementText, '', 240),
-    seoTitle: cleanStr(merged.seoTitle, DEFAULT_SITE_CONFIG.seoTitle, 140),
-    seoDescription: cleanStr(merged.seoDescription, DEFAULT_SITE_CONFIG.seoDescription, 400),
-    copyrightText: cleanStr(merged.copyrightText, DEFAULT_SITE_CONFIG.copyrightText, 200),
+    storeName: cleanStr(merged.storeName, DEFAULT_SITE_CONFIG.storeName, 100, 2),
+    storeSubtitle: cleanStr(merged.storeSubtitle, DEFAULT_SITE_CONFIG.storeSubtitle, 100, 0),
+    tagline: cleanStr(merged.tagline, DEFAULT_SITE_CONFIG.tagline, 300, 0),
+    heroDescription: cleanStr(merged.heroDescription, DEFAULT_SITE_CONFIG.heroDescription, 2000, 0),
+    announcementText: cleanStr(merged.announcementText, '', 400, 0),
+    seoTitle: cleanStr(merged.seoTitle, DEFAULT_SITE_CONFIG.seoTitle, 240, 0),
+    seoDescription: cleanStr(merged.seoDescription, DEFAULT_SITE_CONFIG.seoDescription, 800, 0),
+    copyrightText: cleanStr(merged.copyrightText, DEFAULT_SITE_CONFIG.copyrightText, 300, 0),
 
-    primaryPhone: cleanStr(merged.primaryPhone, DEFAULT_SITE_CONFIG.primaryPhone, 30),
-    secondaryPhone: cleanStr(merged.secondaryPhone, DEFAULT_SITE_CONFIG.secondaryPhone, 30),
-    primaryWhatsApp: (primaryWhatsAppDigits || DEFAULT_SITE_CONFIG.primaryWhatsApp).slice(0, 25),
+    primaryPhone,
+    secondaryPhone: cleanStr(merged.secondaryPhone, '', 30, 0),
+    primaryWhatsApp: safePrimaryWhatsApp,
     whatsappUrl: cleanStr(
       merged.whatsappUrl,
-      primaryWhatsAppDigits ? `https://wa.me/${primaryWhatsAppDigits}` : DEFAULT_SITE_CONFIG.whatsappUrl,
-      600
+      `https://wa.me/${safePrimaryWhatsApp}`,
+      600,
+      0
     ),
     afterSalesWhatsAppUrl: cleanStr(
       merged.afterSalesWhatsAppUrl,
       DEFAULT_SITE_CONFIG.afterSalesWhatsAppUrl,
-      600
+      600,
+      0
     ),
-    facebookUrl: cleanStr(merged.facebookUrl, DEFAULT_SITE_CONFIG.facebookUrl, 600),
-    instagramUrl: cleanStr(merged.instagramUrl, '', 600),
-    address: cleanStr(merged.address, DEFAULT_SITE_CONFIG.address, 500),
-    googleMapsUrl: cleanStr(merged.googleMapsUrl, DEFAULT_SITE_CONFIG.googleMapsUrl, 600),
-    workingHours: cleanStr(merged.workingHours, DEFAULT_SITE_CONFIG.workingHours, 160),
-    shippingSummary: cleanStr(merged.shippingSummary, DEFAULT_SITE_CONFIG.shippingSummary, 400),
-    afterSalesPolicy: cleanStr(merged.afterSalesPolicy, DEFAULT_SITE_CONFIG.afterSalesPolicy, 800),
-    closingPhrase: cleanStr(merged.closingPhrase, DEFAULT_SITE_CONFIG.closingPhrase, 160),
+    facebookUrl: cleanStr(merged.facebookUrl, DEFAULT_SITE_CONFIG.facebookUrl, 600, 0),
+    instagramUrl: cleanStr(merged.instagramUrl, '', 600, 0),
+    address: cleanStr(merged.address, DEFAULT_SITE_CONFIG.address, 1000, 0),
+    googleMapsUrl: cleanStr(merged.googleMapsUrl, DEFAULT_SITE_CONFIG.googleMapsUrl, 600, 0),
+    workingHours: cleanStr(merged.workingHours, DEFAULT_SITE_CONFIG.workingHours, 300, 0),
+    shippingSummary: cleanStr(merged.shippingSummary, DEFAULT_SITE_CONFIG.shippingSummary, 1500, 0),
+    afterSalesPolicy: cleanStr(
+      merged.afterSalesPolicy,
+      DEFAULT_SITE_CONFIG.afterSalesPolicy,
+      2500,
+      0
+    ),
+    closingPhrase: cleanStr(merged.closingPhrase, DEFAULT_SITE_CONFIG.closingPhrase, 300, 0),
     contactSectionTitle: cleanStr(
       merged.contactSectionTitle,
       DEFAULT_SITE_CONFIG.contactSectionTitle,
-      120
+      200,
+      0
     ),
     contactSectionSubtitle: cleanStr(
       merged.contactSectionSubtitle,
       DEFAULT_SITE_CONFIG.contactSectionSubtitle,
-      200
+      400,
+      0
     ),
 
-    partnerName: cleanStr(merged.partnerName, DEFAULT_SITE_CONFIG.partnerName, 100),
-    partnerSubtitle: cleanStr(merged.partnerSubtitle, DEFAULT_SITE_CONFIG.partnerSubtitle, 120),
-    partnerRoleTitle: cleanStr(merged.partnerRoleTitle, DEFAULT_SITE_CONFIG.partnerRoleTitle, 120),
+    partnerName: cleanStr(merged.partnerName, DEFAULT_SITE_CONFIG.partnerName, 160, 0),
+    partnerSubtitle: cleanStr(merged.partnerSubtitle, DEFAULT_SITE_CONFIG.partnerSubtitle, 200, 0),
+    partnerRoleTitle: cleanStr(
+      merged.partnerRoleTitle,
+      DEFAULT_SITE_CONFIG.partnerRoleTitle,
+      200,
+      0
+    ),
     partnerServiceScopeText: cleanStr(
       merged.partnerServiceScopeText,
       DEFAULT_SITE_CONFIG.partnerServiceScopeText,
-      300
+      800,
+      0
     ),
     partnerOrderPhone1: cleanStr(
       merged.partnerOrderPhone1,
       DEFAULT_SITE_CONFIG.partnerOrderPhone1,
-      30
+      30,
+      0
     ),
     partnerOrderPhone2: cleanStr(
       merged.partnerOrderPhone2,
       DEFAULT_SITE_CONFIG.partnerOrderPhone2,
-      30
+      30,
+      0
     ),
     partnerMaintenancePhone: cleanStr(
       merged.partnerMaintenancePhone,
       DEFAULT_SITE_CONFIG.partnerMaintenancePhone,
-      30
+      30,
+      0
     ),
     partnerAfterSalesPhone: cleanStr(
       merged.partnerAfterSalesPhone,
       DEFAULT_SITE_CONFIG.partnerAfterSalesPhone,
-      30
+      30,
+      0
     ),
     partnerFacebookUrl: cleanStr(
       merged.partnerFacebookUrl,
       DEFAULT_SITE_CONFIG.partnerFacebookUrl,
-      600
+      600,
+      0
     ),
 
-    aboutHeroTitle: cleanStr(merged.aboutHeroTitle, DEFAULT_SITE_CONFIG.aboutHeroTitle, 160),
+    aboutHeroTitle: cleanStr(merged.aboutHeroTitle, DEFAULT_SITE_CONFIG.aboutHeroTitle, 300, 0),
     aboutHeroSubtitle: cleanStr(
       merged.aboutHeroSubtitle,
       DEFAULT_SITE_CONFIG.aboutHeroSubtitle,
-      500
+      1500,
+      0
     ),
-    aboutStoreIntro: cleanStr(merged.aboutStoreIntro, DEFAULT_SITE_CONFIG.aboutStoreIntro, 1200),
+    aboutStoreIntro: cleanStr(merged.aboutStoreIntro, DEFAULT_SITE_CONFIG.aboutStoreIntro, 5000, 0),
     aboutPartnerIntro: cleanStr(
       merged.aboutPartnerIntro,
       DEFAULT_SITE_CONFIG.aboutPartnerIntro,
-      1200
+      5000,
+      0
     ),
-    visionTitle: cleanStr(merged.visionTitle, DEFAULT_SITE_CONFIG.visionTitle, 160),
+    visionTitle: cleanStr(merged.visionTitle, DEFAULT_SITE_CONFIG.visionTitle, 300, 0),
     visionDescription: cleanStr(
       merged.visionDescription,
       DEFAULT_SITE_CONFIG.visionDescription,
-      800
+      2500,
+      0
     ),
 
     contactChannels,
     branches,
     socialLinks,
+    categories,
 
     showHeroSpotlight: merged.showHeroSpotlight !== false,
     showValueStrip: merged.showValueStrip !== false,
@@ -581,7 +738,124 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     showPartnerCard: merged.showPartnerCard !== false,
     showAboutBanner: merged.showAboutBanner !== false,
 
-    updatedBy: (updatedBy || 'admin').slice(0, 128),
+    updatedBy: safeUpdatedBy,
     updatedAt: typeof merged.updatedAt === 'string' ? merged.updatedAt : new Date().toISOString(),
   };
 }
+
+const PROTECTED_NON_EMPTY_STRING_KEYS: ReadonlyArray<keyof SiteConfig> = [
+  'storeName',
+  'primaryPhone',
+  'primaryWhatsApp',
+  'address',
+  'aboutHeroTitle',
+  'aboutHeroSubtitle',
+  'aboutStoreIntro',
+  'aboutPartnerIntro',
+  'partnerName',
+  'visionTitle',
+  'visionDescription',
+];
+
+/**
+ * Safely merges an incoming SiteConfig draft over the authoritative server document
+ * (if present), preventing accidental wiping of critical store or «من نحن» fields
+ * while allowing intentional updates and optional field clearing.
+ */
+export function mergeSafeSiteConfigForSave(
+  existingServerRaw: Record<string, unknown> | null | undefined,
+  incomingDraft: Partial<SiteConfig>,
+  updatedBy: string
+): SiteConfig {
+  const baseConfig: SiteConfig =
+    existingServerRaw && typeof existingServerRaw === 'object'
+      ? sanitizeSiteConfig(
+          existingServerRaw as Partial<SiteConfig>,
+          typeof existingServerRaw.updatedBy === 'string' ? existingServerRaw.updatedBy : updatedBy
+        )
+      : DEFAULT_SITE_CONFIG;
+
+  const combined: Record<string, unknown> = {
+    ...baseConfig,
+    ...incomingDraft,
+  };
+
+  for (const key of PROTECTED_NON_EMPTY_STRING_KEYS) {
+    const incomingVal = incomingDraft[key];
+    const baseVal = baseConfig[key];
+    if (typeof incomingVal === 'string') {
+      if (incomingVal.trim().length === 0 && typeof baseVal === 'string' && baseVal.trim().length > 0) {
+        combined[key] = baseVal;
+      }
+    } else if (incomingVal === undefined) {
+      combined[key] = baseVal;
+    }
+  }
+
+  if (!Array.isArray(incomingDraft.categories) || incomingDraft.categories.length === 0) {
+    combined.categories = baseConfig.categories;
+  }
+  if (!Array.isArray(incomingDraft.contactChannels)) {
+    combined.contactChannels = baseConfig.contactChannels;
+  }
+  if (!Array.isArray(incomingDraft.branches)) {
+    combined.branches = baseConfig.branches;
+  }
+  if (!Array.isArray(incomingDraft.socialLinks)) {
+    combined.socialLinks = baseConfig.socialLinks;
+  }
+
+  return sanitizeSiteConfig(combined as Partial<SiteConfig>, updatedBy);
+}
+
+/**
+ * Builds a minimal, targeted Firestore `{ merge: true }` update payload containing
+ * core required identity keys plus ONLY the fields that actually changed relative
+ * to the existing server document (or the full sanitized document on initial creation).
+ */
+export function buildTargetedSiteConfigUpdateFields(
+  existingServerRaw: Record<string, unknown> | null | undefined,
+  nextSanitized: SiteConfig,
+  updatedBy: string
+): Omit<Partial<SiteConfig>, 'updatedAt'> & {
+  id: 'main';
+  storeName: string;
+  primaryPhone: string;
+  primaryWhatsApp: string;
+  updatedBy: string;
+} {
+  if (!existingServerRaw || typeof existingServerRaw !== 'object') {
+    const { updatedAt: _omitUpdatedAt, ...rest } = nextSanitized;
+    void _omitUpdatedAt;
+    return {
+      ...rest,
+      id: 'main',
+      updatedBy,
+    };
+  }
+
+  const targeted: Record<string, unknown> = {
+    id: 'main',
+    storeName: nextSanitized.storeName,
+    primaryPhone: nextSanitized.primaryPhone,
+    primaryWhatsApp: nextSanitized.primaryWhatsApp,
+    updatedBy,
+  };
+
+  for (const [key, nextVal] of Object.entries(nextSanitized)) {
+    if (key === 'id' || key === 'updatedAt' || key === 'updatedBy') continue;
+    const prevVal = existingServerRaw[key];
+    if (JSON.stringify(prevVal) !== JSON.stringify(nextVal)) {
+      targeted[key] = nextVal;
+    }
+  }
+
+  return targeted as Omit<Partial<SiteConfig>, 'updatedAt'> & {
+    id: 'main';
+    storeName: string;
+    primaryPhone: string;
+    primaryWhatsApp: string;
+    updatedBy: string;
+  };
+}
+

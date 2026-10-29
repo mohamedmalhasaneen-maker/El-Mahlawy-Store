@@ -14,6 +14,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { Product } from '../../types/store';
+import { PRODUCT_CATEGORIES } from '../../constants/categories';
 import {
   calculateDiscountPercent,
   formatPriceEgp,
@@ -44,6 +45,7 @@ interface OverviewSectionProps {
   onAddNewProduct: () => void;
   onEditProduct: (product: Product) => void;
   onConfigureDiscount: (product: Product) => void;
+  uncategorizedProducts?: Product[];
 }
 
 export function OverviewSection({
@@ -55,6 +57,7 @@ export function OverviewSection({
   onAddNewProduct,
   onEditProduct,
   onConfigureDiscount,
+  uncategorizedProducts = [],
 }: OverviewSectionProps) {
   let publishedCount = 0;
   let hiddenCount = 0;
@@ -154,6 +157,40 @@ export function OverviewSection({
           <span>رفع وإضافة منتج جديد</span>
         </button>
       </div>
+
+      {uncategorizedProducts.length > 0 && (
+        <div className="rounded-2xl bg-amber-950/30 border border-amber-500/50 p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+              <SlidersHorizontal className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-white">منتجات بحاجة لمراجعة القسم ({uncategorizedProducts.length})</h3>
+              <p className="text-xs sm:text-sm text-gray-300 mt-1 leading-relaxed">
+                تم رصد منتجات لا تنتمي لأي من الأقسام الستة الرسمية المعتمدة حديثًا. يرجى تعديلها وتحديد القسم الصحيح لتظهر للزوار في الفلاتر الجديدة.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {uncategorizedProducts.slice(0, 4).map((p) => (
+              <button
+                key={p.id}
+                onClick={() => onEditProduct(p)}
+                className="flex items-center gap-3 p-2 rounded-xl bg-[#0B0B0B] border border-white/10 hover:border-amber-500/50 transition-colors text-right cursor-pointer"
+              >
+                <ProductImage src={p.images[0]} alt={p.name} containerClassName="h-10 w-10 shrink-0 rounded-lg bg-white/5 p-1" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-white truncate">{p.name}</p>
+                  <p className="text-[10px] text-amber-400">القسم الحالي: {p.category || 'غير محدد'}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+          {uncategorizedProducts.length > 4 && (
+            <p className="text-[10px] text-gray-400 text-center italic">... وهناك {uncategorizedProducts.length - 4} منتجات أخرى بحاجة للمراجعة</p>
+          )}
+        </div>
+      )}
 
       {/* KPI Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">

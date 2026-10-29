@@ -25,8 +25,12 @@ import {
 } from './catalogLogic';
 import {
   DEFAULT_SITE_CONFIG,
+  MAX_FIRESTORE_DOC_SAFE_BYTES,
+  buildTargetedSiteConfigUpdateFields,
+  estimateJsonUtf8Bytes,
   isValidOptionalHttpUrl,
   isValidPhoneNumber,
+  mergeSafeSiteConfigForSave,
   sanitizeSiteConfig,
   validateSiteConfigInput,
 } from './siteConfig';
@@ -37,7 +41,8 @@ const TEST_PRODUCTS: Product[] = [
     id: 'prod-test-1',
     name: 'سماعة رأس لاسلكية برو',
     brand: 'سوني',
-    category: 'سماعات وصوتيات',
+    categoryId: 'accessories',
+    category: 'قسم إكسسوارات الهاتف',
     shortDescription: 'صوت نقي وعزل ضوضاء احترافي',
     description: 'سماعة لاسلكية حديثة ببطارية تدوم طويلًا.',
     price: 2450,
@@ -57,7 +62,8 @@ const TEST_PRODUCTS: Product[] = [
     id: 'prod-titanium-smartwatch-ultra',
     name: 'ساعة ذكية تيتانيوم ألترا',
     brand: 'أوشن تيك',
-    category: 'ساعات ذكية',
+    categoryId: 'smart_home',
+    category: 'قسم السمارت هوم',
     shortDescription: 'شاشة AMOLED عالية السطوع',
     description: 'ساعة ذكية مقاومة للماء مع متابعة شاملة.',
     price: 1890,
@@ -77,7 +83,8 @@ const TEST_PRODUCTS: Product[] = [
     id: 'prod-charger-1',
     name: 'باور بانك 20000 مللي أمبير',
     brand: 'بيسوس',
-    category: 'شواحن وطاقة',
+    categoryId: 'electrical',
+    category: 'قسم الأدوات الكهربائية',
     shortDescription: 'شحن سريع رقمي PD',
     description: 'بطارية محمولة بسعة كبيرة وشاشة رقمية.',
     price: 1250,
@@ -97,7 +104,8 @@ const TEST_PRODUCTS: Product[] = [
     id: 'prod-charger-2',
     name: 'المشترك الكوري الذكي',
     brand: 'LG',
-    category: 'شواحن وطاقة',
+    categoryId: 'electrical',
+    category: 'قسم الأدوات الكهربائية',
     shortDescription: 'مشترك كهرباء ذكي مع حماية ومنافذ USB',
     description: '4 مخارج كهرباء مع منفذي شحن USB وحماية فصل تلقائي.',
     price: 800,
@@ -254,6 +262,7 @@ test('validateProductInput allows optional description/category/brand while reje
   const minimalValid = validateProductInput({
     name: 'كاميرا مراقبة خارجية',
     brand: '',
+    categoryId: 'cctv',
     category: '',
     shortDescription: '',
     description: '',
@@ -272,6 +281,7 @@ test('validateProductInput allows optional description/category/brand while reje
   const sanitized = sanitizeProductPayload({
     name: 'كاميرا مراقبة خارجية',
     brand: '',
+    categoryId: 'cctv',
     category: '',
     shortDescription: '',
     description: '',
@@ -287,11 +297,14 @@ test('validateProductInput allows optional description/category/brand while reje
   });
   assert.equal(sanitized.price, 1200);
   assert.equal(sanitized.originalPrice, 1200);
+  assert.equal(sanitized.categoryId, 'cctv');
+  assert.equal(sanitized.category, 'قسم كاميرات المراقبة');
   assert.equal(sanitized.isPublished, false);
 
   const blobRejected = validateProductInput({
     name: 'منتج بصورة مؤقتة',
     brand: '',
+    categoryId: 'cctv',
     category: '',
     shortDescription: '',
     description: '',
@@ -377,7 +390,7 @@ test('resolvePublicImageUrl, WhatsApp order builder, share links, and catalog fi
   const discounted = getDiscountedProducts(TEST_PRODUCTS);
   assert.equal(discounted.length, 3);
 
-  const chargers = filterAndSortProducts(TEST_PRODUCTS, '', 'شواحن وطاقة', SortOption.PRICE_ASC);
+  const chargers = filterAndSortProducts(TEST_PRODUCTS, '', 'electrical', SortOption.PRICE_ASC);
   assert.equal(chargers.length, 2);
   assert.ok(chargers[0].price <= chargers[1].price);
 
@@ -419,7 +432,8 @@ test('prepareProductFormSubmission persists discount settings from Upload & Add 
   const baseForm = {
     name: 'جهاز تسجيل هيك فيجن 8 قنوات',
     brand: 'Hikvision',
-    category: 'أنظمة مراقبة',
+    categoryId: 'cctv',
+    category: 'قسم كاميرات المراقبة',
     shortDescription: 'دقة عالية مع دعم الموبايل',
     description: 'يدعم 8 كاميرات بدقة 5 ميجابكسل.',
     price: 0,
@@ -516,4 +530,88 @@ test('prepareProductFormSubmission persists discount settings from Upload & Add 
   assert.equal(badFinalPrice.valid, false);
   assert.ok(badFinalPrice.errors.some((e) => e.includes('أقل من السعر الأساسي')));
 });
+
+test('sanitizeSiteConfig enforces Firestore minLength boundaries and preserves custom ordered categories', () => {
+  const sanitized = sanitizeSiteConfig(
+    {
+      ...DEFAULT_SITE_CONFIG,
+      storeName: ' ',
+      primaryPhone: '12',
+      primaryWhatsApp: '',
+      categories: [
+        { id: 'smart_home', name: 'قسم السمارت هوم الذكي', order: 1 },
+        { id: 'cctv', name: 'قسم كاميرات المراقبة', order: 2 },
+        { id: 'cat-networking', name: 'قسم الشبكات والراوتر', order: 3 },
+      ],
+    },
+    'eGi5P37ztLe5Nn77sEFvmFFcZWp1'
+  );
+
+  assert.equal(sanitized.storeName, DEFAULT_SITE_CONFIG.storeName);
+  assert.equal(sanitized.primaryPhone, DEFAULT_SITE_CONFIG.primaryPhone);
+  assert.equal(sanitized.primaryWhatsApp, DEFAULT_SITE_CONFIG.primaryWhatsApp);
+  assert.equal(sanitized.updatedBy, 'eGi5P37ztLe5Nn77sEFvmFFcZWp1');
+  assert.equal(sanitized.categories.length, 3);
+  assert.equal(sanitized.categories[0].id, 'smart_home');
+  assert.equal(sanitized.categories[0].order, 1);
+  assert.equal(sanitized.categories[2].id, 'cat-networking');
+  assert.equal(sanitized.categories[2].name, 'قسم الشبكات والراوتر');
+});
+
+test('mergeSafeSiteConfigForSave prevents accidental blanking, preserves server fields, builds minimal targeted updates, and checks Firestore byte limits', () => {
+  const existingServerDoc: Record<string, unknown> = {
+    ...DEFAULT_SITE_CONFIG,
+    storeName: 'المحلاوي ستور الأصلي',
+    aboutHeroTitle: 'عنوان من نحن الحالي على الخادم',
+    aboutStoreIntro: 'نبذة المحلاوي ستور المحفوظة مسبقًا على الخادم.',
+    announcementText: 'إعلان قديم قابل للمسح',
+    instagramUrl: 'https://instagram.com/elmahlawystore',
+  };
+
+  // Accidental blanking of protected fields (empty storeName / empty aboutHeroTitle) preserves server values,
+  // while intentional update of aboutStoreIntro and intentional clearing of optional announcementText succeed!
+  const merged = mergeSafeSiteConfigForSave(
+    existingServerDoc,
+    {
+      storeName: '   ',
+      aboutHeroTitle: '',
+      aboutStoreIntro: 'نبذة جديدة موسعة ومحدّثة للمحلاوي ستور في شرم الشيخ.',
+      announcementText: '',
+      instagramUrl: '',
+    },
+    'eGi5P37ztLe5Nn77sEFvmFFcZWp1'
+  );
+
+  assert.equal(merged.storeName, 'المحلاوي ستور الأصلي');
+  assert.equal(merged.aboutHeroTitle, 'عنوان من نحن الحالي على الخادم');
+  assert.equal(merged.aboutStoreIntro, 'نبذة جديدة موسعة ومحدّثة للمحلاوي ستور في شرم الشيخ.');
+  assert.equal(merged.announcementText, '');
+  assert.equal(merged.instagramUrl, '');
+  assert.ok(estimateJsonUtf8Bytes(merged) < MAX_FIRESTORE_DOC_SAFE_BYTES);
+
+  // Targeted update fields include core required keys + ONLY the fields that actually changed
+  const targeted = buildTargetedSiteConfigUpdateFields(
+    existingServerDoc,
+    merged,
+    'eGi5P37ztLe5Nn77sEFvmFFcZWp1'
+  );
+  assert.equal(targeted.id, 'main');
+  assert.equal(targeted.storeName, 'المحلاوي ستور الأصلي');
+  assert.equal(targeted.updatedBy, 'eGi5P37ztLe5Nn77sEFvmFFcZWp1');
+  assert.equal(targeted.aboutStoreIntro, 'نبذة جديدة موسعة ومحدّثة للمحلاوي ستور في شرم الشيخ.');
+  assert.equal(targeted.announcementText, '');
+  assert.equal(targeted.instagramUrl, '');
+  // Unchanged field (e.g. visionDescription) is NOT redundantly resent in targeted update
+  assert.equal('visionDescription' in targeted, false);
+
+  // Initial creation (existingServerRaw === null) includes full SiteConfig fields
+  const initialCreateFields = buildTargetedSiteConfigUpdateFields(
+    null,
+    merged,
+    'eGi5P37ztLe5Nn77sEFvmFFcZWp1'
+  );
+  assert.equal(initialCreateFields.visionDescription, merged.visionDescription);
+});
+
+
 

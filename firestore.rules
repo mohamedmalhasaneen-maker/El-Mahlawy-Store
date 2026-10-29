@@ -29,7 +29,9 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.uid == 'eGi5P37ztLe5Nn77sEFvmFFcZWp1' ||
         (
+          'email_verified' in request.auth.token &&
           request.auth.token.email_verified == true &&
+          'email' in request.auth.token &&
           (
             request.auth.token.email == 'abdulazizriadvip@gmail.com' ||
             request.auth.token.email == 'mohamed.m.alhasaneen@gmail.com'
@@ -42,6 +44,7 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthorizedDeveloper() || (
         isSignedIn() &&
+        'email_verified' in request.auth.token &&
         request.auth.token.email_verified == true &&
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
@@ -55,7 +58,7 @@ service cloud.firestore {
           'isPublished', 'images', 'specs', 'options', 'authorUid', 'createdAt', 'updatedAt'
         ]) &&
         data.keys().hasOnly([
-          'id', 'name', 'brand', 'category', 'shortDescription', 'description',
+          'id', 'name', 'brand', 'category', 'categoryId', 'shortDescription', 'description',
           'price', 'originalPrice', 'discountEnabled', 'discountType', 'discountValue',
           'discountStartDate', 'discountEndDate', 'inStock', 'isFeatured',
           'isPublished', 'images', 'specs', 'options', 'authorUid', 'createdAt', 'updatedAt'
@@ -63,7 +66,8 @@ service cloud.firestore {
         data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
         data.name is string && data.name.size() >= 2 && data.name.size() <= 160 &&
         data.brand is string && data.brand.size() <= 80 &&
-        data.category is string && data.category.size() <= 60 &&
+        data.category is string && data.category.size() <= 80 &&
+        (!('categoryId' in data) || (data.categoryId is string && data.categoryId.size() <= 60)) &&
         data.shortDescription is string && data.shortDescription.size() <= 300 &&
         data.description is string && data.description.size() <= 3000 &&
         (data.price is int || data.price is float) && data.price > 0 && data.price <= 1000000 &&
@@ -82,7 +86,7 @@ service cloud.firestore {
         data.specs is list && data.specs.size() <= 15 &&
         (data.specs.size() == 0 || (data.specs[0] is string && data.specs[0].size() >= 1 && data.specs[0].size() <= 200)) &&
         data.options is list && data.options.size() <= 10 &&
-        (data.options.size() == 0 || (data.options[0] is string && data.options[0].size() >= 1 && data.options[0].size() <= 80)) &&
+        (data.options.size() == 0 || (data.options[0] is string && data.options[0].size() <= 80)) &&
         data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 && data.authorUid.matches('^[a-zA-Z0-9_\\-]+$') &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;
@@ -124,80 +128,92 @@ service cloud.firestore {
         item.phone is string && item.phone.size() <= 30;
     }
 
+    function isValidCategoryItem(item) {
+      return item is map &&
+        item.keys().hasAll(['id', 'name', 'order']) &&
+        item.keys().hasOnly(['id', 'name', 'order']) &&
+        item.id is string && item.id.size() >= 1 && item.id.size() <= 60 && item.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+        item.name is string && item.name.size() >= 2 && item.name.size() <= 80 &&
+        (item.order is int || item.order is float) && item.order >= 1 && item.order <= 100;
+    }
+
     function isValidSiteIdentityAndContacts(data) {
       return data.id is string && data.id.size() >= 1 && data.id.size() <= 32 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
         data.storeName is string && data.storeName.size() >= 2 && data.storeName.size() <= 100 &&
-        data.storeSubtitle is string && data.storeSubtitle.size() <= 100 &&
-        data.tagline is string && data.tagline.size() <= 200 &&
-        data.heroDescription is string && data.heroDescription.size() <= 600 &&
-        data.announcementText is string && data.announcementText.size() <= 240 &&
-        data.seoTitle is string && data.seoTitle.size() <= 140 &&
-        data.seoDescription is string && data.seoDescription.size() <= 400 &&
-        data.copyrightText is string && data.copyrightText.size() <= 200 &&
+        (!('storeSubtitle' in data) || (data.storeSubtitle is string && data.storeSubtitle.size() <= 100)) &&
+        (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 300)) &&
+        (!('heroDescription' in data) || (data.heroDescription is string && data.heroDescription.size() <= 2000)) &&
+        (!('announcementText' in data) || (data.announcementText is string && data.announcementText.size() <= 400)) &&
+        (!('seoTitle' in data) || (data.seoTitle is string && data.seoTitle.size() <= 240)) &&
+        (!('seoDescription' in data) || (data.seoDescription is string && data.seoDescription.size() <= 800)) &&
+        (!('copyrightText' in data) || (data.copyrightText is string && data.copyrightText.size() <= 300)) &&
         data.primaryPhone is string && data.primaryPhone.size() >= 7 && data.primaryPhone.size() <= 30 &&
-        data.secondaryPhone is string && data.secondaryPhone.size() <= 30 &&
+        (!('secondaryPhone' in data) || (data.secondaryPhone is string && data.secondaryPhone.size() <= 30)) &&
         data.primaryWhatsApp is string && data.primaryWhatsApp.size() >= 7 && data.primaryWhatsApp.size() <= 25 &&
-        data.whatsappUrl is string && data.whatsappUrl.size() <= 600 &&
-        data.afterSalesWhatsAppUrl is string && data.afterSalesWhatsAppUrl.size() <= 600 &&
-        data.facebookUrl is string && data.facebookUrl.size() <= 600 &&
-        data.instagramUrl is string && data.instagramUrl.size() <= 600 &&
-        data.address is string && data.address.size() <= 500 &&
-        data.googleMapsUrl is string && data.googleMapsUrl.size() <= 600 &&
-        data.workingHours is string && data.workingHours.size() <= 160 &&
-        data.shippingSummary is string && data.shippingSummary.size() <= 400 &&
-        data.afterSalesPolicy is string && data.afterSalesPolicy.size() <= 800 &&
-        data.closingPhrase is string && data.closingPhrase.size() <= 160 &&
-        data.contactSectionTitle is string && data.contactSectionTitle.size() <= 120 &&
-        data.contactSectionSubtitle is string && data.contactSectionSubtitle.size() <= 200;
+        (!('whatsappUrl' in data) || (data.whatsappUrl is string && data.whatsappUrl.size() <= 600)) &&
+        (!('afterSalesWhatsAppUrl' in data) || (data.afterSalesWhatsAppUrl is string && data.afterSalesWhatsAppUrl.size() <= 600)) &&
+        (!('facebookUrl' in data) || (data.facebookUrl is string && data.facebookUrl.size() <= 600)) &&
+        (!('instagramUrl' in data) || (data.instagramUrl is string && data.instagramUrl.size() <= 600)) &&
+        (!('address' in data) || (data.address is string && data.address.size() <= 1000)) &&
+        (!('googleMapsUrl' in data) || (data.googleMapsUrl is string && data.googleMapsUrl.size() <= 600)) &&
+        (!('workingHours' in data) || (data.workingHours is string && data.workingHours.size() <= 300)) &&
+        (!('shippingSummary' in data) || (data.shippingSummary is string && data.shippingSummary.size() <= 1500)) &&
+        (!('afterSalesPolicy' in data) || (data.afterSalesPolicy is string && data.afterSalesPolicy.size() <= 2500)) &&
+        (!('closingPhrase' in data) || (data.closingPhrase is string && data.closingPhrase.size() <= 300)) &&
+        (!('contactSectionTitle' in data) || (data.contactSectionTitle is string && data.contactSectionTitle.size() <= 200)) &&
+        (!('contactSectionSubtitle' in data) || (data.contactSectionSubtitle is string && data.contactSectionSubtitle.size() <= 400));
     }
 
     function isValidSitePartnerAboutAndMeta(data) {
-      return data.partnerName is string && data.partnerName.size() <= 100 &&
-        data.partnerSubtitle is string && data.partnerSubtitle.size() <= 120 &&
-        data.partnerRoleTitle is string && data.partnerRoleTitle.size() <= 120 &&
-        data.partnerServiceScopeText is string && data.partnerServiceScopeText.size() <= 300 &&
-        data.partnerOrderPhone1 is string && data.partnerOrderPhone1.size() <= 30 &&
-        data.partnerOrderPhone2 is string && data.partnerOrderPhone2.size() <= 30 &&
-        data.partnerMaintenancePhone is string && data.partnerMaintenancePhone.size() <= 30 &&
-        data.partnerAfterSalesPhone is string && data.partnerAfterSalesPhone.size() <= 30 &&
-        data.partnerFacebookUrl is string && data.partnerFacebookUrl.size() <= 600 &&
-        data.aboutHeroTitle is string && data.aboutHeroTitle.size() <= 160 &&
-        data.aboutHeroSubtitle is string && data.aboutHeroSubtitle.size() <= 500 &&
-        data.aboutStoreIntro is string && data.aboutStoreIntro.size() <= 1200 &&
-        data.aboutPartnerIntro is string && data.aboutPartnerIntro.size() <= 1200 &&
-        data.visionTitle is string && data.visionTitle.size() <= 160 &&
-        data.visionDescription is string && data.visionDescription.size() <= 800 &&
-        data.contactChannels is list && data.contactChannels.size() <= 20 &&
-        (data.contactChannels.size() == 0 || isValidContactChannelItem(data.contactChannels[0])) &&
-        data.socialLinks is list && data.socialLinks.size() <= 15 &&
-        (data.socialLinks.size() == 0 || isValidSocialLinkItem(data.socialLinks[0])) &&
-        data.branches is list && data.branches.size() <= 10 &&
-        (data.branches.size() == 0 || isValidBranchItem(data.branches[0])) &&
-        data.showHeroSpotlight is bool &&
-        data.showValueStrip is bool &&
-        data.showOffersSection is bool &&
-        data.showShippingSection is bool &&
-        data.showPartnerCard is bool &&
-        data.showAboutBanner is bool &&
+      return (!('partnerName' in data) || (data.partnerName is string && data.partnerName.size() <= 160)) &&
+        (!('partnerSubtitle' in data) || (data.partnerSubtitle is string && data.partnerSubtitle.size() <= 200)) &&
+        (!('partnerRoleTitle' in data) || (data.partnerRoleTitle is string && data.partnerRoleTitle.size() <= 200)) &&
+        (!('partnerServiceScopeText' in data) || (data.partnerServiceScopeText is string && data.partnerServiceScopeText.size() <= 800)) &&
+        (!('partnerOrderPhone1' in data) || (data.partnerOrderPhone1 is string && data.partnerOrderPhone1.size() <= 30)) &&
+        (!('partnerOrderPhone2' in data) || (data.partnerOrderPhone2 is string && data.partnerOrderPhone2.size() <= 30)) &&
+        (!('partnerMaintenancePhone' in data) || (data.partnerMaintenancePhone is string && data.partnerMaintenancePhone.size() <= 30)) &&
+        (!('partnerAfterSalesPhone' in data) || (data.partnerAfterSalesPhone is string && data.partnerAfterSalesPhone.size() <= 30)) &&
+        (!('partnerFacebookUrl' in data) || (data.partnerFacebookUrl is string && data.partnerFacebookUrl.size() <= 600)) &&
+        (!('aboutHeroTitle' in data) || (data.aboutHeroTitle is string && data.aboutHeroTitle.size() <= 300)) &&
+        (!('aboutHeroSubtitle' in data) || (data.aboutHeroSubtitle is string && data.aboutHeroSubtitle.size() <= 1500)) &&
+        (!('aboutStoreIntro' in data) || (data.aboutStoreIntro is string && data.aboutStoreIntro.size() <= 5000)) &&
+        (!('aboutPartnerIntro' in data) || (data.aboutPartnerIntro is string && data.aboutPartnerIntro.size() <= 5000)) &&
+        (!('visionTitle' in data) || (data.visionTitle is string && data.visionTitle.size() <= 300)) &&
+        (!('visionDescription' in data) || (data.visionDescription is string && data.visionDescription.size() <= 2500)) &&
+        (!('contactChannels' in data) || (
+          data.contactChannels is list &&
+          data.contactChannels.size() <= 20 &&
+          (data.contactChannels.size() == 0 || isValidContactChannelItem(data.contactChannels[0]))
+        )) &&
+        (!('socialLinks' in data) || (
+          data.socialLinks is list &&
+          data.socialLinks.size() <= 15 &&
+          (data.socialLinks.size() == 0 || isValidSocialLinkItem(data.socialLinks[0]))
+        )) &&
+        (!('branches' in data) || (
+          data.branches is list &&
+          data.branches.size() <= 10 &&
+          (data.branches.size() == 0 || isValidBranchItem(data.branches[0]))
+        )) &&
+        (!('categories' in data) || (
+          data.categories is list &&
+          data.categories.size() >= 1 &&
+          data.categories.size() <= 20 &&
+          isValidCategoryItem(data.categories[0])
+        )) &&
+        (!('showHeroSpotlight' in data) || data.showHeroSpotlight is bool) &&
+        (!('showValueStrip' in data) || data.showValueStrip is bool) &&
+        (!('showOffersSection' in data) || data.showOffersSection is bool) &&
+        (!('showShippingSection' in data) || data.showShippingSection is bool) &&
+        (!('showPartnerCard' in data) || data.showPartnerCard is bool) &&
+        (!('showAboutBanner' in data) || data.showAboutBanner is bool) &&
         data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$') &&
         data.updatedAt is timestamp;
     }
 
     function isValidSiteConfig(data) {
       return data.keys().hasAll([
-          'id', 'storeName', 'storeSubtitle', 'tagline', 'heroDescription',
-          'announcementText', 'seoTitle', 'seoDescription', 'copyrightText',
-          'primaryPhone', 'secondaryPhone', 'primaryWhatsApp', 'whatsappUrl',
-          'afterSalesWhatsAppUrl', 'facebookUrl', 'instagramUrl', 'address',
-          'googleMapsUrl', 'workingHours', 'shippingSummary', 'afterSalesPolicy',
-          'closingPhrase', 'contactSectionTitle', 'contactSectionSubtitle',
-          'partnerName', 'partnerSubtitle', 'partnerRoleTitle', 'partnerServiceScopeText',
-          'partnerOrderPhone1', 'partnerOrderPhone2', 'partnerMaintenancePhone',
-          'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
-          'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
-          'visionDescription', 'contactChannels', 'socialLinks', 'branches',
-          'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
-          'showPartnerCard', 'showAboutBanner', 'updatedBy', 'updatedAt'
+          'id', 'storeName', 'primaryPhone', 'primaryWhatsApp', 'updatedBy', 'updatedAt'
         ]) &&
         data.keys().hasOnly([
           'id', 'storeName', 'storeSubtitle', 'tagline', 'heroDescription',
@@ -210,7 +226,7 @@ service cloud.firestore {
           'partnerOrderPhone1', 'partnerOrderPhone2', 'partnerMaintenancePhone',
           'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
           'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
-          'visionDescription', 'contactChannels', 'socialLinks', 'branches',
+          'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
           'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
           'showPartnerCard', 'showAboutBanner', 'updatedBy', 'updatedAt'
         ]) &&
@@ -243,13 +259,14 @@ service cloud.firestore {
         (
           isAdmin() ||
           incoming().diff(existing()).affectedKeys().hasOnly([
-            'name', 'brand', 'category', 'shortDescription', 'description',
+            'name', 'brand', 'category', 'categoryId', 'shortDescription', 'description',
             'price', 'originalPrice', 'discountEnabled', 'discountType',
             'discountValue', 'discountStartDate', 'discountEndDate',
             'inStock', 'isFeatured', 'isPublished', 'images', 'specs',
             'options', 'updatedAt'
           ]) ||
           incoming().diff(existing()).affectedKeys().hasOnly([
+            'category', 'categoryId',
             'price', 'originalPrice', 'discountEnabled', 'discountType',
             'discountValue', 'discountStartDate', 'discountEndDate',
             'inStock', 'isFeatured', 'isPublished', 'updatedAt'
@@ -279,7 +296,6 @@ service cloud.firestore {
         configId == 'main' &&
         isValidSiteConfig(incoming()) &&
         incoming().id == configId &&
-        (!('id' in existing()) || incoming().id == existing().id) &&
         incoming().updatedBy == request.auth.uid &&
         incoming().updatedAt == request.time &&
         (
@@ -295,7 +311,7 @@ service cloud.firestore {
             'partnerOrderPhone1', 'partnerOrderPhone2', 'partnerMaintenancePhone',
             'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
             'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
-            'visionDescription', 'contactChannels', 'socialLinks', 'branches',
+            'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
             'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
             'showPartnerCard', 'showAboutBanner', 'updatedBy', 'updatedAt'
           ])
@@ -314,9 +330,9 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Read-only Connectivity Probe (/test/connection)
+    // Read-only Connectivity & Rules Version Probe (/test/connection, /test/rules_v3_ready)
     match /test/{probeId} {
-      allow get: if isValidId(probeId) && probeId == 'connection';
+      allow get: if isValidId(probeId) && (probeId == 'connection' || probeId == 'rules_v3_ready');
       allow list: if false;
       allow create: if false;
       allow update: if false;
@@ -325,12 +341,20 @@ service cloud.firestore {
 
     // Public Visitor Stats (/meta/visitors)
     match /meta/{statId} {
-      allow get: if statId == 'visitors';
+      allow get: if isValidId(statId) && statId == 'visitors';
       allow list: if false;
-      allow create: if statId == 'visitors' && incoming().id == 'visitors' && incoming().count == 1;
-      allow update: if statId == 'visitors' &&
-                       request.resource.data.count == resource.data.count + 1 &&
-                       request.resource.data.id == 'visitors';
+      allow create: if isValidId(statId) &&
+        statId == 'visitors' &&
+        incoming().keys().hasAll(['id', 'count']) &&
+        incoming().keys().hasOnly(['id', 'count']) &&
+        incoming().id == 'visitors' &&
+        incoming().count == 1;
+      allow update: if isValidId(statId) &&
+        statId == 'visitors' &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['count']) &&
+        (incoming().count is int || incoming().count is float) &&
+        incoming().count == existing().count + 1 &&
+        incoming().id == 'visitors';
       allow delete: if false;
     }
   }

@@ -12,10 +12,12 @@ import {
 import {
   AUTHORIZED_DEVELOPER_EMAIL,
   AUTHORIZED_DEVELOPER_UID,
+  FIREBASE_DATABASE_ID,
   FIREBASE_PROJECT_ID,
   User,
   isAuthorizedDeveloperUid,
   sendDeveloperPasswordReset,
+  sendDeveloperVerificationEmail,
   translateFirebaseAuthError,
 } from '../../lib/firebase';
 import { SiteConfig } from '../../utils/siteConfig';
@@ -33,13 +35,14 @@ export function AccountSettingsSection({
   onRefreshAuth,
   onLogout,
 }: AccountSettingsSectionProps) {
-  const [busyAction, setBusyAction] = useState<'refresh' | 'reset' | null>(null);
+  const [busyAction, setBusyAction] = useState<'refresh' | 'reset' | 'verify' | null>(null);
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
   } | null>(null);
 
   const uidMatchesPrimary = isAuthorizedDeveloperUid(currentUser?.uid);
+  const isEmailVerified = currentUser?.emailVerified === true;
 
   const handleRefreshSession = async () => {
     setBusyAction('refresh');
@@ -48,7 +51,7 @@ export function AccountSettingsSection({
       await onRefreshAuth();
       setFeedback({
         type: 'success',
-        message: 'تم تحديث رمز جلسة المطور (ID Token) والتحقق من الصلاحيات بنجاح.',
+        message: 'تم تحديث رمز جلسة المطور (ID Token) والتحقق من الصلاحيات السحابية بنجاح.',
       });
     } catch (err) {
       setFeedback({
@@ -88,6 +91,26 @@ export function AccountSettingsSection({
     }
   };
 
+  const handleSendEmailVerificationLink = async () => {
+    if (!currentUser) return;
+    setBusyAction('verify');
+    setFeedback(null);
+    try {
+      await sendDeveloperVerificationEmail(currentUser);
+      setFeedback({
+        type: 'success',
+        message: `تم إرسال رابط توثيق البريد الإلكتروني إلى ${currentUser.email || ''}. بعد الضغط على الرابط في بريدك، اضغط «تحديث حالة الجلسة».`,
+      });
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message: translateFirebaseAuthError(err),
+      });
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   return (
     <section aria-labelledby="dev-account-heading" className="space-y-6">
       <div className="pb-4 border-b border-[#D4AF37]/25">
@@ -111,7 +134,7 @@ export function AccountSettingsSection({
           {feedback.type === 'success' ? (
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" aria-hidden="true" />
           ) : (
-            <AlertCircle className="h-4 w-4 text-[#EF5350] shrink-0 mt-0.5" aria-hidden="true" />
+            <AlertCircle className="h-4 w-4 text-[#38BDF8] shrink-0 mt-0.5" aria-hidden="true" />
           )}
           <span>{feedback.message}</span>
         </div>
@@ -125,11 +148,11 @@ export function AccountSettingsSection({
           </span>
           <div>
             <h3 className="text-base sm:text-lg font-extrabold text-white">
-              حساب المطور المصرح له بالإدارة
+              حساب المطور المصرح له بالإدارة السحابية
             </h3>
             <p className="text-xs text-emerald-400 font-semibold mt-0.5">
               {uidMatchesPrimary
-                ? 'مطابق لمعرّف المطور المعتمد (UID Verified)'
+                ? 'مطابق لمعرّف المطور المعتمد (UID Verified — صلاحية الكتابة السحابية مفعّلة)'
                 : 'حساب مسؤول موثّق عبر البريد المؤكد'}
             </p>
           </div>
@@ -137,9 +160,18 @@ export function AccountSettingsSection({
 
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/10 text-xs sm:text-sm">
           <div className="rounded-xl bg-[#0B0B0B] border border-white/10 p-3.5 space-y-1">
-            <dt className="text-xs text-gray-400">البريد الإلكتروني المسجّل</dt>
+            <dt className="text-xs text-gray-400">البريد الإلكتروني وحالة التوثيق</dt>
             <dd className="font-bold text-white break-all">
               <bdi>{currentUser?.email || AUTHORIZED_DEVELOPER_EMAIL}</bdi>
+              <span
+                className={`block text-[11px] font-semibold mt-1 ${
+                  isEmailVerified ? 'text-emerald-400' : 'text-[#D4AF37]'
+                }`}
+              >
+                {isEmailVerified
+                  ? 'البريد الإلكتروني موثّق (emailVerified: true)'
+                  : 'البريد غير موثّق بعد (emailVerified: false) — الصلاحية السحابية مفعّلة عبر معرّف UID الثابت'}
+              </span>
             </dd>
           </div>
 
@@ -158,12 +190,17 @@ export function AccountSettingsSection({
           </div>
 
           <div className="rounded-xl bg-[#0B0B0B] border border-white/10 p-3.5 space-y-1">
-            <dt className="text-xs text-gray-400">مشروع السحابة المرتبط (Firebase Project)</dt>
-            <dd className="font-mono text-xs font-bold text-gray-200 break-all tabular-nums">
-              <bdi>{FIREBASE_PROJECT_ID}</bdi>
-              {siteConfig.updatedAt ? (
-                <span className="block text-[11px] font-sans font-normal text-gray-400 mt-0.5">
-                  آخر تحديث للإعدادات:{' '}
+            <dt className="text-xs text-gray-400">مشروع وقاعدة بيانات Cloud Firestore</dt>
+            <dd className="font-mono text-xs font-bold text-gray-200 break-all tabular-nums space-y-0.5">
+              <div>
+                Project: <bdi className="text-[#D4AF37]">{FIREBASE_PROJECT_ID}</bdi>
+              </div>
+              <div className="text-[11px] text-gray-400">
+                DB: <bdi>{FIREBASE_DATABASE_ID}</bdi>
+              </div>
+              {siteConfig.updatedAt && siteConfig.updatedBy !== 'system' ? (
+                <span className="block text-[11px] font-sans font-normal text-gray-400 pt-0.5">
+                  آخر حفظ سحابي للإعدادات:{' '}
                   {new Date(siteConfig.updatedAt).toLocaleString('ar-EG', {
                     dateStyle: 'medium',
                     timeStyle: 'short',
@@ -176,6 +213,22 @@ export function AccountSettingsSection({
 
         {/* Session & Password Actions */}
         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 pt-3 border-t border-white/10">
+          {!isEmailVerified && currentUser && (
+            <button
+              type="button"
+              disabled={busyAction !== null}
+              onClick={handleSendEmailVerificationLink}
+              className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl bg-[#0F4C5C]/30 hover:bg-[#0F4C5C]/50 disabled:opacity-50 border border-[#D4AF37]/50 px-4 py-2.5 text-xs sm:text-sm font-bold text-white whitespace-nowrap cursor-pointer"
+            >
+              {busyAction === 'verify' ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Mail className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
+              )}
+              <span>إرسال رابط توثيق البريد الإلكتروني</span>
+            </button>
+          )}
+
           <button
             type="button"
             disabled={busyAction !== null}
@@ -225,15 +278,16 @@ export function AccountSettingsSection({
           <li>
             تُفحص هوية الحساب فعليًا في قواعد <bdi className="text-[#D4AF37]">Firestore Security Rules</bdi>{' '}
             عبر مطابقة <bdi className="font-mono text-xs text-white">request.auth.uid</bdi> مع المعرّف
-            المعتمد دون تخزين أي كلمة مرور في الكود الأمامي.
+            الثابت للمطور دون تخزين أي كلمة مرور في الكود الأمامي.
+          </li>
+          <li>
+            لا يتم الاعتماد على عنوان البريد وحده دون توثيق لمنع انتحال الهوية، كما يتم التحقق من حفظ
+            المستندات فعليًا على خادم السحابة قبل عرض رسالة النجاح.
           </li>
           <li>
             إنشاء الحسابات العامة من الواجهة الأمامية أو تعديل مجموعة الصلاحيات{' '}
             <bdi className="font-mono text-xs text-white">/admins</bdi> مغلق نهائيًا لمنع أي زائر من
             منح نفسه صلاحيات الإدارة.
-          </li>
-          <li>
-            عند تسجيل الخروج يتم إنهاء الجلسة ومسح بيانات النماذج المؤقتة فورًا وإعادة قفل اللوحة.
           </li>
         </ul>
       </div>

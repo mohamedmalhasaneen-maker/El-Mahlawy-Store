@@ -90,7 +90,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-tagline"
               type="text"
-              maxLength={200}
+              maxLength={300}
               value={configDraft.tagline}
               onChange={(e) => onUpdateField('tagline', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -104,7 +104,7 @@ export function SiteAndAboutSection({
             <textarea
               id="cfg-hero-desc"
               rows={3}
-              maxLength={600}
+              maxLength={2000}
               value={configDraft.heroDescription}
               onChange={(e) => onUpdateField('heroDescription', e.target.value)}
               className="w-full rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -118,7 +118,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-announcement"
               type="text"
-              maxLength={240}
+              maxLength={400}
               value={configDraft.announcementText}
               onChange={(e) => onUpdateField('announcementText', e.target.value)}
               placeholder="مثال: عروض خاصة لفترة محدودة — شحن سريع لجميع محافظات مصر"
@@ -133,7 +133,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-contact-title"
               type="text"
-              maxLength={120}
+              maxLength={200}
               value={configDraft.contactSectionTitle}
               onChange={(e) => onUpdateField('contactSectionTitle', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -147,7 +147,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-contact-sub"
               type="text"
-              maxLength={200}
+              maxLength={400}
               value={configDraft.contactSectionSubtitle}
               onChange={(e) => onUpdateField('contactSectionSubtitle', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -161,7 +161,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-seo-title"
               type="text"
-              maxLength={140}
+              maxLength={240}
               value={configDraft.seoTitle}
               onChange={(e) => onUpdateField('seoTitle', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -176,7 +176,7 @@ export function SiteAndAboutSection({
               <input
                 id="cfg-copyright"
                 type="text"
-                maxLength={200}
+                maxLength={300}
                 value={configDraft.copyrightText}
                 onChange={(e) => onUpdateField('copyrightText', e.target.value)}
                 placeholder="جميع الحقوق محفوظة."
@@ -185,7 +185,7 @@ export function SiteAndAboutSection({
               <input
                 type="text"
                 aria-label="العبارة الختامية"
-                maxLength={160}
+                maxLength={300}
                 value={configDraft.closingPhrase}
                 onChange={(e) => onUpdateField('closingPhrase', e.target.value)}
                 placeholder="وما تنساش تصلي على النبي ﷺ"
@@ -201,7 +201,7 @@ export function SiteAndAboutSection({
             <textarea
               id="cfg-seo-desc"
               rows={2}
-              maxLength={400}
+              maxLength={800}
               value={configDraft.seoDescription}
               onChange={(e) => onUpdateField('seoDescription', e.target.value)}
               className="w-full rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -224,7 +224,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-about-title"
               type="text"
-              maxLength={160}
+              maxLength={300}
               value={configDraft.aboutHeroTitle}
               onChange={(e) => onUpdateField('aboutHeroTitle', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -238,7 +238,7 @@ export function SiteAndAboutSection({
             <textarea
               id="cfg-about-sub"
               rows={2}
-              maxLength={500}
+              maxLength={1500}
               value={configDraft.aboutHeroSubtitle}
               onChange={(e) => onUpdateField('aboutHeroSubtitle', e.target.value)}
               className="w-full rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -251,8 +251,8 @@ export function SiteAndAboutSection({
             </label>
             <textarea
               id="cfg-about-store"
-              rows={3}
-              maxLength={1200}
+              rows={4}
+              maxLength={5000}
               value={configDraft.aboutStoreIntro}
               onChange={(e) => onUpdateField('aboutStoreIntro', e.target.value)}
               className="w-full rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -266,7 +266,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-partner-name"
               type="text"
-              maxLength={100}
+              maxLength={160}
               value={configDraft.partnerName}
               onChange={(e) => onUpdateField('partnerName', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -281,7 +281,7 @@ export function SiteAndAboutSection({
               id="cfg-partner-sub"
               type="text"
               dir="ltr"
-              maxLength={120}
+              maxLength={200}
               value={configDraft.partnerSubtitle}
               onChange={(e) => onUpdateField('partnerSubtitle', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -295,7 +295,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-partner-role"
               type="text"
-              maxLength={120}
+              maxLength={200}
               value={configDraft.partnerRoleTitle}
               onChange={(e) => onUpdateField('partnerRoleTitle', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -309,7 +309,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-partner-scope"
               type="text"
-              maxLength={300}
+              maxLength={800}
               value={configDraft.partnerServiceScopeText}
               onChange={(e) => onUpdateField('partnerServiceScopeText', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -322,8 +322,8 @@ export function SiteAndAboutSection({
             </label>
             <textarea
               id="cfg-about-partner"
-              rows={3}
-              maxLength={1200}
+              rows={4}
+              maxLength={5000}
               value={configDraft.aboutPartnerIntro}
               onChange={(e) => onUpdateField('aboutPartnerIntro', e.target.value)}
               className="w-full rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -337,7 +337,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-vision-title"
               type="text"
-              maxLength={160}
+              maxLength={300}
               value={configDraft.visionTitle}
               onChange={(e) => onUpdateField('visionTitle', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
@@ -351,7 +351,7 @@ export function SiteAndAboutSection({
             <input
               id="cfg-vision-desc"
               type="text"
-              maxLength={800}
+              maxLength={2500}
               value={configDraft.visionDescription}
               onChange={(e) => onUpdateField('visionDescription', e.target.value)}
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"

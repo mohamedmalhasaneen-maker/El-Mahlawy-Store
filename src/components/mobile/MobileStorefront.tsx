@@ -19,6 +19,7 @@ import {
   formatPriceEgp,
   getEffectiveProductPrice,
 } from '../../utils/catalogLogic';
+import { getCategoryName, getOrderedCategories } from '../../constants/categories';
 import { ProductImage } from '../ProductImage';
 import { Footer } from '../Footer';
 import { ThemeToggle } from '../ThemeToggle';
@@ -43,6 +44,8 @@ interface MobileStorefrontProps {
   publicOrigin?: string;
   initialProductId?: string | null;
   onConsumeInitialProduct?: () => void;
+  selectedCategoryId?: string;
+  onCategoryChange?: (id: string) => void;
 }
 
 export function MobileStorefront({
@@ -61,8 +64,11 @@ export function MobileStorefront({
   publicOrigin,
   initialProductId,
   onConsumeInitialProduct,
+  selectedCategoryId = 'all',
+  onCategoryChange,
 }: MobileStorefrontProps) {
   const siteConfig = useSiteConfig();
+  const orderedCategories = getOrderedCategories(siteConfig.categories);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [detailsProduct, setDetailsProduct] = useState<Product | null>(null);
   const [orderProduct, setOrderProduct] = useState<Product | null>(null);
@@ -176,6 +182,37 @@ export function MobileStorefront({
             )}
           </div>
         </section>
+
+        {/* Category Bar */}
+        <div className="px-3.5 mb-2 overflow-x-auto pb-2 no-scrollbar">
+          <div className="flex items-center gap-2 min-w-max">
+            <button
+              type="button"
+              onClick={() => onCategoryChange?.('all')}
+              className={`min-h-[40px] px-5 py-2 rounded-xl text-xs font-extrabold transition-all border ${
+                selectedCategoryId === 'all'
+                  ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
+                  : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
+              } cursor-pointer`}
+            >
+              الكل
+            </button>
+            {orderedCategories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => onCategoryChange?.(cat.id)}
+                className={`min-h-[40px] px-5 py-2 rounded-xl text-xs font-extrabold transition-all border ${
+                  selectedCategoryId === cat.id
+                    ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
+                    : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
+                } cursor-pointer`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* 3. Compact Royal-to-Sky Blue Welcome Banner */}
         {!isSearching && (
@@ -409,6 +446,22 @@ export function MobileStorefront({
                   >
                     <RotateCcw className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>عرض كل المنتجات</span>
+                  </button>
+                </>
+              ) : selectedCategoryId !== 'all' ? (
+                <>
+                  <p className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-1.5">
+                    لا توجد منتجات في «{getCategoryName(selectedCategoryId, orderedCategories)}» حاليًا
+                  </p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+                    يتم تحديث المتجر باستمرار. يمكنك استعراض كافة الأقسام أو التواصل معنا.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onCategoryChange?.('all')}
+                    className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] px-4 py-2.5 text-xs font-extrabold text-white whitespace-nowrap cursor-pointer"
+                  >
+                    <span>عرض كل الأقسام</span>
                   </button>
                 </>
               ) : (

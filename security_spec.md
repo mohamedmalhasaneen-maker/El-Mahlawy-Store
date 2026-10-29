@@ -8,17 +8,17 @@
    - `/test/connection` supports read-only single-document `get` (`probeId == 'connection'`) strictly for client connectivity health probing; `list`, `create`, `update`, and `delete` are forbidden.
    - `/admins/{adminUid}` cannot be listed, created, updated, or deleted from any client interface (`allow list, create, update, delete: if false`), and `get` is restricted strictly to the verified authorized developer.
 2. **Single-Developer Zero-Trust Gate (UID + Verified Owner Email)**:
-   - No client-side password, UID string input, or unverified claim is trusted. Only a real Firebase Authentication session whose server-signed `request.auth.uid == 'eGi5P37ztLe5Nn77sEFvmFFcZWp1'` (or verified owner email `abdulazizriadvip@gmail.com` / `mohamed.m.alhasaneen@gmail.com` with `email_verified == true`) may read unpublished products, create/update/delete `/products/{productId}`, or write `/siteConfig/main`.
+   - No client-side password, UID string input, or unverified claim is trusted. Only a real Firebase Authentication session whose server-signed `request.auth.uid == 'eGi5P37ztLe5Nn77sEFvmFFcZWp1'` (exact immutable developer UID, regardless of `email_verified` flag) OR a verified owner email (`abdulazizriadvip@gmail.com` / `mohamed.m.alhasaneen@gmail.com` strictly with `'email_verified' in request.auth.token && request.auth.token.email_verified == true`) may read unpublished products, create/update/delete `/products/{productId}`, or write `/siteConfig/main`.
    - Public frontend sign-up (`createUserWithEmailAndPassword`) and client-side privilege creation (`/admins` writes) are strictly prohibited.
 3. **Strict Schema & Key Whitelisting**:
-   - Every write to `/products/{productId}` and `/siteConfig/{configId}` enforces exact `hasAll` and `hasOnly` field sets, string `.size()` bounds, bounded list sizes (`images` 1..15, `specs` 0..15, `options` 0..10, `contactChannels` 0..20, `socialLinks` 0..15, `branches` 0..10), and regex ID constraints (`^[a-zA-Z0-9_\-]+$`).
+   - Every write to `/products/{productId}` and `/siteConfig/{configId}` enforces exact `hasAll` and `hasOnly` field sets, string `.size()` bounds (`category` 0..80, `categoryId` 0..60), bounded list sizes (`images` 1..15, `specs` 0..15, `options` 0..10, `contactChannels` 0..20, `socialLinks` 0..15, `branches` 0..10, `categories` 1..20 ordered maps `{ id, name, order }`), and regex ID constraints (`^[a-zA-Z0-9_\-]+$`).
 4. **Pricing & Discount Integrity**:
    - `price > 0`, `originalPrice >= price`, and whenever `discountEnabled == true`, `originalPrice > price` must hold. Optional `discountType` must be `'percentage'` or `'fixed'`, and `discountValue >= 0`.
 5. **Immutable Provenance & Server Timestamps**:
    - On `/products/{productId}`, `id`, `authorUid`, and `createdAt` are immutable after creation (while allowing legacy cloud documents lacking those metadata fields to be upgraded to full schema by the verified developer). `createdAt` on create and `updatedAt` on create/update must equal `request.time`.
-   - On `/siteConfig/main`, `id` is immutable (`'main'`), `updatedBy` must equal `request.auth.uid`, `updatedAt` must equal `request.time`, and `delete` is forbidden.
+   - On `/siteConfig/main`, `id` is locked to `'main'`, `updatedBy` must equal `request.auth.uid`, `updatedAt` must equal `request.time`, and `delete` is forbidden.
 6. **Zero DB Lookups in `list` Queries**:
-   - `allow list` on `/products/{productId}` evaluates `resource.data.isPublished == true` or pure token/UID-based `isAuthorizedDeveloper()`, avoiding any `get()`/`exists()` inside list rules. `/admins/{adminUid}`, `/siteConfig/{configId}`, and `/test/{probeId}` forbid `list` entirely.
+   - `allow list` on `/products/{productId}` evaluates `resource.data.isPublished == true` or pure token/UID-based `isAuthorizedDeveloper()`, avoiding any `get()`/`exists()` inside list rules. `/admins/{adminUid}`, `/siteConfig/{configId}`, `/meta/{statId}`, and `/test/{probeId}` forbid `list` entirely.
 
 ## 2. The "Dirty Dozen" Adversarial Payloads
 

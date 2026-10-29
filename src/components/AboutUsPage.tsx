@@ -107,6 +107,7 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
     partnerScopeList.length > 0 ? partnerScopeList : PARTNER_INFO.serviceScope;
   const partnerOrderWa = buildWhatsAppLinkFromPhone(siteConfig.partnerOrderPhone1);
   const partnerMaintWa = buildWhatsAppLinkFromPhone(siteConfig.partnerMaintenancePhone);
+  const partnerMaintenanceNewWa = buildWhatsAppLinkFromPhone('01005089640');
   const storeSocialLinks = (siteConfig.socialLinks || []).filter(
     (sl) => sl.owner === 'store' && Boolean(sl.url)
   );
@@ -423,6 +424,19 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
                           className="text-white hover:text-[#D4AF37]"
                         >
                           واتساب
+                        </a>
+                      </div>
+                    )}
+                    {partnerMaintenanceNewWa && (
+                      <div className="flex items-center justify-between bg-black/20 px-3 py-2 rounded-xl">
+                        <span className="text-gray-300">التركيب والصيانة:</span>
+                        <a
+                          href={partnerMaintenanceNewWa}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-white hover:text-[#D4AF37]"
+                        >
+                          01005089640
                         </a>
                       </div>
                     )}

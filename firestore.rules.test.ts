@@ -21,6 +21,7 @@ const AUTHORIZED_UID = 'eGi5P37ztLe5Nn77sEFvmFFcZWp1';
 const REQUIRED_PRODUCT_KEYS = blueprint.entities.Product.required as string[];
 const ALLOWED_PRODUCT_KEYS = Object.keys(blueprint.entities.Product.properties);
 const REQUIRED_SITE_CONFIG_KEYS = blueprint.entities.SiteConfig.required as string[];
+const ALLOWED_SITE_CONFIG_KEYS = Object.keys(blueprint.entities.SiteConfig.properties);
 
 function isValidId(id: unknown, maxLen = 128): boolean {
   return (
@@ -41,6 +42,21 @@ function isAuthorizedDeveloper(auth: AuthContext | null): boolean {
   );
 }
 
+function isValidCategoryItemSimulator(item: unknown): boolean {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+  const rec = item as Record<string, unknown>;
+  const keys = Object.keys(rec);
+  if (keys.length !== 3 || !['id', 'name', 'order'].every((k) => keys.includes(k))) {
+    return false;
+  }
+  if (!isValidId(rec.id, 60)) return false;
+  if (typeof rec.name !== 'string' || rec.name.length < 2 || rec.name.length > 80) return false;
+  if (typeof rec.order !== 'number' || !Number.isFinite(rec.order) || rec.order < 1 || rec.order > 100) {
+    return false;
+  }
+  return true;
+}
+
 function isValidProductRuleSimulator(data: Record<string, unknown>): boolean {
   const keys = Object.keys(data);
   if (!REQUIRED_PRODUCT_KEYS.every((k) => keys.includes(k))) return false;
@@ -49,7 +65,10 @@ function isValidProductRuleSimulator(data: Record<string, unknown>): boolean {
   if (!isValidId(data.id)) return false;
   if (typeof data.name !== 'string' || data.name.length < 2 || data.name.length > 160) return false;
   if (typeof data.brand !== 'string' || data.brand.length > 80) return false;
-  if (typeof data.category !== 'string' || data.category.length > 60) return false;
+  if (typeof data.category !== 'string' || data.category.length > 80) return false;
+  if ('categoryId' in data && (typeof data.categoryId !== 'string' || data.categoryId.length > 60)) {
+    return false;
+  }
   if (typeof data.shortDescription !== 'string' || data.shortDescription.length > 300) return false;
   if (typeof data.description !== 'string' || data.description.length > 3000) return false;
   if (typeof data.price !== 'number' || data.price <= 0 || data.price > 1000000) return false;
@@ -126,7 +145,7 @@ function isValidProductRuleSimulator(data: Record<string, unknown>): boolean {
 function isValidSiteConfigRuleSimulator(data: Record<string, unknown>): boolean {
   const keys = Object.keys(data);
   if (!REQUIRED_SITE_CONFIG_KEYS.every((k) => keys.includes(k))) return false;
-  if (!keys.every((k) => REQUIRED_SITE_CONFIG_KEYS.includes(k))) return false;
+  if (!keys.every((k) => ALLOWED_SITE_CONFIG_KEYS.includes(k))) return false;
   if (!isValidId(data.id, 32)) return false;
   if (typeof data.storeName !== 'string' || data.storeName.length < 2 || data.storeName.length > 100) {
     return false;
@@ -134,9 +153,30 @@ function isValidSiteConfigRuleSimulator(data: Record<string, unknown>): boolean 
   if (typeof data.primaryPhone !== 'string' || data.primaryPhone.length < 7 || data.primaryPhone.length > 30) {
     return false;
   }
-  if (!Array.isArray(data.contactChannels) || data.contactChannels.length > 20) return false;
-  if (!Array.isArray(data.socialLinks) || data.socialLinks.length > 15) return false;
-  if (!Array.isArray(data.branches) || data.branches.length > 10) return false;
+  if (typeof data.primaryWhatsApp !== 'string' || data.primaryWhatsApp.length < 7 || data.primaryWhatsApp.length > 25) {
+    return false;
+  }
+  if ('aboutStoreIntro' in data && (typeof data.aboutStoreIntro !== 'string' || data.aboutStoreIntro.length > 5000)) {
+    return false;
+  }
+  if ('aboutPartnerIntro' in data && (typeof data.aboutPartnerIntro !== 'string' || data.aboutPartnerIntro.length > 5000)) {
+    return false;
+  }
+  if ('contactChannels' in data && (!Array.isArray(data.contactChannels) || data.contactChannels.length > 20)) {
+    return false;
+  }
+  if ('socialLinks' in data && (!Array.isArray(data.socialLinks) || data.socialLinks.length > 15)) {
+    return false;
+  }
+  if ('branches' in data && (!Array.isArray(data.branches) || data.branches.length > 10)) {
+    return false;
+  }
+  if ('categories' in data) {
+    if (!Array.isArray(data.categories) || data.categories.length < 1 || data.categories.length > 20) {
+      return false;
+    }
+    if (!isValidCategoryItemSimulator(data.categories[0])) return false;
+  }
   if (!isValidId(data.updatedBy)) return false;
   if (typeof data.updatedAt !== 'string') return false;
   return true;
@@ -160,7 +200,11 @@ function evaluateConnectionProbe(
   probeId: string,
   op: 'get' | 'list' | 'write'
 ): 'ALLOWED' | 'PERMISSION_DENIED' {
-  if (op === 'get' && isValidId(probeId) && probeId === 'connection') {
+  if (
+    op === 'get' &&
+    isValidId(probeId) &&
+    (probeId === 'connection' || probeId === 'rules_v3_ready')
+  ) {
     return 'ALLOWED';
   }
   return 'PERMISSION_DENIED';
@@ -220,7 +264,8 @@ function makeBaseValidPayload(authorUid = AUTHORIZED_UID): Record<string, unknow
     id: 'prod-101',
     name: 'سماعة بلوتوث برو',
     brand: '',
-    category: '',
+    category: 'قسم إكسسوارات الهاتف',
+    categoryId: 'mobile-accessories',
     shortDescription: '',
     description: '',
     price: 2200,
@@ -245,7 +290,7 @@ function makeBaseValidPayload(authorUid = AUTHORIZED_UID): Record<string, unknow
 const authorizedDeveloperUidAuth: AuthContext = {
   uid: AUTHORIZED_UID,
   email: 'abdulazizriadvip@gmail.com',
-  email_verified: false, // Even if Console-created without email verification, exact UID succeeds
+  email_verified: false, // Exact developer UID succeeds even when email_verified is false
 };
 
 const verifiedBootstrappedOwner: AuthContext = {
@@ -261,6 +306,7 @@ test('firestore.rules structural guards match security_spec invariants and cover
   assert.ok(rulesSource.includes("request.auth.token.email == 'abdulazizriadvip@gmail.com'"));
   assert.ok(rulesSource.includes('request.auth.token.email_verified == true'));
   assert.ok(rulesSource.includes('isValidSocialLinkItem'));
+  assert.ok(rulesSource.includes('isValidCategoryItem'));
   assert.ok(rulesSource.includes('incoming().createdAt == request.time'));
   assert.ok(rulesSource.includes('incoming().updatedAt == request.time'));
   assert.ok(rulesSource.includes('affectedKeys().hasOnly'));
@@ -268,10 +314,11 @@ test('firestore.rules structural guards match security_spec invariants and cover
   assert.ok(rulesSource.includes('match /siteConfig/{configId}'));
   assert.ok(rulesSource.includes('match /admins/{adminUid}'));
   assert.ok(rulesSource.includes('match /test/{probeId}'));
+  assert.ok(rulesSource.includes('match /meta/{statId}'));
   assert.ok(rulesSource.includes('allow create: if false;'));
 });
 
-test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 and /test/connection probe work as specified', () => {
+test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 (with emailVerified: false) succeeds on siteConfig/main, categories ordering, and products', () => {
   assert.equal(
     evaluateProductCreate('prod-101', makeBaseValidPayload(AUTHORIZED_UID), authorizedDeveloperUidAuth),
     'ALLOWED'
@@ -281,6 +328,14 @@ test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 and /test/connection
     ...sanitizeSiteConfig(
       {
         ...DEFAULT_SITE_CONFIG,
+        storeName: 'المحلاوي ستور',
+        primaryPhone: '01210141187',
+        aboutStoreIntro: 'نص تعريفي محدّث لصفحة من نحن الخاصة بالمحلاوي ستور.',
+        categories: [
+          { id: 'satellite', name: 'قسم الستلايت', order: 1 },
+          { id: 'cctv', name: 'قسم كاميرات المراقبة', order: 2 },
+          { id: 'smart-home', name: 'قسم السمارت هوم', order: 3 },
+        ],
         socialLinks: [
           {
             id: 'sl-tiktok',
@@ -296,14 +351,41 @@ test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 and /test/connection
     updatedAt: REQUEST_TIME,
   } as unknown as Record<string, unknown>;
 
+  // Targeted { merge: true } update payload (core required keys + only modified About Us fields)
+  const targetedAboutUpdate: Record<string, unknown> = {
+    id: 'main',
+    storeName: 'المحلاوي ستور',
+    primaryPhone: '01210141187',
+    primaryWhatsApp: '201210141187',
+    aboutHeroTitle: 'المحلاوي ستور × Infinity Corp — شرم الشيخ',
+    aboutStoreIntro: 'فقرة تعريفية موسعة '.repeat(140), // ~2800 Arabic chars (well over legacy 1200 limit, within 5000 limit)
+    aboutPartnerIntro: 'نبذة تفصيلية عن خدمات Infinity Corp '.repeat(80),
+    updatedBy: AUTHORIZED_UID,
+    updatedAt: REQUEST_TIME,
+  };
+  assert.equal(
+    evaluateSiteConfigWrite('main', targetedAboutUpdate, authorizedDeveloperUidAuth),
+    'ALLOWED'
+  );
+
   assert.equal(evaluateSiteConfigWrite('main', sanitized, authorizedDeveloperUidAuth), 'ALLOWED');
   // Reject rogue document ID
   assert.equal(evaluateSiteConfigWrite('other', sanitized, authorizedDeveloperUidAuth), 'PERMISSION_DENIED');
   // Reject unauthenticated visitor write
   assert.equal(evaluateSiteConfigWrite('main', sanitized, null), 'PERMISSION_DENIED');
+  // Reject non-developer authenticated write on siteConfig/main
+  assert.equal(
+    evaluateSiteConfigWrite('main', sanitized, {
+      uid: 'random-user-uid',
+      email: 'visitor@example.com',
+      email_verified: true,
+    }),
+    'PERMISSION_DENIED'
+  );
 
-  // Connectivity probe check
+  // Connectivity & rules v3 probe check
   assert.equal(evaluateConnectionProbe('connection', 'get'), 'ALLOWED');
+  assert.equal(evaluateConnectionProbe('rules_v3_ready', 'get'), 'ALLOWED');
   assert.equal(evaluateConnectionProbe('other', 'get'), 'PERMISSION_DENIED');
   assert.equal(evaluateConnectionProbe('connection', 'write'), 'PERMISSION_DENIED');
   assert.equal(evaluateConnectionProbe('connection', 'list'), 'PERMISSION_DENIED');

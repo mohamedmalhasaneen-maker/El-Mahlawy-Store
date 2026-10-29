@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Calendar, Check, Loader2, Percent, RotateCcw, Tag, X } from 'lucide-react';
-import { DiscountQuickUpdatePayload } from '../lib/firebase';
+import { DiscountQuickUpdatePayload, formatCloudErrorForDeveloper } from '../lib/firebase';
 import { DiscountType, Product } from '../types/store';
 import {
   computeDiscountPricing,
@@ -35,7 +35,7 @@ export function DiscountModal({ product, onClose, onSaveDiscount }: DiscountModa
     const initialBase =
       product.originalPrice && product.originalPrice > 0 ? product.originalPrice : product.price;
     setBasePriceInput(String(roundCurrency(initialBase)));
-    setDiscountEnabled(product.discountEnabled ? true : true);
+    setDiscountEnabled(true);
 
     const existingType: DiscountType = product.discountType === 'fixed' ? 'fixed' : 'percentage';
     setDiscountType(existingType);
@@ -126,11 +126,7 @@ export function DiscountModal({ product, onClose, onSaveDiscount }: DiscountModa
       );
       onClose();
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error
-          ? err.message
-          : 'تعذر حفظ إعدادات الخصم في قاعدة البيانات السحابية.'
-      );
+      setErrorMsg(formatCloudErrorForDeveloper(err, 'حفظ إعدادات الخصم'));
     } finally {
       setSaving(false);
     }
@@ -161,9 +157,7 @@ export function DiscountModal({ product, onClose, onSaveDiscount }: DiscountModa
       );
       onClose();
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error ? err.message : 'تعذر إلغاء الخصم في قاعدة البيانات السحابية.'
-      );
+      setErrorMsg(formatCloudErrorForDeveloper(err, 'إلغاء الخصم'));
     } finally {
       setSaving(false);
     }
@@ -228,9 +222,9 @@ export function DiscountModal({ product, onClose, onSaveDiscount }: DiscountModa
           {errorMsg && (
             <div
               role="alert"
-              className="flex items-start gap-2.5 rounded-xl bg-[#C62828]/15 border border-[#C62828] px-4 py-3 text-xs sm:text-sm font-semibold text-red-200"
+              className="flex items-start gap-2.5 rounded-xl bg-[#0F4C5C]/20 border border-[#0F4C5C] px-4 py-3 text-xs sm:text-sm font-semibold text-[#A0D2EB]"
             >
-              <AlertCircle className="h-4 w-4 text-[#EF5350] shrink-0 mt-0.5" aria-hidden="true" />
+              <AlertCircle className="h-4 w-4 text-[#38BDF8] shrink-0 mt-0.5" aria-hidden="true" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -290,7 +284,7 @@ export function DiscountModal({ product, onClose, onSaveDiscount }: DiscountModa
                     onClick={() => setDiscountType('percentage')}
                     className={`min-h-[42px] rounded-lg px-3 py-2 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
                       discountType === 'percentage'
-                        ? 'bg-[#C62828] text-white'
+                        ? 'bg-[#0F4C5C] text-white'
                         : 'text-gray-300 hover:text-white'
                     }`}
                   >
@@ -302,7 +296,7 @@ export function DiscountModal({ product, onClose, onSaveDiscount }: DiscountModa
                     onClick={() => setDiscountType('fixed')}
                     className={`min-h-[42px] rounded-lg px-3 py-2 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
                       discountType === 'fixed'
-                        ? 'bg-[#C62828] text-white'
+                        ? 'bg-[#0F4C5C] text-white'
                         : 'text-gray-300 hover:text-white'
                     }`}
                   >
@@ -432,7 +426,7 @@ export function DiscountModal({ product, onClose, onSaveDiscount }: DiscountModa
             </div>
 
             {!calculation.valid && calculation.errors[0] && (
-              <p className="text-xs text-[#EF5350] font-semibold pt-1">{calculation.errors[0]}</p>
+              <p className="text-xs text-[#A0D2EB] font-semibold pt-1">{calculation.errors[0]}</p>
             )}
 
             {calculation.valid && discountEnabled && (
@@ -454,14 +448,14 @@ export function DiscountModal({ product, onClose, onSaveDiscount }: DiscountModa
             <button
               type="submit"
               disabled={saving || !calculation.valid}
-              className="inline-flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#C62828] hover:bg-red-800 disabled:opacity-50 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white border border-[#D4AF37]/60 transition-colors whitespace-nowrap cursor-pointer"
+              className="inline-flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] disabled:opacity-50 px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white border border-[#D4AF37]/60 transition-colors whitespace-nowrap cursor-pointer"
             >
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
-                <Check className="h-4 w-4" aria-hidden="true" />
+                <Check className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
               )}
-              <span>حفظ إعدادات الخصم</span>
+              <span>{saving ? 'جاري الحفظ السحابي...' : 'حفظ إعدادات الخصم'}</span>
             </button>
 
             {product.discountEnabled && (

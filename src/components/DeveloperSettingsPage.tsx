@@ -37,6 +37,7 @@ import {
 import {
   DiscountQuickUpdatePayload,
   User,
+  formatCloudErrorForDeveloper,
   sendDeveloperPasswordReset,
   sendDeveloperVerificationEmail,
   signInDeveloperWithEmail,
@@ -72,6 +73,11 @@ import { DeveloperSectionId, OverviewSection } from './developer/OverviewSection
 import { PhonesWhatsAppSection } from './developer/PhonesWhatsAppSection';
 import { SiteAndAboutSection } from './developer/SiteAndAboutSection';
 import { SocialLinksSection } from './developer/SocialLinksSection';
+import {
+  getCategoryIdByName,
+  getCategoryName,
+  getOrderedCategories,
+} from '../constants/categories';
 import { Footer } from './Footer';
 
 interface DeveloperSettingsPageProps {
@@ -102,7 +108,8 @@ const CLOUDINARY_UPLOAD_PRESET = 'elmahlawy-store';
 const EMPTY_PRODUCT_FORM: ProductFormInput = {
   name: '',
   brand: '',
-  category: 'عام',
+  category: '',
+  categoryId: '',
   shortDescription: '',
   description: '',
   price: 0,
@@ -231,6 +238,19 @@ export function DeveloperSettingsPage({
       })
       .sort((a, b) => (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || ''));
   }, [products, productSearch, productStatusFilter]);
+
+  const activeCategories = useMemo(
+    () => getOrderedCategories(configDraft.categories),
+    [configDraft.categories]
+  );
+
+  const uncategorizedProducts = useMemo(() => {
+    return products.filter((p) => {
+      const resolvedId =
+        p.categoryId || getCategoryIdByName(p.category, activeCategories);
+      return !resolvedId || !activeCategories.some((c) => c.id === resolvedId);
+    });
+  }, [products, activeCategories]);
 
   // Filtered Products for Tab 2 (Discounts)
   const filteredDiscountProducts = useMemo(() => {
@@ -667,12 +687,18 @@ export function DeveloperSettingsPage({
     const initialDraft = deriveInitialDiscountDraft(product);
     const base =
       product.originalPrice && product.originalPrice > 0 ? product.originalPrice : product.price;
+    const resolvedCategoryId =
+      product.categoryId || getCategoryIdByName(product.category, activeCategories);
     setEditingProductId(product.id);
     setProductForm({
       id: product.id,
       name: product.name,
       brand: product.brand,
-      category: product.category || 'عام',
+      categoryId: resolvedCategoryId,
+      category:
+        (resolvedCategoryId
+          ? getCategoryName(resolvedCategoryId, activeCategories)
+          : product.category) || 'بدون قسم',
       shortDescription: product.shortDescription,
       description: product.description,
       price: product.price,
@@ -1037,7 +1063,11 @@ export function DeveloperSettingsPage({
   })();
 
   const handleOpenLivePreview = () => {
-    const prepared = prepareProductFormSubmission(productForm, currentDiscountDraft);
+    const prepared = prepareProductFormSubmission(
+      productForm,
+      currentDiscountDraft,
+      activeCategories
+    );
     if (!prepared.valid) {
       setGlobalBanner({
         type: 'error',
@@ -1048,7 +1078,8 @@ export function DeveloperSettingsPage({
     const sanitized = sanitizeProductPayload(
       prepared.candidate,
       editingProductId || 'preview-item',
-      currentUser?.uid || 'admin'
+      currentUser?.uid || 'admin',
+      activeCategories
     );
     setPreviewProduct(sanitized);
   };
@@ -1065,7 +1096,19 @@ export function DeveloperSettingsPage({
       return;
     }
 
-    const prepared = prepareProductFormSubmission(productForm, currentDiscountDraft);
+    if (!productForm.categoryId) {
+      setGlobalBanner({
+        type: 'error',
+        message: 'يرجى اختيار القسم الصحيح للمنتج من القائمة المنسدلة قبل الحفظ.',
+      });
+      return;
+    }
+
+    const prepared = prepareProductFormSubmission(
+      productForm,
+      currentDiscountDraft,
+      activeCategories
+    );
     if (!prepared.valid) {
       setGlobalBanner({
         type: 'error',
@@ -1087,18 +1130,15 @@ export function DeveloperSettingsPage({
       setGlobalBanner({
         type: 'success',
         message: editingProductId
-          ? `تم حفظ تعديلات المنتج «${prepared.candidate.name.trim()}» وإعدادات الخصم في قاعدة البيانات السحابية بنجاح.`
+          ? `تم حفظ تعديلات المنتج «${prepared.candidate.name.trim()}» وتأكيد تحديثه في قاعدة البيانات السحابية بنجاح.`
           : prepared.candidate.discountEnabled
-            ? `تم رفع وإضافة المنتج «${prepared.candidate.name.trim()}» مع تفعيل الخصم وحفظه سحابيًا بنجاح.`
-            : `تم رفع وإضافة المنتج «${prepared.candidate.name.trim()}» وحفظه سحابيًا بنجاح.`,
+            ? `تم رفع وإضافة المنتج «${prepared.candidate.name.trim()}» مع تفعيل الخصم وتأكيد حفظه سحابيًا بنجاح.`
+            : `تم رفع وإضافة المنتج «${prepared.candidate.name.trim()}» وتأكيد حفظه سحابيًا بنجاح.`,
       });
     } catch (err) {
       setGlobalBanner({
         type: 'error',
-        message:
-          err instanceof Error
-            ? `تعذر حفظ المنتج سحابيًا: ${err.message}`
-            : 'تعذر حفظ المنتج في قاعدة البيانات السحابية.',
+        message: formatCloudErrorForDeveloper(err, 'حفظ المنتج سحابيًا'),
       });
     } finally {
       setSavingProduct(false);
@@ -1115,12 +1155,12 @@ export function DeveloperSettingsPage({
       setConfirmDeleteProduct(null);
       setGlobalBanner({
         type: 'success',
-        message: `تم حذف المنتج «${deletedName}» نهائيًا من قاعدة البيانات السحابية.`,
+        message: `تم حذف المنتج «${deletedName}» نهائيًا وتأكيد إزالته من قاعدة البيانات السحابية.`,
       });
     } catch (err) {
       setGlobalBanner({
         type: 'error',
-        message: err instanceof Error ? err.message : 'تعذر حذف المنتج من قاعدة البيانات.',
+        message: formatCloudErrorForDeveloper(err, 'حذف المنتج سحابيًا'),
       });
     } finally {
       setDeletingProduct(false);
@@ -1140,7 +1180,7 @@ export function DeveloperSettingsPage({
     } catch (err) {
       setGlobalBanner({
         type: 'error',
-        message: err instanceof Error ? err.message : 'تعذر تحديث حالة المنتج سحابيًا.',
+        message: formatCloudErrorForDeveloper(err, 'تحديث حالة المنتج سحابيًا'),
       });
     } finally {
       setQuickUpdatingId(null);
@@ -1183,15 +1223,12 @@ export function DeveloperSettingsPage({
       setIsSiteConfigDirty(false);
       setGlobalBanner({
         type: 'success',
-        message: `تم حفظ ${sectionLabel} في قاعدة البيانات السحابية وتحديث الواجهة العامة بنجاح.`,
+        message: `تم حفظ ${sectionLabel} وتأكيد مزامنتها في قاعدة البيانات السحابية بنجاح.`,
       });
     } catch (err) {
       setGlobalBanner({
         type: 'error',
-        message:
-          err instanceof Error
-            ? `تعذر حفظ الإعدادات سحابيًا: ${err.message}`
-            : 'تعذر حفظ الإعدادات في قاعدة البيانات السحابية.',
+        message: formatCloudErrorForDeveloper(err, `حفظ ${sectionLabel}`),
       });
     } finally {
       setSavingSiteConfig(false);
@@ -1493,6 +1530,7 @@ export function DeveloperSettingsPage({
               onAddNewProduct={() => openAddProductForm()}
               onEditProduct={openEditProductForm}
               onConfigureDiscount={(prod) => setDiscountModalProduct(prod)}
+              uncategorizedProducts={uncategorizedProducts}
             />
           )}
 
@@ -1630,14 +1668,28 @@ export function DeveloperSettingsPage({
                                 <h3 className="text-sm sm:text-base font-extrabold text-white truncate">
                                   {product.name}
                                 </h3>
-                                <p className="text-xs text-gray-400 flex flex-wrap items-center gap-x-2 gap-y-1">
-                                  <span>{product.category || 'عام'}</span>
-                                  {product.brand ? (
-                                    <>
-                                      <span aria-hidden="true">·</span>
-                                      <span>{product.brand}</span>
-                                    </>
-                                  ) : null}
+                                <div className="text-[10px] sm:text-xs flex flex-wrap items-center gap-x-2 gap-y-1">
+                                  {(() => {
+                                    const resolvedCatId =
+                                      product.categoryId ||
+                                      getCategoryIdByName(product.category, activeCategories);
+                                    const isValidCat = Boolean(
+                                      resolvedCatId &&
+                                        activeCategories.some((c) => c.id === resolvedCatId)
+                                    );
+                                    return isValidCat ? (
+                                      <span className="inline-flex items-center gap-1 text-[#D4AF37] font-bold">
+                                        {getCategoryName(resolvedCatId, activeCategories)}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-amber-400 font-bold bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-500/30">
+                                        <AlertCircle className="h-3 w-3" />
+                                        {product.category || 'بدون قسم'}
+                                      </span>
+                                    );
+                                  })()}
+                                  <span className="text-gray-500" aria-hidden="true">·</span>
+                                  <span className="text-gray-400">{product.brand || 'ماركة غير محددة'}</span>
                                   <span aria-hidden="true">·</span>
                                   <span
                                     className={
@@ -1660,7 +1712,7 @@ export function DeveloperSettingsPage({
                                       <span className="text-[#D4AF37] font-semibold">مميز بالرئيسية</span>
                                     </>
                                   )}
-                                </p>
+                                </div>
 
                                 {/* Pricing Line */}
                                 <div className="flex flex-wrap items-baseline gap-2 pt-0.5 tabular-nums">
@@ -1981,22 +2033,34 @@ export function DeveloperSettingsPage({
                       <div className="md:col-span-3">
                         <label
                           htmlFor="prod-category-input"
-                          className="block text-xs font-bold text-gray-300 mb-1.5"
+                          className="block text-xs font-bold text-[#D4AF37] mb-1.5"
                         >
-                          التصنيف / القسم (اختياري)
+                          التصنيف / القسم *
                         </label>
-                        <input
+                        <select
                           id="prod-category-input"
-                          type="text"
-                          maxLength={60}
-                          value={productForm.category}
+                          required
+                          value={productForm.categoryId}
                           onChange={(e) => {
-                            setProductForm((prev) => ({ ...prev, category: e.target.value }));
+                            const selectedId = e.target.value;
+                            setProductForm((prev) => ({
+                              ...prev,
+                              categoryId: selectedId,
+                              category: getCategoryName(selectedId, activeCategories),
+                            }));
                             setIsProductFormDirty(true);
                           }}
-                          placeholder="كاميرات، صوتيات، عام..."
-                          className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D4AF37]"
-                        />
+                          className="w-full min-h-[46px] rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/35 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37] cursor-pointer"
+                        >
+                          <option value="" disabled>
+                            اختر القسم...
+                          </option>
+                          {activeCategories.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       <div className="md:col-span-3">

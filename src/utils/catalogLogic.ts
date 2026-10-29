@@ -6,6 +6,11 @@ import {
   STORE_INFO,
   ValidationResult,
 } from '../types/store';
+import {
+  PRODUCT_CATEGORIES,
+  getCategoryIdByName,
+  getCategoryName,
+} from '../constants/categories';
 
 // Verbatim constants synced with firebase-blueprint.json & firestore.rules
 export const ID_PATTERN = /^[a-zA-Z0-9_\-]+$/;
@@ -15,7 +20,7 @@ export const MAX_NAME_LENGTH = 160;
 export const MIN_BRAND_LENGTH = 0;
 export const MAX_BRAND_LENGTH = 80;
 export const MIN_CATEGORY_LENGTH = 0;
-export const MAX_CATEGORY_LENGTH = 60;
+export const MAX_CATEGORY_LENGTH = 80;
 export const MIN_SHORT_DESC_LENGTH = 0;
 export const MAX_SHORT_DESC_LENGTH = 300;
 export const MIN_DESC_LENGTH = 0;
@@ -244,15 +249,20 @@ export interface PreparedProductSubmission {
 
 export function prepareProductFormSubmission(
   form: ProductFormInput,
-  draft: ProductDiscountDraft
+  draft: ProductDiscountDraft,
+  customCategories?: ReadonlyArray<{ id: string; name: string; order?: number }>
 ): PreparedProductSubmission {
   const parsedBase = roundCurrency(Number(draft.basePriceDraft));
-  const normalizedCategory = (form.category || '').trim() || 'عام';
+  const rawCategoryRef = (form.categoryId || form.category || '').trim();
+  const normalizedCategoryId =
+    getCategoryIdByName(rawCategoryRef, customCategories) || rawCategoryRef;
+  const displayCategoryName = getCategoryName(normalizedCategoryId, customCategories);
 
   if (!draft.discountEnabled) {
     const candidate: ProductFormInput = {
       ...form,
-      category: normalizedCategory,
+      category: displayCategoryName,
+      categoryId: normalizedCategoryId,
       originalPrice: parsedBase,
       price: parsedBase,
       discountEnabled: false,
@@ -295,7 +305,8 @@ export function prepareProductFormSubmission(
 
   const candidate: ProductFormInput = {
     ...form,
-    category: normalizedCategory,
+    category: displayCategoryName,
+    categoryId: normalizedCategoryId,
     originalPrice: discountCalc.originalPrice,
     price: discountCalc.valid ? discountCalc.price : parsedBase,
     discountEnabled: true,
@@ -703,7 +714,8 @@ export function validateProductInput(input: ProductFormInput): ValidationResult 
 export function sanitizeProductPayload(
   input: ProductFormInput,
   existingId?: string,
-  authorUid = 'admin-local'
+  authorUid = 'admin-local',
+  customCategories?: ReadonlyArray<{ id: string; name: string; order?: number }>
 ): Product {
   const now = new Date().toISOString();
   const safeId =
@@ -737,11 +749,22 @@ export function sanitizeProductPayload(
   const discountStartDate = (input.discountStartDate || '').trim().slice(0, MAX_DATE_STRING_LENGTH);
   const discountEndDate = (input.discountEndDate || '').trim().slice(0, MAX_DATE_STRING_LENGTH);
 
+  const rawCategoryRef = (input.categoryId || input.category || '').trim();
+  const knownCategoryId = getCategoryIdByName(rawCategoryRef, customCategories);
+  const resolvedCategoryId = (knownCategoryId || rawCategoryRef).slice(0, 60);
+  const explicitCategoryLabel = (input.category || '').trim();
+  const resolvedCategoryName = (
+    knownCategoryId
+      ? getCategoryName(knownCategoryId, customCategories)
+      : explicitCategoryLabel || getCategoryName(resolvedCategoryId, customCategories)
+  ).slice(0, MAX_CATEGORY_LENGTH);
+
   return {
     id: safeId.slice(0, MAX_ID_LENGTH),
     name: (input.name || '').trim().slice(0, MAX_NAME_LENGTH),
     brand: (input.brand || '').trim().slice(0, MAX_BRAND_LENGTH),
-    category: ((input.category || '').trim() || 'عام').slice(0, MAX_CATEGORY_LENGTH),
+    categoryId: resolvedCategoryId,
+    category: resolvedCategoryName,
     shortDescription: (input.shortDescription || '').trim().slice(0, MAX_SHORT_DESC_LENGTH),
     description: (input.description || '').trim().slice(0, MAX_DESC_LENGTH),
     price: normalizedSellingPrice,
@@ -785,7 +808,7 @@ export function getDiscountedProducts(
 export function filterAndSortProducts(
   products: Product[],
   searchQuery: string,
-  selectedCategory: string,
+  selectedCategoryId: string,
   sortBy: SortOption,
   referenceDate: Date = new Date()
 ): Product[] {
@@ -793,7 +816,7 @@ export function filterAndSortProducts(
 
   const filtered = products.filter((p) => {
     if (!p.isPublished) return false;
-    if (selectedCategory && selectedCategory !== 'الكل' && p.category !== selectedCategory) {
+    if (selectedCategoryId && selectedCategoryId !== 'all' && p.categoryId !== selectedCategoryId) {
       return false;
     }
     if (!q) return true;

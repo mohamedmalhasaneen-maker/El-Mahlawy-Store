@@ -21,6 +21,7 @@ export interface Product {
   name: string;
   brand: string;
   category: string;
+  categoryId: string;
   shortDescription: string;
   description: string;
   price: number;
@@ -46,6 +47,7 @@ export interface ProductFormInput {
   name: string;
   brand: string;
   category: string;
+  categoryId: string;
   shortDescription: string;
   description: string;
   price: number;
