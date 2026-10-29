@@ -17,6 +17,7 @@ interface AuthContext {
 
 const REQUEST_TIME = '2026-10-28T10:00:00.000Z';
 const AUTHORIZED_UID = 'eGi5P37ztLe5Nn77sEFvmFFcZWp1';
+const INFINITY_CORP_UID = 'ILSbnyLsRWXvV9n2viqoMgFyDpr2';
 
 const REQUIRED_PRODUCT_KEYS = blueprint.entities.Product.required as string[];
 const ALLOWED_PRODUCT_KEYS = Object.keys(blueprint.entities.Product.properties);
@@ -34,10 +35,11 @@ function isValidId(id: unknown, maxLen = 128): boolean {
 
 function isAuthorizedDeveloper(auth: AuthContext | null): boolean {
   if (!auth) return false;
-  if (auth.uid === AUTHORIZED_UID) return true;
+  if (auth.uid === AUTHORIZED_UID || auth.uid === INFINITY_CORP_UID) return true;
   return Boolean(
     auth.email_verified === true &&
       (auth.email === 'abdulazizriadvip@gmail.com' ||
+        auth.email === 'companycamerasinfinitycorp@gmail.com' ||
         auth.email === 'mohamed.m.alhasaneen@gmail.com')
   );
 }
@@ -203,7 +205,9 @@ function evaluateConnectionProbe(
   if (
     op === 'get' &&
     isValidId(probeId) &&
-    (probeId === 'connection' || probeId === 'rules_v3_ready')
+    (probeId === 'connection' ||
+      probeId === 'rules_v3_ready' ||
+      probeId === 'rules_v4_infinity_ready')
   ) {
     return 'ALLOWED';
   }
@@ -293,6 +297,12 @@ const authorizedDeveloperUidAuth: AuthContext = {
   email_verified: false, // Exact developer UID succeeds even when email_verified is false
 };
 
+const infinityCorpDeveloperAuth: AuthContext = {
+  uid: INFINITY_CORP_UID,
+  email: 'companycamerasinfinitycorp@gmail.com',
+  email_verified: false, // Exact Infinity Corp developer UID succeeds even when email_verified is false
+};
+
 const verifiedBootstrappedOwner: AuthContext = {
   uid: 'owner-uid-1',
   email: 'mohamed.m.alhasaneen@gmail.com',
@@ -303,7 +313,11 @@ test('firestore.rules structural guards match security_spec invariants and cover
   assert.ok(rulesSource.includes("rules_version = '2';"));
   assert.ok(rulesSource.includes('allow read, write: if false;'));
   assert.ok(rulesSource.includes(`request.auth.uid == '${AUTHORIZED_UID}'`));
+  assert.ok(rulesSource.includes(`request.auth.uid == '${INFINITY_CORP_UID}'`));
   assert.ok(rulesSource.includes("request.auth.token.email == 'abdulazizriadvip@gmail.com'"));
+  assert.ok(
+    rulesSource.includes("request.auth.token.email == 'companycamerasinfinitycorp@gmail.com'")
+  );
   assert.ok(rulesSource.includes('request.auth.token.email_verified == true'));
   assert.ok(rulesSource.includes('isValidSocialLinkItem'));
   assert.ok(rulesSource.includes('isValidCategoryItem'));
@@ -383,12 +397,80 @@ test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 (with emailVerified:
     'PERMISSION_DENIED'
   );
 
-  // Connectivity & rules v3 probe check
+  // Connectivity & rules v3/v4 probe check
   assert.equal(evaluateConnectionProbe('connection', 'get'), 'ALLOWED');
   assert.equal(evaluateConnectionProbe('rules_v3_ready', 'get'), 'ALLOWED');
+  assert.equal(evaluateConnectionProbe('rules_v4_infinity_ready', 'get'), 'ALLOWED');
   assert.equal(evaluateConnectionProbe('other', 'get'), 'PERMISSION_DENIED');
   assert.equal(evaluateConnectionProbe('connection', 'write'), 'PERMISSION_DENIED');
   assert.equal(evaluateConnectionProbe('connection', 'list'), 'PERMISSION_DENIED');
+});
+
+test('Infinity Corp developer UID ILSbnyLsRWXvV9n2viqoMgFyDpr2 succeeds on siteConfig/main, new products, and cross-admin product updates', () => {
+  // 1. Create new product authored by Infinity Corp UID
+  const infinityProduct = makeBaseValidPayload(INFINITY_CORP_UID);
+  assert.equal(
+    evaluateProductCreate('prod-101', infinityProduct, infinityCorpDeveloperAuth),
+    'ALLOWED'
+  );
+
+  // 2. Cross-admin update: Infinity Corp updates a product originally created by Primary Developer (preserving authorUid)
+  const existingByPrimary = makeBaseValidPayload(AUTHORIZED_UID);
+  const updatedByInfinity = {
+    ...existingByPrimary,
+    name: 'كاميرا مراقبة شبكية Infinity Pro 4K',
+    category: 'قسم كاميرات المراقبة',
+    categoryId: 'cctv',
+    price: 1950,
+    originalPrice: 2400,
+    updatedAt: REQUEST_TIME,
+  };
+  assert.equal(
+    evaluateProductUpdate('prod-101', existingByPrimary, updatedByInfinity, infinityCorpDeveloperAuth),
+    'ALLOWED'
+  );
+
+  // 3. Reverse cross-admin update: Primary Developer updates a product created by Infinity Corp (preserving authorUid)
+  const updatedByPrimary = {
+    ...infinityProduct,
+    inStock: false,
+    updatedAt: REQUEST_TIME,
+  };
+  assert.equal(
+    evaluateProductUpdate('prod-101', infinityProduct, updatedByPrimary, authorizedDeveloperUidAuth),
+    'ALLOWED'
+  );
+
+  // 4. Infinity Corp writes siteConfig/main (Site info, About Us, Contact numbers, Categories/Sections)
+  const infinitySiteConfigUpdate: Record<string, unknown> = {
+    id: 'main',
+    storeName: 'المحلاوي ستور',
+    primaryPhone: '01210141187',
+    primaryWhatsApp: '201210141187',
+    partnerName: 'Infinity Corp',
+    partnerOrderPhone1: '01092662575',
+    aboutPartnerIntro: 'تحديث بيانات Infinity Corp الشريك التقني المعتمد لكاميرات المراقبة والأنظمة الأمنية.',
+    categories: [
+      { id: 'cctv', name: 'قسم كاميرات المراقبة', order: 1 },
+      { id: 'satellite', name: 'قسم الستلايت', order: 2 },
+    ],
+    updatedBy: INFINITY_CORP_UID,
+    updatedAt: REQUEST_TIME,
+  };
+  assert.equal(
+    evaluateSiteConfigWrite('main', infinitySiteConfigUpdate, infinityCorpDeveloperAuth),
+    'ALLOWED'
+  );
+
+  // 5. Infinity Corp cannot spoof updatedBy as another UID
+  assert.equal(
+    evaluateSiteConfigWrite(
+      'main',
+      { ...infinitySiteConfigUpdate, updatedBy: AUTHORIZED_UID },
+      infinityCorpDeveloperAuth
+    ),
+    'PERMISSION_DENIED'
+  );
 });
 
 test('Unauthenticated and non-developer users are blocked from reading hidden admin products or creating admin accounts', () => {
@@ -406,6 +488,7 @@ test('Unauthenticated and non-developer users are blocked from reading hidden ad
     'PERMISSION_DENIED'
   );
   assert.equal(evaluateProductGet('prod-101', hiddenDraft, authorizedDeveloperUidAuth), 'ALLOWED');
+  assert.equal(evaluateProductGet('prod-101', hiddenDraft, infinityCorpDeveloperAuth), 'ALLOWED');
   assert.equal(evaluateProductGet('prod-101', hiddenDraft, verifiedBootstrappedOwner), 'ALLOWED');
   assert.equal(evaluateAdminRoleCreate(), 'PERMISSION_DENIED');
 });
@@ -427,11 +510,19 @@ test('Dirty Dozen adversarial payloads all return PERMISSION_DENIED', () => {
     'PERMISSION_DENIED'
   );
 
-  // 2. Email Spoofing (non-developer UID claiming unverified developer email abdulazizriadvip@gmail.com)
+  // 2. Email Spoofing (non-developer UID claiming unverified developer email abdulazizriadvip@gmail.com or companycamerasinfinitycorp@gmail.com)
   assert.equal(
     evaluateProductCreate('prod-101', makeBaseValidPayload('spoof-uid-999'), {
       uid: 'spoof-uid-999',
       email: 'abdulazizriadvip@gmail.com',
+      email_verified: false,
+    }),
+    'PERMISSION_DENIED'
+  );
+  assert.equal(
+    evaluateProductCreate('prod-101', makeBaseValidPayload('spoof-uid-888'), {
+      uid: 'spoof-uid-888',
+      email: 'companycamerasinfinitycorp@gmail.com',
       email_verified: false,
     }),
     'PERMISSION_DENIED'

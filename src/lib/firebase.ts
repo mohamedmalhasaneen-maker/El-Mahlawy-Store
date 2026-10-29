@@ -38,6 +38,9 @@ import { getCategoryIdByName, getCategoryName } from '../constants/categories';
 import {
   AUTHORIZED_DEVELOPER_EMAIL,
   AUTHORIZED_DEVELOPER_UID,
+  AUTHORIZED_DEVELOPER_UIDS,
+  INFINITY_CORP_DEVELOPER_EMAIL,
+  INFINITY_CORP_DEVELOPER_UID,
   isAuthorizedDeveloperEmail,
   isAuthorizedDeveloperUid,
   isAuthorizedDeveloperUser,
@@ -102,6 +105,9 @@ export { doc, runTransaction };
 export {
   AUTHORIZED_DEVELOPER_EMAIL,
   AUTHORIZED_DEVELOPER_UID,
+  AUTHORIZED_DEVELOPER_UIDS,
+  INFINITY_CORP_DEVELOPER_EMAIL,
+  INFINITY_CORP_DEVELOPER_UID,
   isAuthorizedDeveloperEmail,
   isAuthorizedDeveloperUid,
   isAuthorizedDeveloperUser,
@@ -242,11 +248,11 @@ function assertVerifiedDeveloperSession(): User {
   if (!isAuthorizedDeveloperUser(user)) {
     if (isAuthorizedDeveloperEmail(user.email) && !user.emailVerified) {
       throw new Error(
-        `الحساب (${user.email}) غير مطابق لمعرّف المطور الأساسي وبريده الإلكتروني غير موثّق بعد (emailVerified: false). يرجى توثيق البريد أولًا أو الدخول بحساب المطور المعتمد.`
+        `الحساب (${user.email}) غير مطابق لمعرّفات المطورين المعتمدة وبريده الإلكتروني غير موثّق بعد (emailVerified: false). يرجى توثيق البريد أولًا أو الدخول بحساب مطور معتمد.`
       );
     }
     throw new Error(
-      `غير مصرح بالحفظ السحابي لهذا الحساب (UID: ${user.uid}). الصلاحية مقتصرة على حساب المطور المعتمد فقط.`
+      `غير مصرح بالحفظ السحابي لهذا الحساب (UID: ${user.uid}). الصلاحية مقتصرة على حسابات المطورين المعتمدة فقط.`
     );
   }
   return user;
@@ -695,8 +701,8 @@ export async function signInDeveloperWithEmail(email: string, password: string):
   assertFirebaseProjectConnectionReady();
   const normalizedEmail = email.trim().toLowerCase();
   if (
-    email.trim() === AUTHORIZED_DEVELOPER_UID ||
-    password.trim() === AUTHORIZED_DEVELOPER_UID
+    isAuthorizedDeveloperUid(email) ||
+    isAuthorizedDeveloperUid(password)
   ) {
     const uidErr = new Error('auth/uid-used-as-password') as Error & { code: string };
     uidErr.code = 'auth/uid-used-as-password';
@@ -804,7 +810,13 @@ async function resolveExistingProductImmutableMeta(
   preservedAuthorUid: string;
   preservedCreatedAt: unknown;
 }> {
-  const snap = await getDoc(doc(db, 'products', productId));
+  const productRef = doc(db, 'products', productId);
+  let snap;
+  try {
+    snap = await getDocFromServer(productRef);
+  } catch {
+    snap = await getDoc(productRef);
+  }
   if (!snap.exists()) {
     return {
       existingProduct: null,

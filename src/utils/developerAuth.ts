@@ -1,9 +1,17 @@
 export const AUTHORIZED_DEVELOPER_UID = 'eGi5P37ztLe5Nn77sEFvmFFcZWp1';
 export const AUTHORIZED_DEVELOPER_EMAIL = 'abdulazizriadvip@gmail.com';
+export const INFINITY_CORP_DEVELOPER_UID = 'ILSbnyLsRWXvV9n2viqoMgFyDpr2';
+export const INFINITY_CORP_DEVELOPER_EMAIL = 'companycamerasinfinitycorp@gmail.com';
 export const BOOTSTRAPPED_OWNER_EMAIL = 'mohamed.m.alhasaneen@gmail.com';
+
+export const AUTHORIZED_DEVELOPER_UIDS: readonly string[] = [
+  AUTHORIZED_DEVELOPER_UID,
+  INFINITY_CORP_DEVELOPER_UID,
+];
 
 export const ALLOWED_DEVELOPER_EMAILS: readonly string[] = [
   AUTHORIZED_DEVELOPER_EMAIL,
+  INFINITY_CORP_DEVELOPER_EMAIL,
   BOOTSTRAPPED_OWNER_EMAIL,
 ];
 
@@ -428,7 +436,10 @@ export function isAuthorizedDeveloperEmail(email: string | null | undefined): bo
 }
 
 export function isAuthorizedDeveloperUid(uid: string | null | undefined): boolean {
-  return typeof uid === 'string' && uid.trim() === AUTHORIZED_DEVELOPER_UID;
+  if (typeof uid !== 'string') return false;
+  const trimmed = uid.trim();
+  if (!trimmed) return false;
+  return AUTHORIZED_DEVELOPER_UIDS.includes(trimmed);
 }
 
 export function isAuthorizedDeveloperUser(
@@ -458,8 +469,8 @@ export function validateDeveloperLoginInput(
   }
 
   if (
-    trimmedRawEmail === AUTHORIZED_DEVELOPER_UID ||
-    trimmedPassword === AUTHORIZED_DEVELOPER_UID
+    isAuthorizedDeveloperUid(trimmedRawEmail) ||
+    isAuthorizedDeveloperUid(trimmedPassword)
   ) {
     return {
       valid: false,
@@ -540,7 +551,7 @@ export function translateDeveloperAuthError(
     lowerMsg.includes('unauthorized-developer-account') ||
     lowerMsg.includes('unauthorized-developer-email')
   ) {
-    return 'هذا الحساب غير مصرح له بالدخول إلى إعدادات المطور (لا يطابق معرّف حساب المطور المعتمد).';
+    return 'هذا الحساب غير مصرح له بالدخول إلى إعدادات المطور (لا يطابق أيًا من حسابات المطورين المعتمدة).';
   }
 
   if (

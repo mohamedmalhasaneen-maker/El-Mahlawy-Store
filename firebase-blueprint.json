@@ -238,7 +238,7 @@
     },
     "ConnectionProbe": {
       "title": "ConnectionProbe",
-      "description": "Read-only Firestore client connectivity and rules version probe document (/test/connection, /test/rules_v3_ready).",
+      "description": "Read-only Firestore client connectivity and rules version probe document (/test/connection, /test/rules_v3_ready, /test/rules_v4_infinity_ready).",
       "type": "object",
       "properties": {
         "id": {
@@ -246,7 +246,7 @@
           "minLength": 1,
           "maxLength": 32,
           "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "Probe identifier ('connection' or 'rules_v3_ready')."
+          "description": "Probe identifier ('connection', 'rules_v3_ready', or 'rules_v4_infinity_ready')."
         }
       },
       "required": ["id"]

@@ -24,16 +24,18 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Pure token/UID check for authorized developer & bootstrapped project owner (zero DB lookups)
+    // Pure token/UID check for authorized developers & bootstrapped project owner (zero DB lookups)
     function isAuthorizedDeveloper() {
       return isSignedIn() && (
         request.auth.uid == 'eGi5P37ztLe5Nn77sEFvmFFcZWp1' ||
+        request.auth.uid == 'ILSbnyLsRWXvV9n2viqoMgFyDpr2' ||
         (
           'email_verified' in request.auth.token &&
           request.auth.token.email_verified == true &&
           'email' in request.auth.token &&
           (
             request.auth.token.email == 'abdulazizriadvip@gmail.com' ||
+            request.auth.token.email == 'companycamerasinfinitycorp@gmail.com' ||
             request.auth.token.email == 'mohamed.m.alhasaneen@gmail.com'
           )
         )
@@ -330,9 +332,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Read-only Connectivity & Rules Version Probe (/test/connection, /test/rules_v3_ready)
+    // Read-only Connectivity & Rules Version Probe (/test/connection, /test/rules_v3_ready, /test/rules_v4_infinity_ready)
     match /test/{probeId} {
-      allow get: if isValidId(probeId) && (probeId == 'connection' || probeId == 'rules_v3_ready');
+      allow get: if isValidId(probeId) && (
+        probeId == 'connection' ||
+        probeId == 'rules_v3_ready' ||
+        probeId == 'rules_v4_infinity_ready'
+      );
       allow list: if false;
       allow create: if false;
       allow update: if false;

@@ -6,6 +6,9 @@ import firebaseAppletConfig from '../../firebase-applet-config.json';
 import {
   AUTHORIZED_DEVELOPER_EMAIL,
   AUTHORIZED_DEVELOPER_UID,
+  AUTHORIZED_DEVELOPER_UIDS,
+  INFINITY_CORP_DEVELOPER_EMAIL,
+  INFINITY_CORP_DEVELOPER_UID,
   buildSafeDeveloperAuthDiagnostic,
   createFirebaseAuthResilientFetch,
   isAuthorizedDeveloperEmail,
@@ -52,23 +55,35 @@ test('firebase-applet-config.json passes Web App validation and targets emergent
   assert.equal(demoResult.errors.length, 4);
 });
 
-test('AUTHORIZED_DEVELOPER_UID and AUTHORIZED_DEVELOPER_EMAIL match configured developer identity', () => {
+test('Primary and Infinity Corp developer UIDs and emails match configured developer identities', () => {
   assert.equal(AUTHORIZED_DEVELOPER_UID, 'eGi5P37ztLe5Nn77sEFvmFFcZWp1');
+  assert.equal(INFINITY_CORP_DEVELOPER_UID, 'ILSbnyLsRWXvV9n2viqoMgFyDpr2');
+  assert.deepEqual(AUTHORIZED_DEVELOPER_UIDS, [
+    'eGi5P37ztLe5Nn77sEFvmFFcZWp1',
+    'ILSbnyLsRWXvV9n2viqoMgFyDpr2',
+  ]);
+
   assert.equal(isAuthorizedDeveloperUid('eGi5P37ztLe5Nn77sEFvmFFcZWp1'), true);
   assert.equal(isAuthorizedDeveloperUid('  eGi5P37ztLe5Nn77sEFvmFFcZWp1  '), true);
+  assert.equal(isAuthorizedDeveloperUid('ILSbnyLsRWXvV9n2viqoMgFyDpr2'), true);
+  assert.equal(isAuthorizedDeveloperUid('  ILSbnyLsRWXvV9n2viqoMgFyDpr2  '), true);
   assert.equal(isAuthorizedDeveloperUid('some-other-uid-999'), false);
   assert.equal(isAuthorizedDeveloperUid(''), false);
   assert.equal(isAuthorizedDeveloperUid(null), false);
 
   assert.equal(AUTHORIZED_DEVELOPER_EMAIL, 'abdulazizriadvip@gmail.com');
+  assert.equal(INFINITY_CORP_DEVELOPER_EMAIL, 'companycamerasinfinitycorp@gmail.com');
   assert.equal(isAuthorizedDeveloperEmail('abdulazizriadvip@gmail.com'), true);
   assert.equal(isAuthorizedDeveloperEmail('  AbdulazizRiadVIP@Gmail.com '), true);
+  assert.equal(isAuthorizedDeveloperEmail('companycamerasinfinitycorp@gmail.com'), true);
+  assert.equal(isAuthorizedDeveloperEmail('  CompanyCamerasInfinityCorp@Gmail.com '), true);
   assert.equal(isAuthorizedDeveloperEmail('intruder@gmail.com'), false);
   assert.equal(isAuthorizedDeveloperEmail(''), false);
   assert.equal(isAuthorizedDeveloperEmail(null), false);
 });
 
-test('isAuthorizedDeveloperUser authorizes exact developer UID or verified authorized email', () => {
+test('isAuthorizedDeveloperUser authorizes both primary and Infinity Corp UIDs and never relies on email alone without verification', () => {
+  // Primary developer UID authorized even if emailVerified is false
   assert.equal(
     isAuthorizedDeveloperUser({
       uid: 'eGi5P37ztLe5Nn77sEFvmFFcZWp1',
@@ -78,10 +93,37 @@ test('isAuthorizedDeveloperUser authorizes exact developer UID or verified autho
     true
   );
 
+  // Infinity Corp developer UID authorized with emailVerified false or true
+  assert.equal(
+    isAuthorizedDeveloperUser({
+      uid: 'ILSbnyLsRWXvV9n2viqoMgFyDpr2',
+      email: 'companycamerasinfinitycorp@gmail.com',
+      emailVerified: false,
+    }),
+    true
+  );
+  assert.equal(
+    isAuthorizedDeveloperUser({
+      uid: 'ILSbnyLsRWXvV9n2viqoMgFyDpr2',
+      email: 'companycamerasinfinitycorp@gmail.com',
+      emailVerified: true,
+    }),
+    true
+  );
+
+  // Email alone with mismatched UID and emailVerified: false MUST be rejected
   assert.equal(
     isAuthorizedDeveloperUser({
       uid: 'spoof-uid-123',
       email: 'abdulazizriadvip@gmail.com',
+      emailVerified: false,
+    }),
+    false
+  );
+  assert.equal(
+    isAuthorizedDeveloperUser({
+      uid: 'spoof-uid-888',
+      email: 'companycamerasinfinitycorp@gmail.com',
       emailVerified: false,
     }),
     false
@@ -106,7 +148,7 @@ test('isAuthorizedDeveloperUser authorizes exact developer UID or verified autho
   );
 });
 
-test('validateDeveloperLoginInput enforces email format, non-empty password, and blocks UID used as password or login substitute', () => {
+test('validateDeveloperLoginInput enforces email format, non-empty password, and blocks any developer UID used as password or login substitute', () => {
   const emptyBoth = validateDeveloperLoginInput('', '');
   assert.equal(emptyBoth.valid, false);
   assert.ok(emptyBoth.error?.includes('البريد الإلكتروني'));
@@ -118,9 +160,23 @@ test('validateDeveloperLoginInput enforces email format, non-empty password, and
   assert.equal(uidAsPassword.valid, false);
   assert.ok(uidAsPassword.error?.includes('UID'));
 
+  const infinityUidAsPassword = validateDeveloperLoginInput(
+    'companycamerasinfinitycorp@gmail.com',
+    INFINITY_CORP_DEVELOPER_UID
+  );
+  assert.equal(infinityUidAsPassword.valid, false);
+  assert.ok(infinityUidAsPassword.error?.includes('UID'));
+
   const uidAsEmail = validateDeveloperLoginInput(AUTHORIZED_DEVELOPER_UID, 'AnySecretPass!');
   assert.equal(uidAsEmail.valid, false);
   assert.ok(uidAsEmail.error?.includes('UID'));
+
+  const infinityUidAsEmail = validateDeveloperLoginInput(
+    INFINITY_CORP_DEVELOPER_UID,
+    'AnySecretPass!'
+  );
+  assert.equal(infinityUidAsEmail.valid, false);
+  assert.ok(infinityUidAsEmail.error?.includes('UID'));
 
   const badEmail = validateDeveloperLoginInput('not-an-email', 'secret');
   assert.equal(badEmail.valid, false);
@@ -134,9 +190,17 @@ test('validateDeveloperLoginInput enforces email format, non-empty password, and
   assert.equal(valid.valid, true);
   assert.equal(valid.normalizedEmail, 'abdulazizriadvip@gmail.com');
   assert.equal(valid.error, undefined);
+
+  const validInfinity = validateDeveloperLoginInput(
+    '  CompanyCamerasInfinityCorp@gmail.com  ',
+    'PartnerChosenPass!'
+  );
+  assert.equal(validInfinity.valid, true);
+  assert.equal(validInfinity.normalizedEmail, 'companycamerasinfinitycorp@gmail.com');
+  assert.equal(validInfinity.error, undefined);
 });
 
-test('resolveDeveloperAccessState strictly blocks unauthenticated, unauthorized, and unverified non-UID sessions', () => {
+test('resolveDeveloperAccessState strictly blocks unauthenticated, unauthorized, and unverified non-UID sessions while authorizing both developer UIDs', () => {
   assert.equal(resolveDeveloperAccessState(null, false), 'checking');
   assert.equal(resolveDeveloperAccessState(null, true), 'unauthenticated');
 
@@ -158,6 +222,18 @@ test('resolveDeveloperAccessState strictly blocks unauthenticated, unauthorized,
 
   assert.equal(
     resolveDeveloperAccessState(
+      {
+        uid: 'ILSbnyLsRWXvV9n2viqoMgFyDpr2',
+        email: 'companycamerasinfinitycorp@gmail.com',
+        emailVerified: false,
+      },
+      true
+    ),
+    'authorized'
+  );
+
+  assert.equal(
+    resolveDeveloperAccessState(
       { uid: 'u2', email: 'abdulazizriadvip@gmail.com', emailVerified: false },
       true
     ),
@@ -166,7 +242,23 @@ test('resolveDeveloperAccessState strictly blocks unauthenticated, unauthorized,
 
   assert.equal(
     resolveDeveloperAccessState(
+      { uid: 'u3', email: 'companycamerasinfinitycorp@gmail.com', emailVerified: false },
+      true
+    ),
+    'unverified_email'
+  );
+
+  assert.equal(
+    resolveDeveloperAccessState(
       { uid: 'u2', email: 'abdulazizriadvip@gmail.com', emailVerified: true },
+      true
+    ),
+    'authorized'
+  );
+
+  assert.equal(
+    resolveDeveloperAccessState(
+      { uid: 'u3', email: 'companycamerasinfinitycorp@gmail.com', emailVerified: true },
       true
     ),
     'authorized'

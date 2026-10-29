@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import {
   AUTHORIZED_DEVELOPER_EMAIL,
-  AUTHORIZED_DEVELOPER_UID,
+  AUTHORIZED_DEVELOPER_UIDS,
   FIREBASE_DATABASE_ID,
   FIREBASE_PROJECT_ID,
   User,
@@ -183,9 +183,16 @@ export function AccountSettingsSection({
           </div>
 
           <div className="rounded-xl bg-[#0B0B0B] border border-white/10 p-3.5 space-y-1">
-            <dt className="text-xs text-gray-400">معرّف المطور المعتمد في قواعد الأمان</dt>
-            <dd className="font-mono text-xs font-bold text-gray-200 break-all tabular-nums">
-              <bdi>{AUTHORIZED_DEVELOPER_UID}</bdi>
+            <dt className="text-xs text-gray-400">معرّفات المطورين المعتمدة في قواعد الأمان</dt>
+            <dd className="font-mono text-xs font-bold text-gray-200 break-all tabular-nums space-y-1">
+              {AUTHORIZED_DEVELOPER_UIDS.map((uid) => (
+                <div
+                  key={uid}
+                  className={currentUser?.uid === uid ? 'text-emerald-400' : 'text-gray-300'}
+                >
+                  <bdi>{uid}</bdi>
+                </div>
+              ))}
             </dd>
           </div>
 

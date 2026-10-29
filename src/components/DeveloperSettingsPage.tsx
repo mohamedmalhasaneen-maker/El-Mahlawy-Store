@@ -44,7 +44,7 @@ import {
   translateFirebaseAuthError,
 } from '../lib/firebase';
 import {
-  AUTHORIZED_DEVELOPER_UID,
+  isAuthorizedDeveloperUid,
   resolveDeveloperAccessState,
   validateDeveloperLoginInput,
 } from '../utils/developerAuth';
@@ -342,7 +342,7 @@ export function DeveloperSettingsPage({
       return;
     }
 
-    if (rawTrimmed === AUTHORIZED_DEVELOPER_UID) {
+    if (isAuthorizedDeveloperUid(rawTrimmed)) {
       setAuthFeedback({
         type: 'error',
         message: 'لا يمكن استخدام معرّف الحساب (UID) بدلًا من البريد الإلكتروني.',
