@@ -21,11 +21,14 @@ import {
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { PARTNER_INFO } from '../types/store';
 import { buildWhatsAppLinkFromPhone, parsePartnerScopeList } from '../utils/siteConfig';
+import { ThemeToggle } from './ThemeToggle';
 import { Footer } from './Footer';
 
 interface AboutUsPageProps {
   onBackToStore: () => void;
   onAdminButtonClick?: () => void;
+  isDark?: boolean;
+  onToggleTheme?: () => void;
 }
 
 const STORE_PRODUCTS_LIST = [
@@ -100,7 +103,7 @@ const INFINITY_SERVICES_LIST = [
   },
 ];
 
-export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPageProps) {
+export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false, onToggleTheme }: AboutUsPageProps) {
   const siteConfig = useSiteConfig();
   const partnerScopeList = parsePartnerScopeList(siteConfig.partnerServiceScopeText);
   const effectiveScope =
@@ -116,14 +119,14 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
   );
 
   return (
-    <div className="min-h-screen bg-[#0B0B0B] text-gray-100 flex flex-col">
+    <div className="min-h-screen bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] flex flex-col transition-colors">
       {/* Top Standalone Header Bar */}
-      <header className="sticky top-0 z-40 bg-[#0B0B0B]/95 backdrop-blur-md border-b border-[#D4AF37]">
+      <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#081A33]/95 backdrop-blur-md border-b border-[#D8EEFB] dark:border-[#163663]">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <button
             type="button"
             onClick={onBackToStore}
-            className="inline-flex items-center gap-2 text-sm sm:text-base font-extrabold text-white hover:text-[#D4AF37] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 text-sm sm:text-base font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] hover:text-[#1D4ED8] dark:hover:text-[#38BDF8] transition-colors cursor-pointer"
           >
             <img
               src="/logo.png"
@@ -136,21 +139,24 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick }: AboutUsPagePr
               {siteConfig.storeSubtitle ? (
                 <>
                   {' '}
-                  <span className="text-[#D4AF37]">|</span>{' '}
-                  <bdi className="text-[#0F4C5C]">{siteConfig.storeSubtitle}</bdi>
+                  <span className="text-[#1D4ED8] dark:text-[#38BDF8]">|</span>{' '}
+                  <bdi className="font-bold text-[#1E3A8A] dark:text-[#7DD3FC]">{siteConfig.storeSubtitle}</bdi>
                 </>
               ) : null}
             </span>
           </button>
 
-          <button
-            type="button"
-            onClick={onBackToStore}
-            className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#0B0B0B] hover:bg-[#1A1A1A] border border-[#D4AF37] px-4 py-2 text-xs sm:text-sm font-extrabold text-[#D4AF37] transition-colors cursor-pointer"
-          >
-            <ArrowRight className="h-4 w-4" />
-            <span>العودة للرئيسية</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {onToggleTheme && <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />}
+            <button
+              type="button"
+              onClick={onBackToStore}
+              className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] hover:bg-[#E2F3FE] dark:hover:bg-[#153666] border border-[#CBE7FA] dark:border-[#1E3F73] px-4 py-2 text-xs sm:text-sm font-extrabold text-[#1D4ED8] dark:text-[#E0F2FE] transition-colors cursor-pointer"
+            >
+              <ArrowRight className="h-4 w-4" />
+              <span>العودة للرئيسية</span>
+            </button>
+          </div>
         </div>
       </header>
 

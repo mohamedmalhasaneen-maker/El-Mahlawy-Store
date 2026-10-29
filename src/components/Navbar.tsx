@@ -121,7 +121,10 @@ export function Navbar({
           </button>
           <a
             href="#footer-contact"
-            onClick={() => handleNavClick('footer-contact')}
+            onClick={(e) => {
+              e.preventDefault();
+              handleNavClick('footer-contact');
+            }}
             className="hover:text-[#1D4ED8] dark:hover:text-[#38BDF8] transition-colors whitespace-nowrap shrink-0 py-1 border-b-2 border-transparent hover:border-[#38BDF8]"
           >
             تواصل معنا

@@ -557,6 +557,8 @@ export default function App() {
             <AboutUsPage
               onBackToStore={() => navigateToView('store')}
               onAdminButtonClick={handleOpenDeveloperSettings}
+              isDark={isDark}
+              onToggleTheme={toggleTheme}
             />
           </div>
         ) : (
