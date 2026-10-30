@@ -111,11 +111,9 @@ export function ValuesAndPrinciplesSection({
             patternUnits="userSpaceOnUse"
           >
             <g fill="none" stroke="currentColor" strokeWidth="0.9">
-              {/* Rotated overlapping squares forming classic 8-pointed Islamic Khatam star */}
               <rect x="20" y="20" width="32" height="32" />
               <rect x="20" y="20" width="32" height="32" transform="rotate(45 36 36)" />
               <circle cx="36" cy="36" r="5" />
-              {/* Connecting lattice lines */}
               <path d="M36 0V13.4M36 58.6V72M0 36H13.4M58.6 36H72" />
               <path d="M0 0L16 16M72 0L56 16M0 72L16 56M72 72L56 56" strokeOpacity="0.55" />
             </g>
@@ -167,39 +165,11 @@ export function ValuesAndPrinciplesSection({
           </h2>
         </div>
 
-        {/* Two Cards: Side-by-Side on Desktop, Stacked on Mobile */}
+        {/* Two Cards: Side-by-Side on Desktop (Quranic Verse on Right in RTL), Stacked on Mobile (Quranic Verse on Top) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 lg:gap-8 items-stretch">
-          {/* Card 1: الحديث الشريف (Verbatim) */}
+          {/* Card 1: الآية القرآنية (Verbatim) - Appears on Right in Desktop RTL & Top in Mobile */}
           <article
             className={`relative rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-center transition-all duration-700 delay-100 ease-out hover:-translate-y-0.5 ${cardSurfaceClass} ${
-              isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-            }`}
-          >
-            <CornerOrnament position="top-right" />
-            <CornerOrnament position="top-left" />
-            <CornerOrnament position="bottom-right" />
-            <CornerOrnament position="bottom-left" />
-
-            <blockquote className="relative z-10 m-0">
-              <p className="m-0 flex flex-col items-center text-center gap-4 sm:gap-5">
-                <span className="text-sm sm:text-base font-extrabold text-[#8A6508] dark:text-[#E5C158]">
-                  📖 قال رسول الله ﷺ
-                </span>{' '}
-                <span className="font-sacred block text-2xl sm:text-[1.8rem] lg:text-[2.05rem] font-bold leading-[1.95] text-[#0B1F3A] dark:text-[#FAF6EC] text-balance px-2">
-                  «لَا يَبِعْ بَعْضُكُمْ عَلَى بَيْعِ بَعْضٍ»
-                </span>{' '}
-                <span className="inline-flex items-center gap-3 text-xs sm:text-sm font-bold text-[#6E5108] dark:text-[#D4AF37] pt-1">
-                  <span aria-hidden="true" className="h-px w-6 sm:w-8 bg-[#B8860B]/45 dark:bg-[#D4AF37]/50" />
-                  <span>رواه مسلم</span>
-                  <span aria-hidden="true" className="h-px w-6 sm:w-8 bg-[#B8860B]/45 dark:bg-[#D4AF37]/50" />
-                </span>
-              </p>
-            </blockquote>
-          </article>
-
-          {/* Card 2: الآية القرآنية (Verbatim) */}
-          <article
-            className={`relative rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-center transition-all duration-700 delay-200 ease-out hover:-translate-y-0.5 ${cardSurfaceClass} ${
               isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
             }`}
           >
@@ -219,6 +189,34 @@ export function ValuesAndPrinciplesSection({
                 <span className="inline-flex items-center gap-3 text-xs sm:text-sm font-bold text-[#6E5108] dark:text-[#D4AF37] pt-1">
                   <span aria-hidden="true" className="h-px w-6 sm:w-8 bg-[#B8860B]/45 dark:bg-[#D4AF37]/50" />
                   <span>سورة الأعراف – الآية 85</span>
+                  <span aria-hidden="true" className="h-px w-6 sm:w-8 bg-[#B8860B]/45 dark:bg-[#D4AF37]/50" />
+                </span>
+              </p>
+            </blockquote>
+          </article>
+
+          {/* Card 2: الحديث الشريف (Verbatim) - Appears on Left in Desktop RTL & Bottom in Mobile */}
+          <article
+            className={`relative rounded-3xl border p-6 sm:p-8 lg:p-10 flex flex-col justify-center transition-all duration-700 delay-200 ease-out hover:-translate-y-0.5 ${cardSurfaceClass} ${
+              isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+            }`}
+          >
+            <CornerOrnament position="top-right" />
+            <CornerOrnament position="top-left" />
+            <CornerOrnament position="bottom-right" />
+            <CornerOrnament position="bottom-left" />
+
+            <blockquote className="relative z-10 m-0">
+              <p className="m-0 flex flex-col items-center text-center gap-4 sm:gap-5">
+                <span className="text-sm sm:text-base font-extrabold text-[#8A6508] dark:text-[#E5C158]">
+                  📖 قال رسول الله ﷺ
+                </span>{' '}
+                <span className="font-sacred block text-2xl sm:text-[1.8rem] lg:text-[2.05rem] font-bold leading-[1.95] text-[#0B1F3A] dark:text-[#FAF6EC] text-balance px-2">
+                  «لَا يَبِعْ بَعْضُكُمْ عَلَى بَيْعِ بَعْضٍ»
+                </span>{' '}
+                <span className="inline-flex items-center gap-3 text-xs sm:text-sm font-bold text-[#6E5108] dark:text-[#D4AF37] pt-1">
+                  <span aria-hidden="true" className="h-px w-6 sm:w-8 bg-[#B8860B]/45 dark:bg-[#D4AF37]/50" />
+                  <span>رواه مسلم</span>
                   <span aria-hidden="true" className="h-px w-6 sm:w-8 bg-[#B8860B]/45 dark:bg-[#D4AF37]/50" />
                 </span>
               </p>

@@ -140,6 +140,11 @@ export function Navbar({
               تقييم المتجر
             </button>
           )}
+          {onToggleTheme && (
+            <div className="ms-1 ps-3 border-r border-slate-200 dark:border-slate-700 flex items-center shrink-0">
+              <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />
+            </div>
+          )}
         </nav>
 
         {/* Zone 3: Actions (Theme Toggle & Developer Settings) */}

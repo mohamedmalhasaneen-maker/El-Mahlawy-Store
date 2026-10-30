@@ -564,11 +564,12 @@ export default function App() {
 
   const heroSpotlightProduct = useMemo(() => {
     if (!siteConfig.showHeroSpotlight) return undefined;
-    return (
-      products.find((p) => p.isFeatured && p.isPublished) ||
-      products.find((p) => p.isPublished) ||
-      undefined
+    const published = products.filter((p) => p.isPublished);
+    if (published.length === 0) return undefined;
+    const sortedByNewest = [...published].sort((a, b) =>
+      (b.createdAt || '').localeCompare(a.createdAt || '')
     );
+    return sortedByNewest[0];
   }, [products, siteConfig.showHeroSpotlight]);
 
   const developerCatalogProducts = useMemo(() => {
