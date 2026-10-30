@@ -240,7 +240,7 @@
     },
     "ConnectionProbe": {
       "title": "ConnectionProbe",
-      "description": "Read-only Firestore client connectivity and rules version probe document.",
+      "description": "Read-only Firestore client connectivity and rules version probe document (/test/connection, /test/rules_v3_ready, /test/rules_v4_infinity_ready, /test/rules_v5_siteconfig_ready, /test/rules_v6_ping).",
       "type": "object",
       "properties": {
         "id": {
@@ -248,7 +248,7 @@
           "minLength": 1,
           "maxLength": 32,
           "pattern": "^[a-zA-Z0-9_\\-]+$",
-          "description": "Probe identifier."
+          "description": "Probe identifier ('connection', 'rules_v3_ready', 'rules_v4_infinity_ready', 'rules_v5_siteconfig_ready', or 'rules_v6_ping')."
         }
       },
       "required": ["id"]
@@ -263,31 +263,6 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "count"]
-    },
-    "UserStats": {
-      "title": "UserStats",
-      "description": "Aggregated verified unique users statistics (/meta/userStats).",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[a-zA-Z0-9_\\-]+$" },
-        "totalUniqueUsers": { "type": "number" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "totalUniqueUsers"]
-    },
-    "SiteUser": {
-      "title": "SiteUser",
-      "description": "Unique verified authenticated user record (/siteUsers/{userId}).",
-      "type": "object",
-      "properties": {
-        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
-        "email": { "type": "string", "maxLength": 200 },
-        "displayName": { "type": "string", "maxLength": 200 },
-        "firstActiveAt": { "type": "string", "format": "date-time" },
-        "lastActiveAt": { "type": "string", "format": "date-time" },
-        "activityCount": { "type": "number" }
-      },
-      "required": ["uid", "firstActiveAt", "lastActiveAt", "activityCount"]
     },
     "UniqueDevice": {
       "title": "UniqueDevice",
@@ -378,19 +353,15 @@
     },
     "/test/{probeId}": {
       "schema": "ConnectionProbe",
-      "description": "Read-only connectivity health probe document."
+      "description": "Read-only connectivity health probe document (/test/connection); writes and list queries are strictly forbidden."
     },
     "/meta/{statId}": {
       "schema": "VisitorStats",
-      "description": "Public store statistics document (/meta/visitors, /meta/ratings, /meta/userStats)."
-    },
-    "/siteUsers/{userId}": {
-      "schema": "SiteUser",
-      "description": "Registry of unique verified authenticated users indexed by Firebase Auth UID."
+      "description": "Public store visitor statistics document (/meta/visitors) readable by all and incrementable by any client."
     },
     "/uniqueDevices/{deviceId}": {
       "schema": "UniqueDevice",
-      "description": "Registry of unique device/browser instances."
+      "description": "Registry of unique device/browser instances used to prevent duplicate visitor counts."
     },
     "/ratings/{ratingId}": {
       "schema": "Rating",

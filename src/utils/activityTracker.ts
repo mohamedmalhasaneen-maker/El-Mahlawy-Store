@@ -3,7 +3,6 @@ import {
   USEFUL_ACTIVITY_COUNT_KEY,
   isLocalRatingSubmitted,
 } from './ratingSystem';
-import { recordAuthenticatedUserActivity } from './userTracker';
 
 export type ActivityType =
   | 'view_product_details'
@@ -60,9 +59,6 @@ export function recordUsefulActivity(
   _detail?: string
 ): number {
   if (typeof window === 'undefined') return 0;
-
-  // Also trigger authenticated user activity tracking
-  void recordAuthenticatedUserActivity();
 
   // Don't track if already submitted or dismissed in this session
   if (isLocalRatingSubmitted() || isRatingPromptDismissedInSession()) {

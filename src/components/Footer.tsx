@@ -577,7 +577,7 @@ export function Footer({
       )}
 
       {/* 3. التذييل النهائي للموقع (Footer) */}
-      <div className={`border-t ${isDark ? 'border-[#D4AF37]/30' : 'border-[#163663]'}`}>
+      <div className={`border-t ${isDark ? 'border-[#D4AF37]/40' : 'border-[#163663]'} ${isDark ? 'bg-[#050505]' : 'bg-[#061426]'}`}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5 max-w-3xl">
