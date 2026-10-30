@@ -48,6 +48,23 @@ export interface SocialLinkItem {
 
 export type StoreCategoryItem = Category;
 
+export interface EssentialCategoryItem {
+  id: string;
+  name: string;
+  imageUrl: string;
+  order: number;
+}
+
+export const DEFAULT_ESSENTIAL_CATEGORIES: EssentialCategoryItem[] = [
+  { id: 'surveillance', name: 'كاميرات المراقبة', imageUrl: '', order: 1 },
+  { id: 'satellite', name: 'الستلايت', imageUrl: '', order: 2 },
+  { id: 'receivers', name: 'الريسيفرات', imageUrl: '', order: 3 },
+  { id: 'audio_systems', name: 'أنظمة الصوتيات', imageUrl: '', order: 4 },
+  { id: 'led_profile', name: 'إضاءة LED بروفايل', imageUrl: '', order: 5 },
+  { id: 'early_alarm', name: 'أنظمة الإنذار المبكر', imageUrl: '', order: 6 },
+  { id: 'fire_alarm', name: 'أنظمة إنذار الحريق', imageUrl: '', order: 7 },
+];
+
 export interface SiteConfig {
   id: string;
   // 1. Site Identity & SEO
@@ -101,6 +118,7 @@ export interface SiteConfig {
   branches: BranchLocationItem[];
   socialLinks: SocialLinkItem[];
   categories: StoreCategoryItem[];
+  essentialCategories: EssentialCategoryItem[];
 
   // 6. Section Visibility Toggles
   showHeroSpotlight: boolean;
@@ -109,6 +127,7 @@ export interface SiteConfig {
   showShippingSection: boolean;
   showPartnerCard: boolean;
   showAboutBanner: boolean;
+  showRatingsSection: boolean;
 
   // 7. Audit Metadata
   updatedBy: string;
@@ -157,6 +176,8 @@ export function estimateJsonUtf8Bytes(value: unknown): number {
   }
 }
 
+export const OFFICIAL_GOOGLE_MAPS_URL = 'https://maps.app.goo.gl/cJpdFbt62cTr1hch9';
+
 export const DEFAULT_SITE_CONFIG: SiteConfig = {
   id: 'main',
   storeName: STORE_INFO.storeName,
@@ -178,7 +199,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   facebookUrl: STORE_INFO.facebookUrl,
   instagramUrl: '',
   address: STORE_INFO.address,
-  googleMapsUrl: 'https://maps.google.com/?q=27.9158,34.3300',
+  googleMapsUrl: OFFICIAL_GOOGLE_MAPS_URL,
   workingHours: 'يوميًا من 10:00 صباحًا حتى 11:00 مساءً',
   shippingSummary: STORE_INFO.shippingSummary,
   afterSalesPolicy: STORE_INFO.afterSalesPolicy,
@@ -239,7 +260,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
       id: 'branch-sharm-main',
       name: 'الفرع الرئيسي — شرم الشيخ (الرويسات)',
       address: STORE_INFO.address,
-      mapUrl: 'https://maps.google.com/?q=27.9158,34.3300',
+      mapUrl: OFFICIAL_GOOGLE_MAPS_URL,
       workingHours: 'يوميًا من 10:00 صباحًا حتى 11:00 مساءً',
       phone: STORE_INFO.primaryPhone,
     },
@@ -248,6 +269,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   socialLinks: [],
 
   categories: PRODUCT_CATEGORIES.map((cat) => ({ ...cat })),
+  essentialCategories: DEFAULT_ESSENTIAL_CATEGORIES.map((item) => ({ ...item })),
 
   showHeroSpotlight: true,
   showValueStrip: true,
@@ -255,6 +277,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   showShippingSection: true,
   showPartnerCard: true,
   showAboutBanner: true,
+  showRatingsSection: true,
 
   updatedBy: 'system',
   updatedAt: new Date(0).toISOString(),
@@ -455,6 +478,34 @@ export function validateSiteConfigInput(config: SiteConfig): ValidationResult {
     }
   }
 
+  const rawEssential = config.essentialCategories || [];
+  if (rawEssential.length > 20) {
+    errors.push('الحد الأقصى لفئات المنتجات الأساسية هو 20 فئة.');
+  } else {
+    const seenEssIds = new Set<string>();
+    for (const item of rawEssential) {
+      const essId = (item.id || '').trim();
+      const essName = (item.name || '').trim();
+      if (!essId || essId.length > 60 || !SAFE_ID_REGEX.test(essId)) {
+        errors.push('معرّف إحدى الفئات الأساسية غير صالح.');
+        break;
+      }
+      if (seenEssIds.has(essId)) {
+        errors.push(`يوجد تكرار في معرّف الفئة الأساسية (${essId}).`);
+        break;
+      }
+      seenEssIds.add(essId);
+      if (essName.length < 2 || essName.length > 80) {
+        errors.push('اسم كل فئة أساسية يجب أن يكون بين حرفين و80 حرفًا.');
+        break;
+      }
+      if (item.imageUrl && !isValidOptionalHttpUrl(item.imageUrl)) {
+        errors.push(`رابط صورة الفئة "${essName}" غير صالح.`);
+        break;
+      }
+    }
+  }
+
   if (estimateJsonUtf8Bytes(config) > MAX_FIRESTORE_DOC_SAFE_BYTES) {
     errors.push(
       'حجم بيانات إعدادات الموقع يتجاوز الحد الأقصى المسموح به لمستند Cloud Firestore (1 ميجابايت).'
@@ -521,12 +572,18 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
       typeof br?.id === 'string' && SAFE_ID_REGEX.test(br.id.trim())
         ? br.id.trim().slice(0, 64)
         : `branch-${idx + 1}`;
-    const rawMapUrl = cleanStr(br?.mapUrl, '', 600, 0);
+    const rawMapUrl = cleanStr(br?.mapUrl, OFFICIAL_GOOGLE_MAPS_URL, 600, 0);
+    const safeBranchMapUrl =
+      !rawMapUrl || rawMapUrl.includes('27.9158') || rawMapUrl.includes('maps.google.com/?q=')
+        ? OFFICIAL_GOOGLE_MAPS_URL
+        : isValidOptionalHttpUrl(rawMapUrl)
+        ? rawMapUrl
+        : OFFICIAL_GOOGLE_MAPS_URL;
     return {
       id: safeId,
       name: cleanStr(br?.name, 'فرع المحلاوي ستور', 120, 1),
       address: cleanStr(br?.address, STORE_INFO.address, 1000, 1),
-      mapUrl: isValidOptionalHttpUrl(rawMapUrl) ? rawMapUrl : '',
+      mapUrl: safeBranchMapUrl,
       workingHours: cleanStr(br?.workingHours, '', 300, 0),
       phone: cleanStr(br?.phone, '', 30, 0),
     };
@@ -605,6 +662,47 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
       ? sanitizedCategories.map((c, idx) => ({ ...c, order: idx + 1 }))
       : DEFAULT_SITE_CONFIG.categories.map((c) => ({ ...c }));
 
+  const rawEssential =
+    Array.isArray(input.essentialCategories) && input.essentialCategories.length > 0
+      ? input.essentialCategories
+      : DEFAULT_SITE_CONFIG.essentialCategories;
+
+  const seenEssentialIds = new Set<string>();
+  const sanitizedEssential: EssentialCategoryItem[] = [];
+  for (let idx = 0; idx < rawEssential.length && sanitizedEssential.length < 20; idx += 1) {
+    const item = rawEssential[idx];
+    const safeId =
+      typeof item?.id === 'string' && SAFE_ID_REGEX.test(item.id.trim())
+        ? item.id.trim().slice(0, 60)
+        : `ess-${idx + 1}`;
+    if (seenEssentialIds.has(safeId)) continue;
+    seenEssentialIds.add(safeId);
+
+    const defaultMatch = DEFAULT_ESSENTIAL_CATEGORIES.find((d) => d.id === safeId);
+    const fallbackName = defaultMatch?.name || `فئة ${idx + 1}`;
+    const safeName = cleanStr(item?.name, fallbackName, 80, 2);
+    const rawImg = cleanStr(item?.imageUrl, '', 600, 0);
+    const safeImg = isValidOptionalHttpUrl(rawImg) ? rawImg : '';
+    const rawOrder =
+      typeof item?.order === 'number' && Number.isFinite(item.order)
+        ? Math.round(item.order)
+        : idx + 1;
+    const safeOrder = Math.min(100, Math.max(1, rawOrder));
+
+    sanitizedEssential.push({
+      id: safeId,
+      name: safeName,
+      imageUrl: safeImg,
+      order: safeOrder,
+    });
+  }
+
+  sanitizedEssential.sort((a, b) => a.order - b.order);
+  const essentialCategories: EssentialCategoryItem[] =
+    sanitizedEssential.length > 0
+      ? sanitizedEssential.map((c, idx) => ({ ...c, order: idx + 1 }))
+      : DEFAULT_SITE_CONFIG.essentialCategories.map((c) => ({ ...c }));
+
   const primaryPhone = cleanStr(merged.primaryPhone, DEFAULT_SITE_CONFIG.primaryPhone, 30, 7);
   const rawPrimaryWhatsAppDigits = normalizeDigitsForWhatsApp(
     merged.primaryWhatsApp || primaryPhone || STORE_INFO.primaryWhatsApp
@@ -648,7 +746,13 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     facebookUrl: cleanStr(merged.facebookUrl, DEFAULT_SITE_CONFIG.facebookUrl, 600, 0),
     instagramUrl: cleanStr(merged.instagramUrl, '', 600, 0),
     address: cleanStr(merged.address, DEFAULT_SITE_CONFIG.address, 1000, 0),
-    googleMapsUrl: cleanStr(merged.googleMapsUrl, DEFAULT_SITE_CONFIG.googleMapsUrl, 600, 0),
+    googleMapsUrl: (() => {
+      const rawUrl = cleanStr(merged.googleMapsUrl, OFFICIAL_GOOGLE_MAPS_URL, 600, 0);
+      if (!rawUrl || rawUrl.includes('27.9158') || rawUrl.includes('maps.google.com/?q=')) {
+        return OFFICIAL_GOOGLE_MAPS_URL;
+      }
+      return isValidOptionalHttpUrl(rawUrl) ? rawUrl : OFFICIAL_GOOGLE_MAPS_URL;
+    })(),
     workingHours: cleanStr(merged.workingHours, DEFAULT_SITE_CONFIG.workingHours, 300, 0),
     shippingSummary: cleanStr(merged.shippingSummary, DEFAULT_SITE_CONFIG.shippingSummary, 1500, 0),
     afterSalesPolicy: cleanStr(
@@ -742,6 +846,7 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     branches,
     socialLinks,
     categories,
+    essentialCategories,
 
     showHeroSpotlight: merged.showHeroSpotlight !== false,
     showValueStrip: merged.showValueStrip !== false,
@@ -749,6 +854,7 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     showShippingSection: merged.showShippingSection !== false,
     showPartnerCard: merged.showPartnerCard !== false,
     showAboutBanner: merged.showAboutBanner !== false,
+    showRatingsSection: merged.showRatingsSection !== false,
 
     updatedBy: safeUpdatedBy,
     updatedAt: typeof merged.updatedAt === 'string' ? merged.updatedAt : new Date().toISOString(),
@@ -806,6 +912,9 @@ export function mergeSafeSiteConfigForSave(
 
   if (!Array.isArray(incomingDraft.categories) || incomingDraft.categories.length === 0) {
     combined.categories = baseConfig.categories;
+  }
+  if (!Array.isArray(incomingDraft.essentialCategories) || incomingDraft.essentialCategories.length === 0) {
+    combined.essentialCategories = baseConfig.essentialCategories;
   }
   if (!Array.isArray(incomingDraft.contactChannels)) {
     combined.contactChannels = baseConfig.contactChannels;
@@ -948,6 +1057,12 @@ export function buildFirestoreSiteConfigPayload(
       id: cat.id,
       name: cat.name,
       order: cat.order,
+    })),
+    essentialCategories: clean.essentialCategories.map((item) => ({
+      id: item.id,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      order: item.order,
     })),
     showHeroSpotlight: Boolean(clean.showHeroSpotlight),
     showValueStrip: Boolean(clean.showValueStrip),

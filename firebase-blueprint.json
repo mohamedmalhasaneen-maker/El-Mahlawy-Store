@@ -197,6 +197,7 @@
         "showShippingSection": { "type": "boolean" },
         "showPartnerCard": { "type": "boolean" },
         "showAboutBanner": { "type": "boolean" },
+        "showRatingsSection": { "type": "boolean" },
         "updatedBy": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -257,9 +258,83 @@
       "type": "object",
       "properties": {
         "id": { "type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[a-zA-Z0-9_\\-]+$" },
-        "count": { "type": "number" }
+        "count": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "count"]
+    },
+    "UniqueDevice": {
+      "title": "UniqueDevice",
+      "description": "Unique device or browser instance registered upon first visit.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Persistent unique device identifier generated locally on first visit."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server registration timestamp."
+        },
+        "userAgent": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300,
+          "description": "Client browser user agent snippet."
+        }
+      },
+      "required": ["id", "createdAt"]
+    },
+    "Rating": {
+      "title": "Rating",
+      "description": "Visitor rating and recommendation submitted per unique browser ID.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Persistent unique browser identifier matching document ID."
+        },
+        "stars": {
+          "type": "number",
+          "description": "Star rating choice from 1 to 5."
+        },
+        "recommend": {
+          "type": "boolean",
+          "description": "Whether visitor recommends the store (true = Yes, false = No)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server submission timestamp."
+        }
+      },
+      "required": ["id", "stars", "recommend", "createdAt"]
+    },
+    "RatingStats": {
+      "title": "RatingStats",
+      "description": "Aggregated store rating statistics (/meta/ratings).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "totalCount": { "type": "number" },
+        "totalStars": { "type": "number" },
+        "star1": { "type": "number" },
+        "star2": { "type": "number" },
+        "star3": { "type": "number" },
+        "star4": { "type": "number" },
+        "star5": { "type": "number" },
+        "recommendYes": { "type": "number" },
+        "recommendNo": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "totalCount", "totalStars", "star1", "star2", "star3", "star4", "star5", "recommendYes", "recommendNo"]
     }
   },
   "firestore": {
@@ -282,6 +357,14 @@
     "/meta/{statId}": {
       "schema": "VisitorStats",
       "description": "Public store visitor statistics document (/meta/visitors) readable by all and incrementable by any client."
+    },
+    "/uniqueDevices/{deviceId}": {
+      "schema": "UniqueDevice",
+      "description": "Registry of unique device/browser instances used to prevent duplicate visitor counts."
+    },
+    "/ratings/{ratingId}": {
+      "schema": "Rating",
+      "description": "Individual visitor ratings indexed by unique browser ID."
     }
   }
 }

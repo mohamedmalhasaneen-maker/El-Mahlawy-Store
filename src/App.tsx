@@ -41,6 +41,9 @@ import { DeveloperSettingsPage } from './components/DeveloperSettingsPage';
 import { Footer } from './components/Footer';
 import { MobileStorefront } from './components/mobile/MobileStorefront';
 import { TechBackground } from './components/TechBackground';
+import { RatingInvitationPrompt } from './components/RatingInvitationPrompt';
+import { RatingFormModal } from './components/RatingFormModal';
+import { listenForRatingPromptTrigger, recordUsefulActivity } from './utils/activityTracker';
 import { useTheme } from './utils/useTheme';
 import { getCategoryName, getOrderedCategories } from './constants/categories';
 
@@ -131,6 +134,37 @@ export default function App() {
   );
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
 
+  // Visitor Rating invitation prompt & modal state
+  const [isRatingPromptOpen, setIsRatingPromptOpen] = useState(false);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+
+  useEffect(() => {
+    return listenForRatingPromptTrigger(() => {
+      setIsRatingPromptOpen(true);
+    });
+  }, []);
+
+  const handleSelectProduct = (product: Product | null) => {
+    setSelectedProduct(product);
+    if (product) {
+      recordUsefulActivity('view_product_details', product.name);
+    }
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    if (query.trim().length > 1) {
+      recordUsefulActivity('search', query.trim());
+    }
+  };
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+    if (categoryId !== 'all') {
+      recordUsefulActivity('category_switch', categoryId);
+    }
+  };
+
   // Sync URL hash <-> activeView
   useEffect(() => {
     // Force reset to home if the entry was #about to satisfy "entry should be home" request
@@ -212,6 +246,9 @@ export default function App() {
   }, []);
 
   const navigateToView = (view: 'store' | 'about' | 'developer') => {
+    if (view === 'about') {
+      recordUsefulActivity('view_about_page');
+    }
     setActiveView(view);
     if (typeof window !== 'undefined') {
       try {
@@ -570,7 +607,7 @@ export default function App() {
               discountedProducts={discountedProducts}
               isLoadingProducts={isLoadingProducts}
               searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
+              onSearchChange={handleSearchChange}
               sortBy={sortBy}
               onSortChange={setSortBy}
               onAdminButtonClick={handleOpenDeveloperSettings}
@@ -581,7 +618,8 @@ export default function App() {
               initialProductId={sharedProductId}
               onConsumeInitialProduct={clearSharedProductParam}
               selectedCategoryId={selectedCategoryId}
-              onCategoryChange={setSelectedCategoryId}
+              onCategoryChange={handleCategoryChange}
+              onOpenRatingModal={() => setIsRatingModalOpen(true)}
             />
 
             {/* Desktop Storefront (>= 768px) */}
@@ -599,15 +637,16 @@ export default function App() {
                 hasDiscountOffers={discountedProducts.length > 0 && siteConfig.showOffersSection}
                 isDark={isDark}
                 onToggleTheme={toggleTheme}
+                onOpenRatingModal={() => setIsRatingModalOpen(true)}
               />
 
               <main className="flex-1">
                 {/* 1. Welcome Hero & Trust Banner */}
                 <HeroSection
                   searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
+                  onSearchChange={handleSearchChange}
                   featuredProduct={heroSpotlightProduct}
-                  onSelectProduct={(product) => setSelectedProduct(product)}
+                  onSelectProduct={(product) => handleSelectProduct(product)}
                   hasDiscountOffers={discountedProducts.length > 0 && siteConfig.showOffersSection}
                 />
 
@@ -615,7 +654,7 @@ export default function App() {
                 {siteConfig.showOffersSection && (
                   <OffersSection
                     products={products}
-                    onViewDetails={(product) => setSelectedProduct(product)}
+                    onViewDetails={(product) => handleSelectProduct(product)}
                     publicOrigin={publicOrigin}
                   />
                 )}
@@ -656,7 +695,7 @@ export default function App() {
                               id="catalog-search-input"
                               type="search"
                               value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
+                              onChange={(e) => handleSearchChange(e.target.value)}
                               placeholder="ابحث باسم المنتج أو المواصفات..."
                               className="w-full min-h-[44px] rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] pr-10 pl-3 py-2 text-xs sm:text-sm text-[#0B1F3A] dark:text-[#F0F9FF] placeholder:text-slate-400 focus:bg-white dark:focus:bg-[#081830] focus:outline-2 focus:outline-[#1D4ED8]"
                             />
@@ -691,7 +730,7 @@ export default function App() {
                       <div className="flex items-center gap-3 min-w-max">
                         <button
                           type="button"
-                          onClick={() => setSelectedCategoryId('all')}
+                          onClick={() => handleCategoryChange('all')}
                           className={`min-h-[44px] px-6 py-2.5 rounded-2xl text-sm font-extrabold transition-all border ${
                             selectedCategoryId === 'all'
                               ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
@@ -704,7 +743,7 @@ export default function App() {
                           <button
                             key={cat.id}
                             type="button"
-                            onClick={() => setSelectedCategoryId(cat.id)}
+                            onClick={() => handleCategoryChange(cat.id)}
                             className={`min-h-[44px] px-6 py-2.5 rounded-2xl text-sm font-extrabold transition-all border ${
                               selectedCategoryId === cat.id
                                 ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
@@ -730,7 +769,7 @@ export default function App() {
                             </p>
                             <button
                               type="button"
-                              onClick={() => setSearchQuery('')}
+                              onClick={() => handleSearchChange('')}
                               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer"
                             >
                               <RotateCcw className="h-4 w-4" aria-hidden="true" />
@@ -748,7 +787,7 @@ export default function App() {
                             </p>
                             <button
                               type="button"
-                              onClick={() => setSelectedCategoryId('all')}
+                              onClick={() => handleCategoryChange('all')}
                               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer"
                             >
                               عرض جميع الأقسام
@@ -781,7 +820,7 @@ export default function App() {
                           <ProductCard
                             key={product.id}
                             product={product}
-                            onViewDetails={(p) => setSelectedProduct(p)}
+                            onViewDetails={(p) => handleSelectProduct(p)}
                             publicOrigin={publicOrigin}
                           />
                         ))}
@@ -794,17 +833,33 @@ export default function App() {
               <Footer
                 onAdminButtonClick={handleOpenDeveloperSettings}
                 onNavigateAbout={() => navigateToView('about')}
+                onOpenRatingModal={() => setIsRatingModalOpen(true)}
               />
 
               {/* Desktop Product Details Modal */}
               <ProductDetailModal
                 product={selectedProduct}
-                onClose={() => setSelectedProduct(null)}
+                onClose={() => handleSelectProduct(null)}
                 publicOrigin={publicOrigin}
               />
             </div>
           </div>
         )}
+
+        {/* Visitor Rating Prompt & Form Modal */}
+        <RatingInvitationPrompt
+          isOpen={isRatingPromptOpen}
+          onOpenRatingModal={() => {
+            setIsRatingPromptOpen(false);
+            setIsRatingModalOpen(true);
+          }}
+          onClose={() => setIsRatingPromptOpen(false)}
+        />
+
+        <RatingFormModal
+          isOpen={isRatingModalOpen}
+          onClose={() => setIsRatingModalOpen(false)}
+        />
       </div>
     </SiteConfigContext.Provider>
   );

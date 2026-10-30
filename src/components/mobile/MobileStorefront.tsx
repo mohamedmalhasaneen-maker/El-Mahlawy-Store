@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ArrowUpDown,
+  ExternalLink,
   MapPin,
   Menu,
   MessageCircle,
@@ -20,6 +21,7 @@ import {
   getEffectiveProductPrice,
 } from '../../utils/catalogLogic';
 import { getCategoryName, getOrderedCategories } from '../../constants/categories';
+import { recordUsefulActivity } from '../../utils/activityTracker';
 import { ProductImage } from '../ProductImage';
 import { Footer } from '../Footer';
 import { ThemeToggle } from '../ThemeToggle';
@@ -46,6 +48,7 @@ interface MobileStorefrontProps {
   onConsumeInitialProduct?: () => void;
   selectedCategoryId?: string;
   onCategoryChange?: (id: string) => void;
+  onOpenRatingModal?: () => void;
 }
 
 export function MobileStorefront({
@@ -66,12 +69,23 @@ export function MobileStorefront({
   onConsumeInitialProduct,
   selectedCategoryId = 'all',
   onCategoryChange,
+  onOpenRatingModal,
 }: MobileStorefrontProps) {
   const siteConfig = useSiteConfig();
   const orderedCategories = getOrderedCategories(siteConfig.categories);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [detailsProduct, setDetailsProduct] = useState<Product | null>(null);
   const [orderProduct, setOrderProduct] = useState<Product | null>(null);
+
+  const handleOpenDetails = (p: Product) => {
+    setDetailsProduct(p);
+    recordUsefulActivity('view_product_details', p.name);
+  };
+
+  const handleStartOrder = (p: Product) => {
+    setOrderProduct(p);
+    recordUsefulActivity('start_order', p.name);
+  };
 
   useEffect(() => {
     if (!initialProductId || products.length === 0) return;
@@ -206,7 +220,10 @@ export function MobileStorefront({
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => onCategoryChange?.(cat.id)}
+                onClick={() => {
+                  onCategoryChange?.(cat.id);
+                  recordUsefulActivity('category_switch', cat.name);
+                }}
                 className={`min-h-[40px] px-5 py-2 rounded-xl text-xs font-extrabold transition-all border ${
                   selectedCategoryId === cat.id
                     ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
@@ -495,8 +512,8 @@ export function MobileStorefront({
                 <MobileProductCard
                   key={product.id}
                   product={product}
-                  onOpenDetails={(p) => setDetailsProduct(p)}
-                  onOrderProduct={(p) => setOrderProduct(p)}
+                  onOpenDetails={handleOpenDetails}
+                  onOrderProduct={handleStartOrder}
                   publicOrigin={publicOrigin}
                 />
               ))}
@@ -543,13 +560,27 @@ export function MobileStorefront({
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8]">
                     <MapPin className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1 space-y-2">
                     <h3 className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]">
                       موقع المتجر والتوصيل المباشر
                     </h3>
-                    <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                       مقرنا في {siteConfig.address}
                     </p>
+                    {siteConfig.googleMapsUrl && (
+                      <div>
+                        <a
+                          href={siteConfig.googleMapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-[38px] items-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-3.5 py-1.5 text-xs font-extrabold text-white transition-colors shadow-sm"
+                        >
+                          <MapPin className="h-4 w-4 text-[#7DD3FC] shrink-0" aria-hidden="true" />
+                          <span>موقعنا على خرائط Google</span>
+                          <ExternalLink className="h-3.5 w-3.5 text-white/80 shrink-0" aria-hidden="true" />
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -559,7 +590,11 @@ export function MobileStorefront({
       </main>
 
       {/* 7. Unified Footer */}
-      <Footer onAdminButtonClick={onAdminButtonClick} onNavigateAbout={onNavigateAbout} />
+      <Footer
+        onAdminButtonClick={onAdminButtonClick}
+        onNavigateAbout={onNavigateAbout}
+        onOpenRatingModal={onOpenRatingModal}
+      />
 
       {/* Mobile Navigation Slide-Over Drawer */}
       <MobileMenuDrawer
@@ -569,6 +604,7 @@ export function MobileStorefront({
         onNavigateAbout={onNavigateAbout}
         onAdminClick={onAdminButtonClick}
         hasDiscountOffers={discountedProducts.length > 0 && siteConfig.showOffersSection}
+        onOpenRatingModal={onOpenRatingModal}
       />
 
       {/* Mobile Product Details Bottom Sheet */}

@@ -4,6 +4,7 @@ import {
   EyeOff,
   FileText,
   Globe,
+  HeartHandshake,
   MapPin,
   Package,
   Percent,
@@ -24,6 +25,7 @@ import {
 } from '../../utils/catalogLogic';
 import { SiteConfig } from '../../utils/siteConfig';
 import { ProductImage } from '../ProductImage';
+import { VisitorCounter } from '../VisitorCounter';
 
 export type DeveloperSectionId =
   | 'overview'
@@ -33,7 +35,9 @@ export type DeveloperSectionId =
   | 'social'
   | 'branches'
   | 'site-info'
+  | 'essential-products'
   | 'sections'
+  | 'ratings'
   | 'account';
 
 interface OverviewSectionProps {
@@ -133,6 +137,12 @@ export function OverviewSection({
       description: 'تحديث اسم المتجر، الوصف التعريفي، ونصوص صفحة «من نحن» والرؤية.',
       Icon: FileText,
       onClick: () => onNavigateSection('site-info'),
+    },
+    {
+      title: 'إدارة تقييمات وآراء الزوار',
+      description: 'عرض تحليلات وتقييمات زوار المتجر، ونسبة التوصيات، والتحكم بإظهار أو إخفاء التقييمات.',
+      Icon: HeartHandshake,
+      onClick: () => onNavigateSection('ratings'),
     },
   ];
 
@@ -256,6 +266,15 @@ export function OverviewSection({
             {visibleSectionsCount}/6 أقسام مفعّلة ·{' '}
             <bdi className="text-gray-300">{developerEmail || developerUid.slice(0, 10)}</bdi>
           </p>
+        </div>
+
+        <div className="rounded-2xl bg-[#141414] border border-[#D4AF37]/25 p-5 space-y-2 sm:col-span-2 xl:col-span-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <VisitorCounter />
+            <p className="text-xs text-gray-400">
+              تسجيل ذرّي في Firestore يمنع تكرار الاحتساب عند تحديث الصفحة أو التنقل المكرر.
+            </p>
+          </div>
         </div>
       </div>
 

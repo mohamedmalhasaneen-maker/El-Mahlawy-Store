@@ -5,6 +5,7 @@ import {
   Package,
   Percent,
   Phone,
+  Star,
   Truck,
   X,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ interface MobileMenuDrawerProps {
   onNavigateAbout?: () => void;
   onAdminClick: () => void;
   hasDiscountOffers: boolean;
+  onOpenRatingModal?: () => void;
 }
 
 export function MobileMenuDrawer({
@@ -27,6 +29,7 @@ export function MobileMenuDrawer({
   onNavigateAbout,
   onAdminClick,
   hasDiscountOffers,
+  onOpenRatingModal,
 }: MobileMenuDrawerProps) {
   const siteConfig = useSiteConfig();
   useMobileOverlay(isOpen, onClose, 'mobile-menu-drawer');
@@ -43,6 +46,9 @@ export function MobileMenuDrawer({
       ? [{ id: 'mobile-shipping-section', label: 'الشحن والتوصيل', Icon: Truck }]
       : []),
     { id: 'footer-contact', label: 'تواصل معنا', Icon: Phone },
+    ...(siteConfig.showRatingsSection !== false && onOpenRatingModal
+      ? [{ id: 'rating-modal', label: 'تقييم المتجر', Icon: Star }]
+      : []),
     { id: 'about-us', label: 'من نحن | About Us', Icon: Building2 },
   ];
 
@@ -109,7 +115,9 @@ export function MobileMenuDrawer({
                 type="button"
                 onClick={() => {
                   onClose();
-                  if (id === 'about-us' && onNavigateAbout) {
+                  if (id === 'rating-modal' && onOpenRatingModal) {
+                    onOpenRatingModal();
+                  } else if (id === 'about-us' && onNavigateAbout) {
                     onNavigateAbout();
                   } else {
                     setTimeout(() => onNavigateSection(id), 40);

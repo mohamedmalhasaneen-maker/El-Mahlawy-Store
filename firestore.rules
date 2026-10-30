@@ -115,6 +115,7 @@ service cloud.firestore {
         (data.showHeroSpotlight is bool && data.showValueStrip is bool) &&
         (data.showOffersSection is bool && data.showShippingSection is bool) &&
         (data.showPartnerCard is bool && data.showAboutBanner is bool) &&
+        (!('showRatingsSection' in data) || data.showRatingsSection is bool) &&
         (data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$')) &&
         (data.updatedAt is timestamp);
     }
@@ -175,7 +176,7 @@ service cloud.firestore {
           'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
           'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
           'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
-          'showPartnerCard', 'showAboutBanner', 'updatedBy', 'updatedAt'
+          'showPartnerCard', 'showAboutBanner', 'showRatingsSection', 'updatedBy', 'updatedAt'
         ]) &&
         isValidSiteConfigGroup1(data) &&
         isValidSiteConfigGroup2(data) &&
@@ -261,7 +262,7 @@ service cloud.firestore {
             'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
             'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
             'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
-            'showPartnerCard', 'showAboutBanner', 'updatedBy', 'updatedAt'
+            'showPartnerCard', 'showAboutBanner', 'showRatingsSection', 'updatedBy', 'updatedAt'
           ])
         );
 
@@ -376,23 +377,80 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Public Visitor Stats (/meta/visitors)
+    // Public Store Statistics (/meta/visitors and /meta/ratings)
     match /meta/{statId} {
-      allow get: if isValidId(statId) && statId == 'visitors';
+      allow get: if isValidId(statId) && (statId == 'visitors' || statId == 'ratings');
       allow list: if false;
-      allow create: if isValidId(statId) &&
-        statId == 'visitors' &&
-        incoming().keys().hasAll(['id', 'count']) &&
-        incoming().keys().hasOnly(['id', 'count']) &&
-        incoming().id == 'visitors' &&
-        incoming().count == 1;
-      allow update: if isValidId(statId) &&
-        statId == 'visitors' &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['count']) &&
-        (incoming().count is int || incoming().count is float) &&
-        incoming().count == existing().count + 1 &&
-        incoming().id == 'visitors';
+
+      allow create: if isValidId(statId) && (
+        (
+          statId == 'visitors' &&
+          incoming().keys().hasAll(['id', 'count']) &&
+          incoming().keys().hasOnly(['id', 'count', 'updatedAt']) &&
+          incoming().id == 'visitors' &&
+          incoming().count == 1
+        ) || (
+          statId == 'ratings' &&
+          incoming().keys().hasAll(['id', 'totalCount', 'totalStars', 'star1', 'star2', 'star3', 'star4', 'star5', 'recommendYes', 'recommendNo']) &&
+          incoming().keys().hasOnly(['id', 'totalCount', 'totalStars', 'star1', 'star2', 'star3', 'star4', 'star5', 'recommendYes', 'recommendNo', 'updatedAt']) &&
+          incoming().id == 'ratings' &&
+          (incoming().totalCount is int || incoming().totalCount is float) && incoming().totalCount >= 1
+        )
+      );
+
+      allow update: if isValidId(statId) && (
+        (
+          statId == 'visitors' &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['count']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['count', 'updatedAt'])
+          ) &&
+          (incoming().count is int || incoming().count is float) &&
+          incoming().count == existing().count + 1 &&
+          incoming().id == 'visitors'
+        ) || (
+          statId == 'ratings' &&
+          incoming().id == 'ratings' &&
+          (
+            isAdmin() ||
+            (
+              (incoming().totalCount is int || incoming().totalCount is float) &&
+              incoming().totalCount == existing().totalCount + 1
+            )
+          )
+        )
+      );
+
       allow delete: if false;
+    }
+
+    // Registry of Unique Device/Browser Instances (/uniqueDevices/{deviceId})
+    match /uniqueDevices/{deviceId} {
+      allow get: if isValidId(deviceId);
+      allow list: if isAuthorizedDeveloper();
+      allow create: if isValidId(deviceId) &&
+        incoming().keys().hasAll(['id', 'createdAt']) &&
+        incoming().keys().hasOnly(['id', 'createdAt', 'userAgent']) &&
+        incoming().id == deviceId &&
+        (!('userAgent' in incoming()) || (incoming().userAgent is string && incoming().userAgent.size() <= 300));
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Individual Visitor Ratings Indexed By Unique Browser ID (/ratings/{ratingId})
+    match /ratings/{ratingId} {
+      allow get: if isValidId(ratingId);
+      allow list: if isAuthorizedDeveloper() || isAdmin();
+      allow create: if isValidId(ratingId) &&
+        incoming().keys().hasAll(['id', 'stars', 'recommend', 'createdAt']) &&
+        incoming().keys().hasOnly(['id', 'stars', 'recommend', 'createdAt']) &&
+        incoming().id == ratingId &&
+        (incoming().stars is int || incoming().stars is float) &&
+        incoming().stars >= 1 && incoming().stars <= 5 &&
+        incoming().recommend is bool &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isAdmin();
     }
   }
 }

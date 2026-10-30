@@ -3,6 +3,7 @@ import {
   AlertCircle,
   ArrowRight,
   Calendar,
+  Camera,
   Check,
   CheckCircle2,
   Edit3,
@@ -10,6 +11,7 @@ import {
   EyeOff,
   FileText,
   Globe,
+  HeartHandshake,
   ImagePlus,
   KeyRound,
   LayoutDashboard,
@@ -63,14 +65,16 @@ import {
   roundCurrency,
   sanitizeProductPayload,
 } from '../utils/catalogLogic';
-import { SiteConfig, validateSiteConfigInput } from '../utils/siteConfig';
+import { SiteConfig, sanitizeSiteConfig, validateSiteConfigInput } from '../utils/siteConfig';
 import { DiscountModal } from './DiscountModal';
 import { ProductImage } from './ProductImage';
 import { AccountSettingsSection } from './developer/AccountSettingsSection';
 import { BranchesMapsSection } from './developer/BranchesMapsSection';
+import { EssentialProductsSection } from './developer/EssentialProductsSection';
 import { ContentSectionsSettings } from './developer/ContentSectionsSettings';
 import { DeveloperSectionId, OverviewSection } from './developer/OverviewSection';
 import { PhonesWhatsAppSection } from './developer/PhonesWhatsAppSection';
+import { RatingsSection } from './developer/RatingsSection';
 import { SiteAndAboutSection } from './developer/SiteAndAboutSection';
 import { SocialLinksSection } from './developer/SocialLinksSection';
 import {
@@ -1284,10 +1288,22 @@ export function DeveloperSettingsPage({
       Icon: FileText,
     },
     {
+      id: 'essential-products',
+      label: 'صور المنتجات الأساسية',
+      subtitle: `${configDraft.essentialCategories?.length || 7} فئات بصفحة من نحن`,
+      Icon: Camera,
+    },
+    {
       id: 'sections',
       label: 'المحتوى والأقسام',
       subtitle: 'إظهار وإخفاء عناصر الواجهة',
       Icon: SlidersHorizontal,
+    },
+    {
+      id: 'ratings',
+      label: 'تقييمات وآراء الزوار',
+      subtitle: 'تحليلات ونسبة التوصية',
+      Icon: HeartHandshake,
     },
     {
       id: 'account',
@@ -2980,6 +2996,17 @@ export function DeveloperSettingsPage({
             />
           )}
 
+          {activeTab === 'essential-products' && (
+            <EssentialProductsSection
+              configDraft={configDraft}
+              isSiteConfigDirty={isSiteConfigDirty}
+              savingSiteConfig={savingSiteConfig}
+              onUpdateField={updateConfigField}
+              onSaveSubmit={handleSaveConfigSubmit}
+              onCancelChanges={handleCancelConfigChanges}
+            />
+          )}
+
           {/* ================================================================ */}
           {/* SECTION 8: CONTENT & SECTION VISIBILITY SETTINGS                 */}
           {/* ================================================================ */}
@@ -2991,6 +3018,20 @@ export function DeveloperSettingsPage({
               onUpdateField={updateConfigField}
               onSaveSubmit={handleSaveConfigSubmit}
               onCancelChanges={handleCancelConfigChanges}
+            />
+          )}
+
+          {activeTab === 'ratings' && (
+            <RatingsSection
+              siteConfig={configDraft}
+              onSaveSiteConfig={async (updates) => {
+                await onSaveSiteConfig(
+                  sanitizeSiteConfig(
+                    { ...configDraft, ...updates },
+                    currentUser?.email || 'developer'
+                  )
+                );
+              }}
             />
           )}
 

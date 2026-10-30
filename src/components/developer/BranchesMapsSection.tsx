@@ -11,6 +11,7 @@ import {
 import {
   BranchLocationItem,
   MAX_BRANCHES,
+  OFFICIAL_GOOGLE_MAPS_URL,
   SiteConfig,
   isValidOptionalHttpUrl,
 } from '../../utils/siteConfig';
@@ -128,21 +129,31 @@ export function BranchesMapsSection({
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="cfg-maps-url" className="text-xs font-bold text-gray-300">
-                رابط الموقع الجغرافي على خرائط Google
+            <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
+              <label htmlFor="cfg-maps-url" className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden="true" />
+                <span>رابط الموقع الجغرافي الرسمي على خرائط Google</span>
               </label>
-              {configDraft.googleMapsUrl && isValidOptionalHttpUrl(configDraft.googleMapsUrl) && (
-                <a
-                  href={configDraft.googleMapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#D4AF37] hover:underline"
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onUpdateField('googleMapsUrl', OFFICIAL_GOOGLE_MAPS_URL)}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#38BDF8] hover:underline cursor-pointer"
                 >
-                  <span>فتح الخريطة</span>
-                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                </a>
-              )}
+                  <span>استعادة الرابط الرسمي</span>
+                </button>
+                {configDraft.googleMapsUrl && isValidOptionalHttpUrl(configDraft.googleMapsUrl) && (
+                  <a
+                    href={configDraft.googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#D4AF37] hover:underline"
+                  >
+                    <span>فتح الخريطة</span>
+                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                  </a>
+                )}
+              </div>
             </div>
             <input
               id="cfg-maps-url"
@@ -151,7 +162,7 @@ export function BranchesMapsSection({
               maxLength={600}
               value={configDraft.googleMapsUrl}
               onChange={(e) => onUpdateField('googleMapsUrl', e.target.value)}
-              placeholder="https://maps.google.com/..."
+              placeholder="https://maps.app.goo.gl/..."
               className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-[#D4AF37]"
             />
           </div>

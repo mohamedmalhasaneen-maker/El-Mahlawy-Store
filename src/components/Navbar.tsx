@@ -9,6 +9,7 @@ interface NavbarProps {
   hasDiscountOffers: boolean;
   isDark?: boolean;
   onToggleTheme?: () => void;
+  onOpenRatingModal?: () => void;
 }
 
 export function Navbar({
@@ -18,6 +19,7 @@ export function Navbar({
   hasDiscountOffers,
   isDark = false,
   onToggleTheme,
+  onOpenRatingModal,
 }: NavbarProps) {
   const siteConfig = useSiteConfig();
 
@@ -129,6 +131,15 @@ export function Navbar({
           >
             تواصل معنا
           </a>
+          {onOpenRatingModal && siteConfig.showRatingsSection !== false && (
+            <button
+              type="button"
+              onClick={onOpenRatingModal}
+              className="hover:text-[#1D4ED8] dark:hover:text-[#38BDF8] transition-colors whitespace-nowrap shrink-0 py-1 border-b-2 border-transparent hover:border-[#38BDF8] cursor-pointer"
+            >
+              تقييم المتجر
+            </button>
+          )}
         </nav>
 
         {/* Zone 3: Actions (Theme Toggle & Developer Settings) */}

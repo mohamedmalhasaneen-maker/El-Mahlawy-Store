@@ -14,6 +14,7 @@ import { PARTNER_INFO } from '../types/store';
 import { buildWhatsAppLinkFromPhone } from '../utils/siteConfig';
 
 import { VisitorCounter } from './VisitorCounter';
+import { RatingStatsDisplay } from './RatingStatsDisplay';
 
 interface FooterProps {
   onAdminButtonClick?: () => void;
@@ -21,6 +22,7 @@ interface FooterProps {
   showAboutSection?: boolean;
   showVisitorCounter?: boolean;
   isDark?: boolean;
+  onOpenRatingModal?: () => void;
 }
 
 export function Footer({
@@ -29,6 +31,7 @@ export function Footer({
   showAboutSection = true,
   showVisitorCounter = false,
   isDark = false,
+  onOpenRatingModal,
 }: FooterProps = {}) {
   const siteConfig = useSiteConfig();
 
@@ -119,20 +122,33 @@ export function Footer({
               </div>
 
               {siteConfig.address && (
-                <p className="text-xs sm:text-sm text-slate-200 leading-relaxed mb-2.5">
-                  <strong className="text-white">العنوان:</strong> {siteConfig.address}
-                </p>
+                <div className="space-y-2 mb-3">
+                  <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+                    <strong className="text-white">العنوان:</strong> {siteConfig.address}
+                  </p>
+                  {siteConfig.googleMapsUrl && (
+                    <div>
+                      <a
+                        href={siteConfig.googleMapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#1D4ED8] to-[#0284C7] hover:from-[#1E40AF] hover:to-[#0369A1] text-white px-3.5 py-2 text-xs font-extrabold transition-all active:scale-95 shadow-md border border-white/10"
+                      >
+                        <MapPin className="h-4 w-4 text-[#7DD3FC] shrink-0" aria-hidden="true" />
+                        <span>موقعنا على خرائط Google</span>
+                        <ExternalLink className="h-3.5 w-3.5 text-white/80 shrink-0" aria-hidden="true" />
+                      </a>
+                    </div>
+                  )}
+                </div>
               )}
 
-              {(siteConfig.workingHours || siteConfig.googleMapsUrl) && (
+              {siteConfig.workingHours && (
                 <div className="flex flex-wrap items-center gap-3 text-xs text-[#BAE6FD] mb-4">
-                  {siteConfig.workingHours && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5 text-[#38BDF8] shrink-0" aria-hidden="true" />
-                      <span>{siteConfig.workingHours}</span>
-                    </span>
-                  )}
-                  {/* Link removed */}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-[#38BDF8] shrink-0" aria-hidden="true" />
+                    <span>{siteConfig.workingHours}</span>
+                  </span>
                 </div>
               )}
             </div>
@@ -560,6 +576,15 @@ export function Footer({
         </div>
       )}
 
+      {/* 2.5. قسم تقييمات الزوار ورأيهم بالموقع */}
+      {siteConfig.showRatingsSection !== false && (
+        <div className={`border-t ${isDark ? 'border-[#D4AF37]/30' : 'border-[#1E3F73]'} py-8 px-4`}>
+          <div className="mx-auto max-w-7xl">
+            <RatingStatsDisplay onOpenRatingModal={onOpenRatingModal} isDark={isDark} />
+          </div>
+        </div>
+      )}
+
       {/* 3. التذييل النهائي للموقع (Footer) */}
       <div className={`border-t ${isDark ? 'border-[#D4AF37]/40' : 'border-[#163663]'} ${isDark ? 'bg-[#050505]' : 'bg-[#061426]'}`}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-4">
@@ -574,9 +599,20 @@ export function Footer({
               </p>
             </div>
 
-            <p className="text-xs sm:text-sm font-bold text-[#38BDF8]">
-              تابعونا لمعرفة أحدث المنتجات والخدمات وكل جديد!
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-xs sm:text-sm font-bold text-[#38BDF8]">
+                تابعونا لمعرفة أحدث المنتجات والخدمات وكل جديد!
+              </p>
+              {onOpenRatingModal && siteConfig.showRatingsSection !== false && (
+                <button
+                  type="button"
+                  onClick={onOpenRatingModal}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#1D4ED8] to-[#0284C7] hover:from-[#1E40AF] hover:to-[#0369A1] text-white px-3.5 py-1.5 text-xs font-extrabold transition-transform active:scale-95 cursor-pointer shadow-md"
+                >
+                  ⭐ قيّم تجربتك
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="pt-4 border-t border-[#122C52] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
@@ -590,7 +626,8 @@ export function Footer({
               ) : null}
               . {siteConfig.copyrightText}
             </p>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <VisitorCounter />
               <span className="text-[#BAE6FD]/75">
                 شركاء النجاح: <bdi>{siteConfig.partnerName}</bdi>
                 {siteConfig.partnerSubtitle ? (

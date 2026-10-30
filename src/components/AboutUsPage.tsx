@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   ArrowRight,
   Award,
@@ -17,6 +18,7 @@ import {
   Truck,
   Volume2,
   Wrench,
+  X,
 } from 'lucide-react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { PARTNER_INFO } from '../types/store';
@@ -246,14 +248,28 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false,
             {/* Details Cards: Address, Delivery, Customer Service, Direct Contact */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
               {/* Address */}
-              <div className="rounded-2xl bg-[#1A1A1A] border border-[#D4AF37]/30 p-5 space-y-2.5 shadow-xs">
-                <div className="flex items-center gap-2 text-[#D4AF37] font-extrabold text-sm">
-                  <MapPin className="h-4.5 w-4.5 shrink-0" />
-                  <span>عنوان المتجر</span>
+              <div className="rounded-2xl bg-[#1A1A1A] border border-[#D4AF37]/30 p-5 space-y-2.5 shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-[#D4AF37] font-extrabold text-sm mb-2">
+                    <MapPin className="h-4.5 w-4.5 shrink-0" />
+                    <span>عنوان المتجر والموقع الجغرافي</span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-200 font-semibold leading-relaxed">
+                    {siteConfig.address}
+                  </p>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-200 font-semibold leading-relaxed">
-                  {siteConfig.address}
-                </p>
+                {siteConfig.googleMapsUrl && (
+                  <a
+                    href={siteConfig.googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] border border-[#D4AF37] px-3.5 py-2 text-xs font-extrabold text-white transition-colors mt-3 shadow-md"
+                  >
+                    <MapPin className="h-4 w-4 text-[#D4AF37] shrink-0" aria-hidden="true" />
+                    <span>موقعنا على خرائط Google</span>
+                    <ExternalLink className="h-3.5 w-3.5 text-white/80 shrink-0" aria-hidden="true" />
+                  </a>
+                )}
               </div>
 
               {/* Shipping & Delivery */}
