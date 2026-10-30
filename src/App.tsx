@@ -20,6 +20,7 @@ import {
   createCloudProduct,
   deleteCloudProduct,
   isAuthorizedDeveloperUser,
+  migrateLegacySiteConfigMapsInCloud,
   onAuthStateChanged,
   saveCloudSiteConfig,
   signOutAdmin,
@@ -384,6 +385,17 @@ export default function App() {
         setAdminProducts(null);
       }
     );
+
+    void migrateLegacySiteConfigMapsInCloud().then((migrated) => {
+      if (migrated) {
+        setSiteConfig(migrated);
+        try {
+          localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(migrated));
+        } catch {
+          // Ignore storage quota warnings
+        }
+      }
+    });
 
     return () => unsubAll();
   }, [currentUser, isCloudAdmin]);

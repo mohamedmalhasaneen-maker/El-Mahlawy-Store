@@ -176,7 +176,64 @@ export function estimateJsonUtf8Bytes(value: unknown): number {
   }
 }
 
-export const OFFICIAL_GOOGLE_MAPS_URL = 'https://maps.app.goo.gl/cJpdFbt62cTr1hch9';
+export const OFFICIAL_STORE_LATITUDE = 27.9074681;
+export const OFFICIAL_STORE_LONGITUDE = 34.2805336;
+export const OFFICIAL_STORE_COORDINATES = `${OFFICIAL_STORE_LATITUDE},${OFFICIAL_STORE_LONGITUDE}`;
+export const OFFICIAL_GOOGLE_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${OFFICIAL_STORE_COORDINATES}`;
+
+export function isShortGoogleMapsUrl(value: string): boolean {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return false;
+  return /^https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)\b/i.test(trimmed);
+}
+
+export function isLegacyOrBrokenGoogleMapsUrl(value: string): boolean {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return true;
+  if (isShortGoogleMapsUrl(trimmed)) return true;
+  if (trimmed.includes('27.9158')) return true;
+  return false;
+}
+
+export function normalizeGoogleMapsUrlInput(
+  rawInput: string,
+  fallbackUrl = OFFICIAL_GOOGLE_MAPS_URL
+): string {
+  const trimmed = (rawInput || '').trim();
+  if (!trimmed) return fallbackUrl;
+
+  // Raw "LAT, LNG" coordinate input
+  const rawCoordMatch = trimmed.match(/^(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)$/);
+  if (rawCoordMatch) {
+    return `https://www.google.com/maps/search/?api=1&query=${rawCoordMatch[1]},${rawCoordMatch[2]}`;
+  }
+
+  if (isLegacyOrBrokenGoogleMapsUrl(trimmed)) {
+    return fallbackUrl;
+  }
+
+  // Extract exact pin coordinates from full Google Maps URLs containing !3dLAT!4dLNG
+  const bangCoordMatch = trimmed.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+  if (bangCoordMatch) {
+    return `https://www.google.com/maps/search/?api=1&query=${bangCoordMatch[1]},${bangCoordMatch[2]}`;
+  }
+
+  // Extract coordinates from /maps/place/LAT,LNG or ?q=LAT,LNG
+  const placeOrQueryCoordMatch = trimmed.match(
+    /(?:\/maps\/place\/|[?&](?:q|query)=)(-?\d{1,2}\.\d+)\s*(?:,|%2C)\s*(-?\d{1,3}\.\d+)/i
+  );
+  if (placeOrQueryCoordMatch) {
+    return `https://www.google.com/maps/search/?api=1&query=${placeOrQueryCoordMatch[1]},${placeOrQueryCoordMatch[2]}`;
+  }
+
+  // Extract coordinates from /@LAT,LNG viewport URLs when no pin parameter is present
+  const atCoordMatch = trimmed.match(/\/@(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+  if (atCoordMatch) {
+    return `https://www.google.com/maps/search/?api=1&query=${atCoordMatch[1]},${atCoordMatch[2]}`;
+  }
+
+  return isValidOptionalHttpUrl(trimmed) ? trimmed : fallbackUrl;
+}
 
 export const DEFAULT_SITE_CONFIG: SiteConfig = {
   id: 'main',
@@ -397,6 +454,12 @@ export function validateSiteConfigInput(config: SiteConfig): ValidationResult {
     }
   }
 
+  if (isShortGoogleMapsUrl(config.googleMapsUrl)) {
+    errors.push(
+      'لا يُسمح باستخدام روابط خرائط Google المختصرة (maps.app.goo.gl) لتجنب خطأ Dynamic Link Not Found؛ يرجى استخدام الرابط المباشر.'
+    );
+  }
+
   if (config.contactChannels.length > MAX_CONTACT_CHANNELS) {
     errors.push(`الحد الأقصى لقنوات التواصل المخصصة هو ${MAX_CONTACT_CHANNELS} رقمًا.`);
   }
@@ -435,6 +498,12 @@ export function validateSiteConfigInput(config: SiteConfig): ValidationResult {
     }
     if (!isValidOptionalHttpUrl(br.mapUrl)) {
       errors.push(`رابط الخريطة في فرع "${br.name}" غير صالح.`);
+      break;
+    }
+    if (isShortGoogleMapsUrl(br.mapUrl)) {
+      errors.push(
+        `رابط الخريطة في فرع "${br.name}" رابط مختصر (maps.app.goo.gl) وقد يسبب خطأ Dynamic Link Not Found؛ يرجى استخدام رابط Google Maps مباشر.`
+      );
       break;
     }
   }
@@ -573,12 +642,9 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
         ? br.id.trim().slice(0, 64)
         : `branch-${idx + 1}`;
     const rawMapUrl = cleanStr(br?.mapUrl, OFFICIAL_GOOGLE_MAPS_URL, 600, 0);
-    const safeBranchMapUrl =
-      !rawMapUrl || rawMapUrl.includes('27.9158') || rawMapUrl.includes('maps.google.com/?q=')
-        ? OFFICIAL_GOOGLE_MAPS_URL
-        : isValidOptionalHttpUrl(rawMapUrl)
-        ? rawMapUrl
-        : OFFICIAL_GOOGLE_MAPS_URL;
+    const safeBranchMapUrl = rawMapUrl
+      ? normalizeGoogleMapsUrlInput(rawMapUrl, OFFICIAL_GOOGLE_MAPS_URL)
+      : OFFICIAL_GOOGLE_MAPS_URL;
     return {
       id: safeId,
       name: cleanStr(br?.name, 'فرع المحلاوي ستور', 120, 1),
@@ -748,10 +814,7 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     address: cleanStr(merged.address, DEFAULT_SITE_CONFIG.address, 1000, 0),
     googleMapsUrl: (() => {
       const rawUrl = cleanStr(merged.googleMapsUrl, OFFICIAL_GOOGLE_MAPS_URL, 600, 0);
-      if (!rawUrl || rawUrl.includes('27.9158') || rawUrl.includes('maps.google.com/?q=')) {
-        return OFFICIAL_GOOGLE_MAPS_URL;
-      }
-      return isValidOptionalHttpUrl(rawUrl) ? rawUrl : OFFICIAL_GOOGLE_MAPS_URL;
+      return normalizeGoogleMapsUrlInput(rawUrl, OFFICIAL_GOOGLE_MAPS_URL);
     })(),
     workingHours: cleanStr(merged.workingHours, DEFAULT_SITE_CONFIG.workingHours, 300, 0),
     shippingSummary: cleanStr(merged.shippingSummary, DEFAULT_SITE_CONFIG.shippingSummary, 1500, 0),
@@ -981,7 +1044,7 @@ export function buildTargetedSiteConfigUpdateFields(
 }
 
 /**
- * Builds an explicit, schema-locked 51-key Firestore document payload for `siteConfig/main`
+ * Builds an explicit, schema-locked 53-key Firestore document payload for `siteConfig/main`
  * with zero extra or undefined keys—matching the working `buildFirestoreProductRecord` pattern.
  */
 export function buildFirestoreSiteConfigPayload(
@@ -1070,6 +1133,7 @@ export function buildFirestoreSiteConfigPayload(
     showShippingSection: Boolean(clean.showShippingSection),
     showPartnerCard: Boolean(clean.showPartnerCard),
     showAboutBanner: Boolean(clean.showAboutBanner),
+    showRatingsSection: Boolean(clean.showRatingsSection),
     updatedBy: clean.updatedBy,
     updatedAt: updatedAtValue,
   };

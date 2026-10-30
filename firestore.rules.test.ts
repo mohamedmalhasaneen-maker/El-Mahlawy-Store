@@ -4,9 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   DEFAULT_SITE_CONFIG,
+  OFFICIAL_GOOGLE_MAPS_URL,
+  OFFICIAL_STORE_COORDINATES,
   buildFirestoreSiteConfigPayload,
   mergeSafeSiteConfigForSave,
+  normalizeGoogleMapsUrlInput,
   sanitizeSiteConfig,
+  validateSiteConfigInput,
 } from './src/utils/siteConfig';
 
 const rulesSource = fs.readFileSync(path.join(process.cwd(), 'firestore.rules'), 'utf8');
@@ -183,6 +187,11 @@ function isValidSiteConfigRuleSimulator(data: Record<string, unknown>): boolean 
     return false;
   }
   if (!isValidCategoryItemSimulator(data.categories[0])) return false;
+  if ('essentialCategories' in data) {
+    if (!Array.isArray(data.essentialCategories) || data.essentialCategories.length > 20) {
+      return false;
+    }
+  }
   if (!isValidId(data.updatedBy)) return false;
   if (typeof data.updatedAt !== 'string') return false;
   return true;
@@ -387,7 +396,7 @@ test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 (with emailVerified:
     AUTHORIZED_UID,
     REQUEST_TIME
   );
-  assert.equal(Object.keys(fullAboutPayload).length, 51);
+  assert.equal(Object.keys(fullAboutPayload).length, 53);
   assert.equal(
     evaluateSiteConfigWrite('main', fullAboutPayload, authorizedDeveloperUidAuth),
     'ALLOWED'
@@ -477,7 +486,7 @@ test('Infinity Corp developer UID ILSbnyLsRWXvV9n2viqoMgFyDpr2 succeeds on siteC
     INFINITY_CORP_UID,
     REQUEST_TIME
   );
-  assert.equal(Object.keys(infinitySiteConfigUpdate).length, 51);
+  assert.equal(Object.keys(infinitySiteConfigUpdate).length, 53);
   assert.equal(
     evaluateSiteConfigWrite('main', infinitySiteConfigUpdate, infinityCorpDeveloperAuth),
     'ALLOWED'
@@ -661,4 +670,52 @@ test('Dirty Dozen adversarial payloads all return PERMISSION_DENIED', () => {
     evaluateSiteConfigWrite('main', badSiteConfig, authorizedDeveloperUidAuth),
     'PERMISSION_DENIED'
   );
+});
+
+test('Official Google Maps direct URL replaces broken maps.app.goo.gl short links and blocks short links on save', () => {
+  assert.equal(OFFICIAL_STORE_COORDINATES, '27.9074681,34.2805336');
+  assert.equal(
+    OFFICIAL_GOOGLE_MAPS_URL,
+    'https://www.google.com/maps/search/?api=1&query=27.9074681,34.2805336'
+  );
+
+  //Broken short links & legacy wrong coordinates upgrade automatically to direct URL
+  const upgradedBrokenShort = sanitizeSiteConfig({
+    googleMapsUrl: 'https://maps.app.goo.gl/cJpdFbt62cTr1hch9',
+    branches: [
+      {
+        id: 'branch-sharm-main',
+        name: 'الفرع الرئيسي — شرم الشيخ (الرويسات)',
+        address: 'شرم الشيخ – الرويسات',
+        mapUrl: 'https://maps.app.goo.gl/WuEwMymMVXxdJerNA',
+        workingHours: '',
+        phone: '01210141187',
+      },
+    ],
+  });
+  assert.equal(upgradedBrokenShort.googleMapsUrl, OFFICIAL_GOOGLE_MAPS_URL);
+  assert.equal(upgradedBrokenShort.branches[0].mapUrl, OFFICIAL_GOOGLE_MAPS_URL);
+
+  const upgradedLegacyPlaceholder = sanitizeSiteConfig({
+    googleMapsUrl: 'https://maps.google.com/?q=27.9158,34.3300',
+  });
+  assert.equal(upgradedLegacyPlaceholder.googleMapsUrl, OFFICIAL_GOOGLE_MAPS_URL);
+
+  // Coordinate extraction from full Google Maps URLs or raw coordinates
+  assert.equal(
+    normalizeGoogleMapsUrlInput(
+      'https://www.google.com/maps/place/27.907468,34.280534/data=!4m6!3m5!1s0!7e2!8m2!3d27.9074681!4d34.2805336!18m1!1e1'
+    ),
+    OFFICIAL_GOOGLE_MAPS_URL
+  );
+  assert.equal(normalizeGoogleMapsUrlInput('27.9074681, 34.2805336'), OFFICIAL_GOOGLE_MAPS_URL);
+
+  // Validation rejects raw maps.app.goo.gl short links before saving
+  const invalidShortDraft = {
+    ...DEFAULT_SITE_CONFIG,
+    googleMapsUrl: 'https://maps.app.goo.gl/cJpdFbt62cTr1hch9',
+  };
+  const validation = validateSiteConfigInput(invalidShortDraft);
+  assert.equal(validation.valid, false);
+  assert.ok(validation.errors.some((e) => e.includes('Dynamic Link Not Found')));
 });

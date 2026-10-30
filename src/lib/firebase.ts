@@ -55,6 +55,7 @@ import {
   SiteConfig,
   buildFirestoreSiteConfigPayload,
   estimateJsonUtf8Bytes,
+  isLegacyOrBrokenGoogleMapsUrl,
   mergeSafeSiteConfigForSave,
   sanitizeSiteConfig,
   validateSiteConfigInput,
@@ -680,6 +681,40 @@ export async function saveCloudSiteConfig(
       operationName: 'saveCloudSiteConfig',
       failedStage: currentStage,
     });
+  }
+}
+
+let hasAttemptedLegacyMapsMigration = false;
+
+export async function migrateLegacySiteConfigMapsInCloud(): Promise<SiteConfig | null> {
+  if (hasAttemptedLegacyMapsMigration) return null;
+  const user = auth.currentUser;
+  if (!user || !isAuthorizedDeveloperUser(user)) return null;
+  hasAttemptedLegacyMapsMigration = true;
+
+  try {
+    const configRef = doc(db, 'siteConfig', 'main');
+    const snap = await getDocFromServer(configRef);
+    if (!snap.exists()) return null;
+    const raw = snap.data() as Record<string, unknown>;
+    const rawMainMap = typeof raw.googleMapsUrl === 'string' ? raw.googleMapsUrl : '';
+    const rawBranches = Array.isArray(raw.branches)
+      ? (raw.branches as Array<Record<string, unknown>>)
+      : [];
+    const hasLegacyBranchMap = rawBranches.some((br) => {
+      const m = typeof br?.mapUrl === 'string' ? br.mapUrl.trim() : '';
+      return m.length > 0 && isLegacyOrBrokenGoogleMapsUrl(m);
+    });
+
+    if (!isLegacyOrBrokenGoogleMapsUrl(rawMainMap) && !hasLegacyBranchMap) {
+      return null;
+    }
+
+    const sanitized = mapSnapshotToSiteConfig(raw);
+    return await saveCloudSiteConfig(sanitized, user.uid);
+  } catch (err) {
+    console.warn('[SiteConfigMapsMigration] Deferred cloud map URL upgrade:', err);
+    return null;
   }
 }
 

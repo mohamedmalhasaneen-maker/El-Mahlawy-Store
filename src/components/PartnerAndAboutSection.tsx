@@ -17,6 +17,7 @@ import {
   Volume2,
   Wrench,
 } from 'lucide-react';
+import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { PARTNER_INFO, STORE_INFO } from '../types/store';
 
 const STORE_PRODUCTS_LIST = [
@@ -92,6 +93,7 @@ const INFINITY_SERVICES_LIST = [
 ];
 
 export function PartnerAndAboutSection() {
+  const siteConfig = useSiteConfig();
   return (
     <div id="about-us" className="space-y-0">
       {/* HEADER BANNER */}
@@ -167,14 +169,28 @@ export function PartnerAndAboutSection() {
           {/* Info Details Grid: Shipping, Address, After Sales, Contact */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
             {/* Address */}
-            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-2 shadow-xs">
-              <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-xs sm:text-sm">
-                <MapPin className="h-4 w-4 shrink-0 text-[#0284C7]" />
-                <span>📍 عنوان المتجر</span>
+            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-2 shadow-xs flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-xs sm:text-sm">
+                  <MapPin className="h-4 w-4 shrink-0 text-[#0284C7]" />
+                  <span>عنوان المتجر والموقع الجغرافي</span>
+                </div>
+                <p className="text-xs sm:text-sm text-[#0B1F3A] font-semibold leading-relaxed">
+                  {siteConfig.address || STORE_INFO.address}
+                </p>
               </div>
-              <p className="text-xs sm:text-sm text-[#0B1F3A] font-semibold leading-relaxed">
-                {STORE_INFO.address}
-              </p>
+              {siteConfig.googleMapsUrl && (
+                <a
+                  href={siteConfig.googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-[38px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-3 py-2 text-xs font-extrabold text-white transition-colors mt-2"
+                >
+                  <MapPin className="h-4 w-4 text-[#7DD3FC] shrink-0" aria-hidden="true" />
+                  <span>موقعنا على خرائط Google</span>
+                  <ExternalLink className="h-3.5 w-3.5 text-white/80 shrink-0" aria-hidden="true" />
+                </a>
+              )}
             </div>
 
             {/* Shipping & Delivery */}

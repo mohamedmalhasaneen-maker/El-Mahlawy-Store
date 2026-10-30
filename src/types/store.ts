@@ -75,6 +75,7 @@ export interface StoreContactInfo {
   storeSubtitle: string;
   tagline: string;
   address: string;
+  googleMapsUrl: string;
   shippingSummary: string;
   afterSalesPolicy: string;
   primaryPhone: string;
@@ -109,6 +110,7 @@ export const STORE_INFO: StoreContactInfo = {
   storeSubtitle: 'El Mahlawy Store',
   tagline: 'منتجات متنوعة وحلول ذكية لحياة أسهل',
   address: 'جنوب سيناء – شرم الشيخ – الرويسات – مدخل 1 – شارع دستي، بجوار قسم الشرطة، الشارع الجانبي لمول الشيخ عيد، محل المحلاوي ستور.',
+  googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=27.9074681,34.2805336',
   shippingSummary: 'شحن متاح لجميع محافظات مصر. وتوصيل داخل شرم الشيخ من خلال خدمة الدليفري.',
   afterSalesPolicy: 'نضمن لك الدعم والمساعدة خلال فترة الضمان. إذا واجهتك أي مشكلة، يمكننا مساعدتك ومعاينة المنتج عن بُعد لتحديد المشكلة. كما تتوفر إمكانية الاستبدال أو الاسترجاع خلال 14 يومًا، بشرط أن يكون المنتج بنفس حالة الشراء، مع مراعاة شروط الاستبدال والاسترجاع المعلنة والقوانين المعمول بها.',
   primaryPhone: '01210141187',

@@ -86,23 +86,13 @@ export function Footer({
           <div className={`flex flex-col justify-between rounded-3xl ${isDark ? 'bg-[#0B0B0B]' : 'bg-[#0E264A]'} border ${isDark ? 'border-[#D4AF37]/30' : 'border-[#1E3F73]'} p-6 sm:p-7 shadow-xs`}>
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <span
-                  aria-hidden="true"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#38BDF8] text-white"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-5 w-5"
-                  >
-                    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                    <path d="M3 6h18" />
-                    <path d="M16 10a4 4 0 0 1-8 0" />
-                  </svg>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl">
+                  <img
+                    src="/logo.png"
+                    alt={siteConfig.storeName}
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-contain"
+                  />
                 </span>
                 <div>
                   <h3 className="text-lg sm:text-xl font-extrabold text-white">
@@ -525,7 +515,8 @@ export function Footer({
                         className="inline-flex items-center gap-1 font-bold text-[#38BDF8] hover:text-white"
                       >
                         <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>خريطة الموقع</span>
+                        <span>موقعنا على خرائط Google</span>
+                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
                       </a>
                     )}
                   </div>

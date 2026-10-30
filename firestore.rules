@@ -156,6 +156,21 @@ service cloud.firestore {
           data.categories[0].name is string && data.categories[0].name.size() >= 2 && data.categories[0].name.size() <= 80 &&
           (data.categories[0].order is int || data.categories[0].order is float) &&
           data.categories[0].order >= 1 && data.categories[0].order <= 100
+        ) &&
+        (
+          !('essentialCategories' in data) ||
+          (
+            data.essentialCategories is list &&
+            data.essentialCategories.size() <= 20 &&
+            (
+              data.essentialCategories.size() == 0 ||
+              (
+                data.essentialCategories[0] is map &&
+                data.essentialCategories[0].keys().hasOnly(['id', 'name', 'imageUrl', 'order']) &&
+                data.essentialCategories[0].name is string && data.essentialCategories[0].name.size() >= 2 && data.essentialCategories[0].name.size() <= 80
+              )
+            )
+          )
         );
     }
 
@@ -175,8 +190,9 @@ service cloud.firestore {
           'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
           'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
           'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
-          'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
-          'showPartnerCard', 'showAboutBanner', 'showRatingsSection', 'updatedBy', 'updatedAt'
+          'essentialCategories', 'showHeroSpotlight', 'showValueStrip', 'showOffersSection',
+          'showShippingSection', 'showPartnerCard', 'showAboutBanner', 'showRatingsSection',
+          'updatedBy', 'updatedAt'
         ]) &&
         isValidSiteConfigGroup1(data) &&
         isValidSiteConfigGroup2(data) &&
@@ -261,8 +277,9 @@ service cloud.firestore {
             'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
             'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
             'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
-            'showHeroSpotlight', 'showValueStrip', 'showOffersSection', 'showShippingSection',
-            'showPartnerCard', 'showAboutBanner', 'showRatingsSection', 'updatedBy', 'updatedAt'
+            'essentialCategories', 'showHeroSpotlight', 'showValueStrip', 'showOffersSection',
+            'showShippingSection', 'showPartnerCard', 'showAboutBanner', 'showRatingsSection',
+            'updatedBy', 'updatedAt'
           ])
         );
 
@@ -287,88 +304,10 @@ service cloud.firestore {
         probeId == 'rules_v6_ping' ||
         (
           probeId == 'rules_v5_siteconfig_ready' &&
-          isValidSiteConfig({
-            'id': 'main',
-            'storeName': 'المحلاوي ستور',
-            'storeSubtitle': 'El Mahlawy Store',
-            'tagline': 'منتجات متنوعة وحلول ذكية لحياة أسهل',
-            'heroDescription': 'الوجهة المتخصصة في عرض المنتجات والأجهزة الحديثة',
-            'announcementText': '',
-            'seoTitle': 'المحلاوي ستور | El Mahlawy Store',
-            'seoDescription': 'المحلاوي ستور بشرم الشيخ',
-            'copyrightText': 'جميع الحقوق محفوظة.',
-            'primaryPhone': '01210141187',
-            'secondaryPhone': '01507558522',
-            'primaryWhatsApp': '201210141187',
-            'whatsappUrl': 'https://wa.me/201210141187',
-            'afterSalesWhatsAppUrl': 'https://wa.me/201507558522',
-            'facebookUrl': 'https://www.facebook.com/profile.php?id=61574358801771',
-            'instagramUrl': '',
-            'address': 'جنوب سيناء – شرم الشيخ – الرويسات',
-            'googleMapsUrl': 'https://maps.google.com/?q=27.9158,34.3300',
-            'workingHours': 'يوميًا من 10:00 صباحًا حتى 11:00 مساءً',
-            'shippingSummary': 'شحن متاح لجميع محافظات مصر.',
-            'afterSalesPolicy': 'نضمن لك الدعم والمساعدة خلال فترة الضمان.',
-            'closingPhrase': 'وما تنساش تصلي على النبي ﷺ',
-            'contactSectionTitle': 'تواصل معنا',
-            'contactSectionSubtitle': 'قنوات التواصل الرسمية والمباشرة',
-            'partnerName': 'Infinity Corp',
-            'partnerSubtitle': 'Smart Home & Technical Solutions',
-            'partnerRoleTitle': 'Infinity Corp – شريك النجاح',
-            'partnerServiceScopeText': 'شرم الشيخ، دهب، نويبع، طابا، الطور',
-            'partnerOrderPhone1': '01210141187',
-            'partnerOrderPhone2': '01143677682',
-            'partnerMaintenancePhone': '01005089640',
-            'partnerAfterSalesPhone': '01507558522',
-            'partnerFacebookUrl': 'https://www.facebook.com/InfinityCorp2',
-            'aboutHeroTitle': 'المحلاوي ستور × Infinity Corp',
-            'aboutHeroSubtitle': 'تعرّف على معلومات المحلاوي ستور وشريك النجاح شركة Infinity Corp بالكامل.',
-            'aboutStoreIntro': 'المحلاوي ستور هو وجهتك لشراء الأجهزة والمعدات.',
-            'aboutPartnerIntro': 'تُعد Infinity Corp شركة متخصصة في التركيبات الفنية.',
-            'visionTitle': 'تجربة فنية متكاملة وموثوقة',
-            'visionDescription': 'نسعى إلى توفير المنتجات والأجهزة الفنية المناسبة.',
-            'contactChannels': [
-              {
-                'id': 'ch-store-orders',
-                'label': 'رقم الطلبات والاتصال الأساسي',
-                'role': 'orders',
-                'owner': 'store',
-                'phone': '01210141187',
-                'whatsappUrl': 'https://wa.me/201210141187'
-              }
-            ],
-            'socialLinks': [
-              {
-                'id': 'sl-tiktok',
-                'platform': 'tiktok',
-                'label': 'TikTok',
-                'owner': 'store',
-                'url': 'https://www.tiktok.com/@elmahlawystore'
-              }
-            ],
-            'branches': [
-              {
-                'id': 'branch-sharm-main',
-                'name': 'الفرع الرئيسي — شرم الشيخ',
-                'address': 'جنوب سيناء – شرم الشيخ – الرويسات',
-                'mapUrl': 'https://maps.google.com/?q=27.9158,34.3300',
-                'workingHours': 'يوميًا من 10:00 صباحًا حتى 11:00 مساءً',
-                'phone': '01210141187'
-              }
-            ],
-            'categories': [
-              { 'id': 'cctv', 'name': 'قسم كاميرات المراقبة', 'order': 1 },
-              { 'id': 'satellite', 'name': 'قسم الستلايت', 'order': 2 }
-            ],
-            'showHeroSpotlight': true,
-            'showValueStrip': true,
-            'showOffersSection': true,
-            'showShippingSection': true,
-            'showPartnerCard': true,
-            'showAboutBanner': true,
-            'updatedBy': 'ILSbnyLsRWXvV9n2viqoMgFyDpr2',
-            'updatedAt': request.time
-          })
+          (
+            !exists(/databases/$(database)/documents/siteConfig/main) ||
+            isValidSiteConfig(get(/databases/$(database)/documents/siteConfig/main).data)
+          )
         )
       );
       allow list: if false;

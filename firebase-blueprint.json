@@ -191,6 +191,7 @@
         "socialLinks": { "type": "array", "description": "Bounded list (0..15) of structured social platform link maps." },
         "branches": { "type": "array", "description": "Bounded list (0..10) of branch location maps." },
         "categories": { "type": "array", "description": "Bounded ordered list (1..20) of product category maps { id, name, order }." },
+        "essentialCategories": { "type": "array", "description": "Bounded ordered list (0..20) of essential category showcase maps { id, name, imageUrl, order }." },
         "showHeroSpotlight": { "type": "boolean" },
         "showValueStrip": { "type": "boolean" },
         "showOffersSection": { "type": "boolean" },

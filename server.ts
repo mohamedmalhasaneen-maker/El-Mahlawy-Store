@@ -81,7 +81,7 @@ const DEFAULT_SETTINGS = {
   storeEnglishName: 'El Mahlawy Store',
   tagline: 'منتجات متنوعة وحلول ذكية لحياة أسهل',
   address: 'جنوب سيناء – شرم الشيخ – الرويسات – مدخل 1 – شارع دستي، بجوار قسم الشرطة، الشارع الجانبي لمول الشيخ عيد، محل المحلاوي ستور.',
-  googleMapsUrl: 'https://maps.google.com/?q=27.9158,34.3300',
+  googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=27.9074681,34.2805336',
   workingHours: 'يومياً من 10 صباحاً حتى 11 مساؤًا',
   deliverySummary: 'شحن متاح لجميع محافظات مصر. وتوصيل داخل شرم الشيخ من خلال خدمة الدليفري.',
   deliveryCost: 'يُحدد حسب المنطقة (خدمة الدليفري متاحة بشرم الشيخ)',
@@ -116,7 +116,17 @@ function readStoredSettings(): Record<string, unknown> {
     if (!fs.existsSync(SETTINGS_FILE)) return DEFAULT_SETTINGS;
     const raw = fs.readFileSync(SETTINGS_FILE, 'utf8');
     const parsed = JSON.parse(raw);
-    return typeof parsed === 'object' && parsed !== null ? { ...DEFAULT_SETTINGS, ...parsed } : DEFAULT_SETTINGS;
+    if (typeof parsed !== 'object' || parsed === null) return DEFAULT_SETTINGS;
+    const merged: Record<string, unknown> = { ...DEFAULT_SETTINGS, ...parsed };
+    const storedMapUrl = typeof merged.googleMapsUrl === 'string' ? merged.googleMapsUrl.trim() : '';
+    if (
+      !storedMapUrl ||
+      /^https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)\b/i.test(storedMapUrl) ||
+      storedMapUrl.includes('27.9158')
+    ) {
+      merged.googleMapsUrl = DEFAULT_SETTINGS.googleMapsUrl;
+    }
+    return merged;
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -205,6 +215,94 @@ async function startServer() {
       status: 'ok',
       publicOrigin: resolveRequestOrigin(req),
     });
+  });
+
+  // Resolve Google Maps short links (maps.app.goo.gl / goo.gl/maps) into direct Maps URLs
+  app.post('/api/resolve-map-url', async (req: Request, res: Response) => {
+    const rawUrl = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+    if (!rawUrl || rawUrl.length > 600) {
+      res.status(400).json({ error: 'رابط غير صالح.' });
+      return;
+    }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      res.status(400).json({ error: 'صيغة الرابط غير صالحة.' });
+      return;
+    }
+
+    const allowedShortHosts = new Set(['maps.app.goo.gl', 'goo.gl']);
+    if (parsed.protocol !== 'https:' || !allowedShortHosts.has(parsed.hostname.toLowerCase())) {
+      res.status(400).json({ error: 'يدعم المحوّل روابط Google Maps المختصرة فقط.' });
+      return;
+    }
+
+    try {
+      const upstream = await fetch(parsed.toString(), {
+        method: 'GET',
+        redirect: 'manual',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+      const locationHeader = upstream.headers.get('location') || '';
+      if (!locationHeader) {
+        res.status(422).json({ error: 'تعذر استخراج الإحداثيات من الرابط المختصر.' });
+        return;
+      }
+
+      const bangMatch = locationHeader.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+      if (bangMatch) {
+        res.json({
+          directUrl: `https://www.google.com/maps/search/?api=1&query=${bangMatch[1]},${bangMatch[2]}`,
+          coordinates: `${bangMatch[1]},${bangMatch[2]}`,
+        });
+        return;
+      }
+
+      const placeOrQueryMatch = locationHeader.match(
+        /(?:\/maps\/place\/|[?&](?:q|query)=)(-?\d{1,2}\.\d+)\s*(?:,|%2C)\s*(-?\d{1,3}\.\d+)/i
+      );
+      if (placeOrQueryMatch) {
+        res.json({
+          directUrl: `https://www.google.com/maps/search/?api=1&query=${placeOrQueryMatch[1]},${placeOrQueryMatch[2]}`,
+          coordinates: `${placeOrQueryMatch[1]},${placeOrQueryMatch[2]}`,
+        });
+        return;
+      }
+
+      const atCoordMatch = locationHeader.match(/\/@(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+      if (atCoordMatch) {
+        res.json({
+          directUrl: `https://www.google.com/maps/search/?api=1&query=${atCoordMatch[1]},${atCoordMatch[2]}`,
+          coordinates: `${atCoordMatch[1]},${atCoordMatch[2]}`,
+        });
+        return;
+      }
+
+      const qParam = (() => {
+        try {
+          const locUrl = new URL(locationHeader);
+          return locUrl.searchParams.get('q') || locUrl.searchParams.get('query') || '';
+        } catch {
+          return '';
+        }
+      })();
+
+      if (qParam) {
+        res.json({
+          directUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(qParam)}`,
+        });
+        return;
+      }
+
+      res.status(422).json({ error: 'لم يتم العثور على إحداثيات صالحة داخل الرابط المختصر.' });
+    } catch {
+      res.status(502).json({ error: 'تعذر الاتصال لفتح الرابط المختصر.' });
+    }
   });
 
   // Same-origin Firebase Authentication HTTPS relay (fallback when client browser/ISP blocks identitytoolkit/securetoken)
