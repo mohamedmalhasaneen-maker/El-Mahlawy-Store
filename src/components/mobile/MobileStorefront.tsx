@@ -25,6 +25,7 @@ import { recordUsefulActivity } from '../../utils/activityTracker';
 import { ProductImage } from '../ProductImage';
 import { Footer } from '../Footer';
 import { ThemeToggle } from '../ThemeToggle';
+import { ValuesAndPrinciplesSection } from '../ValuesAndPrinciplesSection';
 import { MobileMenuDrawer } from './MobileMenuDrawer';
 import { MobileOrderSheet } from './MobileOrderSheet';
 import { MobileProductCard } from './MobileProductCard';
@@ -587,6 +588,9 @@ export function MobileStorefront({
             </div>
           </section>
         )}
+
+        {/* 6.5. Values & Principles Section */}
+        <ValuesAndPrinciplesSection id="mobile-values-section" variant="storefront" />
       </main>
 
       {/* 7. Unified Footer */}

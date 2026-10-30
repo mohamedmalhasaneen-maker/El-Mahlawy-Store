@@ -42,6 +42,7 @@ import { DeveloperSettingsPage } from './components/DeveloperSettingsPage';
 import { Footer } from './components/Footer';
 import { MobileStorefront } from './components/mobile/MobileStorefront';
 import { TechBackground } from './components/TechBackground';
+import { ValuesAndPrinciplesSection } from './components/ValuesAndPrinciplesSection';
 import { RatingInvitationPrompt } from './components/RatingInvitationPrompt';
 import { RatingFormModal } from './components/RatingFormModal';
 import { listenForRatingPromptTrigger, recordUsefulActivity } from './utils/activityTracker';
@@ -840,6 +841,9 @@ export default function App() {
                     )}
                   </div>
                 </section>
+
+                {/* 4. Values & Principles Section */}
+                <ValuesAndPrinciplesSection id="values-section" variant="storefront" />
               </main>
 
               <Footer

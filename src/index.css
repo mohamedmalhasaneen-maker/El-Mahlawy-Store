@@ -1,8 +1,10 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
     --font-sans: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-sacred: 'Amiri', 'Cairo', Georgia, serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
   }
 
@@ -43,6 +45,10 @@
 .font-num {
   font-family: var(--font-mono), var(--font-sans);
   font-variant-numeric: tabular-nums;
+}
+
+.font-sacred {
+  font-family: var(--font-sacred);
 }
 
 .no-scrollbar {

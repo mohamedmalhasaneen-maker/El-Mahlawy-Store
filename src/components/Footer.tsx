@@ -569,7 +569,7 @@ export function Footer({
 
       {/* 2.5. قسم تقييمات الزوار ورأيهم بالموقع */}
       {siteConfig.showRatingsSection !== false && (
-        <div className={`border-t ${isDark ? 'border-[#D4AF37]/30' : 'border-[#1E3F73]'} py-8 px-4`}>
+        <div className={`border-t ${isDark ? 'border-[#D4AF37]/30' : 'border-[#1E3F73]'} py-5 sm:py-6 px-4`}>
           <div className="mx-auto max-w-7xl">
             <RatingStatsDisplay onOpenRatingModal={onOpenRatingModal} isDark={isDark} />
           </div>

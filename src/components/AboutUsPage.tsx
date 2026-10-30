@@ -25,6 +25,7 @@ import { PARTNER_INFO } from '../types/store';
 import { buildWhatsAppLinkFromPhone, parsePartnerScopeList } from '../utils/siteConfig';
 import { ThemeToggle } from './ThemeToggle';
 import { Footer } from './Footer';
+import { ValuesAndPrinciplesSection } from './ValuesAndPrinciplesSection';
 
 interface AboutUsPageProps {
   onBackToStore: () => void;
@@ -480,6 +481,9 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false,
             </div>
           </div>
         </section>
+
+        {/* 2.5. VALUES & PRINCIPLES SECTION */}
+        <ValuesAndPrinciplesSection id="about-values-section" variant="about" />
 
         {/* 3. OUR VISION SECTION */}
         <section className="bg-gradient-to-br from-[#0B0B0B] via-[#082E38] to-[#0B0B0B] text-white py-12 sm:py-16 border-t border-[#D4AF37]">
