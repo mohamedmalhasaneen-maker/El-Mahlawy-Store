@@ -111,7 +111,7 @@ export default function App() {
 
   // Storefront search, sort & detail modal
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>(SortOption.FEATURED);
+  const [sortBy, setSortBy] = useState<SortOption>(SortOption.NEWEST);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sharedProductId, setSharedProductId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -120,7 +120,7 @@ export default function App() {
   const [publicOrigin, setPublicOrigin] = useState<string>(() =>
     typeof window !== 'undefined' ? window.location.origin : ''
   );
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('featured');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
 
   // Visitor Rating invitation prompt & modal state
   const [isRatingPromptOpen, setIsRatingPromptOpen] = useState(false);
@@ -150,6 +150,8 @@ export default function App() {
     setSelectedCategoryId(categoryId);
     if (categoryId === 'featured') {
       setSortBy(SortOption.FEATURED);
+    } else if (sortBy === SortOption.FEATURED) {
+      setSortBy(SortOption.NEWEST);
     }
     if (categoryId !== 'all' && categoryId !== 'featured') {
       recordUsefulActivity('category_switch', categoryId);
@@ -536,9 +538,12 @@ export default function App() {
       selectedCategoryId !== 'featured' &&
       !orderedStoreCategories.some((c) => c.id === selectedCategoryId)
     ) {
-      setSelectedCategoryId('featured');
+      setSelectedCategoryId('all');
     }
-  }, [selectedCategoryId, orderedStoreCategories]);
+    if (selectedCategoryId === 'featured' && !products.some((p) => p.isPublished && p.isFeatured)) {
+      setSelectedCategoryId('all');
+    }
+  }, [selectedCategoryId, orderedStoreCategories, products]);
 
   const discountedProducts = useMemo(() => getDiscountedProducts(products), [products]);
   const featuredProducts = useMemo(() => getFeaturedProducts(products), [products]);
@@ -556,13 +561,16 @@ export default function App() {
 
   const heroSpotlightProduct = useMemo(() => {
     if (!siteConfig.showHeroSpotlight) return undefined;
+    if (featuredProducts.length > 0) {
+      return featuredProducts[0];
+    }
     const published = products.filter((p) => p.isPublished);
     if (published.length === 0) return undefined;
     const sortedByNewest = [...published].sort((a, b) =>
       (b.createdAt || '').localeCompare(a.createdAt || '')
     );
     return sortedByNewest[0];
-  }, [products, siteConfig.showHeroSpotlight]);
+  }, [products, featuredProducts, siteConfig.showHeroSpotlight]);
 
   const developerCatalogProducts = useMemo(() => {
     const source = adminProducts ?? products;
@@ -628,6 +636,8 @@ export default function App() {
               onCategoryChange={handleCategoryChange}
               hasFeaturedProducts={hasFeaturedProducts}
               isShowingFeatured={isShowingFeatured}
+              featuredProducts={siteConfig.showHeroSpotlight ? featuredProducts : []}
+              heroSpotlightProduct={heroSpotlightProduct}
               onOpenRatingModal={() => setIsRatingModalOpen(true)}
             />
 
@@ -655,8 +665,10 @@ export default function App() {
                   searchQuery={searchQuery}
                   onSearchChange={handleSearchChange}
                   featuredProduct={heroSpotlightProduct}
+                  featuredProducts={siteConfig.showHeroSpotlight ? featuredProducts : []}
                   onSelectProduct={(product) => handleSelectProduct(product)}
                   hasDiscountOffers={discountedProducts.length > 0 && siteConfig.showOffersSection}
+                  publicOrigin={publicOrigin}
                 />
 
                 {/* 2. Dedicated Offers & Discounts Section */}
@@ -859,10 +871,10 @@ export default function App() {
                             </p>
                             <button
                               type="button"
-                              onClick={() => handleCategoryChange(hasFeaturedProducts ? 'featured' : 'all')}
+                              onClick={() => handleCategoryChange('all')}
                               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer"
                             >
-                              عرض {hasFeaturedProducts ? 'المنتجات المفضّلة' : 'جميع الأقسام'}
+                              عرض جميع الأقسام
                             </button>
                           </>
                         ) : (

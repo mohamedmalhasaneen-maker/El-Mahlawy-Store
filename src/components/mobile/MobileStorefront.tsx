@@ -24,6 +24,7 @@ import {
 import { getCategoryName, getOrderedCategories } from '../../constants/categories';
 import { recordUsefulActivity } from '../../utils/activityTracker';
 import { ProductImage } from '../ProductImage';
+import { FeaturedSpotlightCarousel } from '../FeaturedSpotlightCarousel';
 import { Footer } from '../Footer';
 import { ThemeToggle } from '../ThemeToggle';
 import { ValuesAndPrinciplesSection } from '../ValuesAndPrinciplesSection';
@@ -52,6 +53,8 @@ interface MobileStorefrontProps {
   onCategoryChange?: (id: string) => void;
   hasFeaturedProducts?: boolean;
   isShowingFeatured?: boolean;
+  featuredProducts?: Product[];
+  heroSpotlightProduct?: Product;
   onOpenRatingModal?: () => void;
 }
 
@@ -71,10 +74,12 @@ export function MobileStorefront({
   publicOrigin,
   initialProductId,
   onConsumeInitialProduct,
-  selectedCategoryId = 'featured',
+  selectedCategoryId = 'all',
   onCategoryChange,
   hasFeaturedProducts = false,
   isShowingFeatured = false,
+  featuredProducts = [],
+  heroSpotlightProduct,
   onOpenRatingModal,
 }: MobileStorefrontProps) {
   const siteConfig = useSiteConfig();
@@ -310,6 +315,20 @@ export function MobileStorefront({
                   <span>واتساب الأعمال</span>
                 </a>
               </div>
+
+              {siteConfig.showHeroSpotlight &&
+                (featuredProducts.length > 0 || heroSpotlightProduct) && (
+                  <div className="mt-4">
+                    <FeaturedSpotlightCarousel
+                      featuredProducts={featuredProducts}
+                      fallbackProduct={heroSpotlightProduct}
+                      onSelectProduct={handleOpenDetails}
+                      onOrderProduct={handleStartOrder}
+                      publicOrigin={publicOrigin}
+                      variant="mobile"
+                    />
+                  </div>
+                )}
             </div>
           </section>
         )}
@@ -527,10 +546,10 @@ export function MobileStorefront({
                   </p>
                   <button
                     type="button"
-                    onClick={() => onCategoryChange?.(hasFeaturedProducts ? 'featured' : 'all')}
+                    onClick={() => onCategoryChange?.('all')}
                     className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] px-4 py-2.5 text-xs font-extrabold text-white whitespace-nowrap cursor-pointer"
                   >
-                    <span>عرض {hasFeaturedProducts ? 'المنتجات المفضّلة' : 'كل الأقسام'}</span>
+                    <span>عرض كل الأقسام</span>
                   </button>
                 </>
               ) : (

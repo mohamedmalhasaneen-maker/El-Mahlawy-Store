@@ -8,6 +8,7 @@ interface ProductImageProps {
   className?: string;
   containerClassName?: string;
   showPedestalHalo?: boolean;
+  loading?: 'lazy' | 'eager';
 }
 
 export function ProductImage({
@@ -16,6 +17,7 @@ export function ProductImage({
   className = '',
   containerClassName = '',
   showPedestalHalo = false,
+  loading = 'lazy',
 }: ProductImageProps) {
   const [hasError, setHasError] = useState(false);
   const resolvedSrc = normalizeImageSrc(src);
@@ -28,12 +30,12 @@ export function ProductImage({
 
   return (
     <div
-      className={`relative flex items-center justify-center overflow-hidden bg-[#F2FAFF] ${containerClassName}`}
+      className={`relative flex items-center justify-center overflow-hidden bg-[#F2FAFF] dark:bg-[#081830] ${containerClassName}`}
     >
       {showPedestalHalo && !validSrc && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute aspect-square h-[86%] max-w-[86%] rounded-full bg-white shadow-[0_8px_28px_rgba(14,116,190,0.08)] border border-[#E1F2FE]"
+          className="pointer-events-none absolute aspect-square h-[86%] max-w-[86%] rounded-full bg-white dark:bg-[#0E264A] shadow-[0_8px_28px_rgba(14,116,190,0.08)] border border-[#E1F2FE] dark:border-[#1E3F73]"
         />
       )}
 
@@ -42,9 +44,11 @@ export function ProductImage({
           src={resolvedSrc}
           alt={alt}
           referrerPolicy="no-referrer"
-          loading="lazy"
+          loading={loading}
+          decoding="async"
+          draggable={false}
           onError={() => setHasError(true)}
-          className={`relative z-10 h-full w-full object-contain rounded-xl transition-transform duration-200 ease-out ${className}`}
+          className={`relative z-10 h-full w-full object-contain rounded-xl transition-transform duration-200 ease-out select-none ${className}`}
         />
       ) : (
         <div className="relative z-10 flex flex-col items-center justify-center gap-2 p-6 text-center text-[#1D4ED8]/70">

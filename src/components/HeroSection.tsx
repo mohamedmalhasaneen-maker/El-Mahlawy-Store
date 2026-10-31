@@ -9,28 +9,26 @@ import {
 } from 'lucide-react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { Product } from '../types/store';
-import {
-  calculateDiscountPercent,
-  formatPriceEgp,
-  getEffectiveProductPrice,
-  isDiscountActive,
-} from '../utils/catalogLogic';
-import { ProductImage } from './ProductImage';
+import { FeaturedSpotlightCarousel } from './FeaturedSpotlightCarousel';
 
 interface HeroSectionProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   featuredProduct?: Product;
+  featuredProducts?: Product[];
   onSelectProduct: (product: Product) => void;
   hasDiscountOffers: boolean;
+  publicOrigin?: string;
 }
 
 export function HeroSection({
   searchQuery,
   onSearchChange,
   featuredProduct,
+  featuredProducts = [],
   onSelectProduct,
   hasDiscountOffers,
+  publicOrigin,
 }: HeroSectionProps) {
   const siteConfig = useSiteConfig();
 
@@ -47,13 +45,9 @@ export function HeroSection({
     scrollToProducts();
   };
 
-  const showSpotlight = Boolean(featuredProduct && siteConfig.showHeroSpotlight);
-  const showCategory =
-    featuredProduct?.category && featuredProduct.category.trim() !== 'عام';
-  const spotlightEffectivePrice = featuredProduct
-    ? getEffectiveProductPrice(featuredProduct)
-    : 0;
-  const spotlightDiscountActive = featuredProduct ? isDiscountActive(featuredProduct) : false;
+  const showSpotlight = Boolean(
+    siteConfig.showHeroSpotlight && (featuredProducts.length > 0 || featuredProduct)
+  );
 
   return (
     <section id="top" className="relative overflow-hidden bg-white">
@@ -105,10 +99,7 @@ export function HeroSection({
                 ) : null}
               </p>
 
-              <h1
-                className="text-3xl sm:text-4xl lg:text-[2.75rem] font-extrabold leading-[1.24] text-white mb-4"
-                style={{ textWrap: 'balance' }}
-              >
+              <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-extrabold leading-[1.24] text-white mb-4 text-balance">
                 {siteConfig.tagline}
               </h1>
 
@@ -193,70 +184,16 @@ export function HeroSection({
               </div>
             </div>
 
-            {/* Left Column (RTL): Featured Product Spotlight Pedestal */}
-            {showSpotlight && featuredProduct && (
+            {/* Left Column (RTL): Auto-Playing Featured Product Spotlight Pedestal */}
+            {showSpotlight && (
               <div className="lg:col-span-5 flex items-center justify-center">
-                <div className="w-full max-w-md rounded-3xl bg-white/95 p-5 sm:p-6 text-[#0B1F3A] shadow-[0_20px_50px_rgba(7,22,48,0.28)] border border-white/60">
-                  <div className="flex items-center justify-between gap-2 mb-3 text-xs font-semibold text-[#0284C7]">
-                    <span>أحدث منتجات {siteConfig.storeName}</span>
-                    {spotlightDiscountActive && (
-                      <span className="font-bold text-[#1D4ED8]">
-                        خصم{' '}
-                        <bdi className="font-num">
-                          {calculateDiscountPercent(
-                            featuredProduct.originalPrice,
-                            spotlightEffectivePrice
-                          )}
-                          %
-                        </bdi>
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => onSelectProduct(featuredProduct)}
-                    aria-label={`استعراض ${featuredProduct.name}`}
-                    className="group block w-full text-right cursor-pointer focus-visible:outline-2 focus-visible:outline-[#1D4ED8] rounded-2xl"
-                  >
-                    <ProductImage
-                      src={featuredProduct.images[0]}
-                      alt={featuredProduct.name}
-                      showPedestalHalo={true}
-                      containerClassName="h-64 sm:h-72 w-full rounded-2xl p-2"
-                      className="group-hover:scale-[1.02]"
-                    />
-
-                    <div className="mt-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-4">
-                      <div className="min-w-0">
-                        {(featuredProduct.brand || showCategory) && (
-                          <p className="text-xs text-slate-500 mb-1">
-                            {featuredProduct.brand}
-                            {featuredProduct.brand && showCategory ? ' · ' : ''}
-                            {showCategory ? featuredProduct.category : ''}
-                          </p>
-                        )}
-                        <h2 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] leading-snug">
-                          {featuredProduct.name}
-                        </h2>
-                      </div>
-                      <div className="sm:text-left shrink-0">
-                        {spotlightDiscountActive && (
-                          <p className="text-xs text-slate-400 line-through">
-                            <bdi className="font-num">
-                              {formatPriceEgp(featuredProduct.originalPrice)}
-                            </bdi>{' '}
-                            ج.م
-                          </p>
-                        )}
-                        <p className="text-lg sm:text-xl font-extrabold text-[#1D4ED8]">
-                          <bdi className="font-num">{formatPriceEgp(spotlightEffectivePrice)}</bdi>{' '}
-                          <span className="text-xs font-bold">ج.م</span>
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                </div>
+                <FeaturedSpotlightCarousel
+                  featuredProducts={featuredProducts}
+                  fallbackProduct={featuredProduct}
+                  onSelectProduct={onSelectProduct}
+                  publicOrigin={publicOrigin}
+                  variant="desktop"
+                />
               </div>
             )}
           </div>
