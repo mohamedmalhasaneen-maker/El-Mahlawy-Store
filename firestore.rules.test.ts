@@ -12,6 +12,14 @@ import {
   sanitizeSiteConfig,
   validateSiteConfigInput,
 } from './src/utils/siteConfig';
+import { SortOption } from './src/types/store';
+import {
+  filterAndSortProducts,
+  getFeaturedProducts,
+  getNextFeaturedOrder,
+  isStorefrontShowingFeatured,
+  sanitizeProductPayload,
+} from './src/utils/catalogLogic';
 
 const rulesSource = fs.readFileSync(path.join(process.cwd(), 'firestore.rules'), 'utf8');
 const blueprint = JSON.parse(
@@ -124,6 +132,15 @@ function isValidProductRuleSimulator(data: Record<string, unknown>): boolean {
 
   if (typeof data.inStock !== 'boolean') return false;
   if (typeof data.isFeatured !== 'boolean') return false;
+  if (
+    'featuredOrder' in data &&
+    (typeof data.featuredOrder !== 'number' ||
+      !Number.isFinite(data.featuredOrder) ||
+      data.featuredOrder < 0 ||
+      data.featuredOrder > 100000)
+  ) {
+    return false;
+  }
   if (typeof data.isPublished !== 'boolean') return false;
   if (!Array.isArray(data.images) || data.images.length < 1 || data.images.length > 15) return false;
   if (
@@ -296,6 +313,7 @@ function makeBaseValidPayload(authorUid = AUTHORIZED_UID): Record<string, unknow
     discountEndDate: '2026-12-31',
     inStock: true,
     isFeatured: true,
+    featuredOrder: 1,
     isPublished: true,
     images: ['https://res.cloudinary.com/obvb7rtp/image/upload/v1/item.jpg'],
     specs: ['بلوتوث 5.3'],
@@ -718,4 +736,185 @@ test('Official Google Maps direct URL replaces broken maps.app.goo.gl short link
   const validation = validateSiteConfigInput(invalidShortDraft);
   assert.equal(validation.valid, false);
   assert.ok(validation.errors.some((e) => e.includes('Dynamic Link Not Found')));
+});
+
+test('Featured products security rules and all 6 storefront behavior scenarios work end-to-end', () => {
+  // Security checks on featuredOrder
+  assert.ok(rulesSource.includes("'featuredOrder'"));
+  assert.equal(
+    evaluateProductCreate(
+      'prod-101',
+      { ...makeBaseValidPayload(AUTHORIZED_UID), isFeatured: true, featuredOrder: 2 },
+      authorizedDeveloperUidAuth
+    ),
+    'ALLOWED'
+  );
+  // Reject non-numeric or out-of-bounds featuredOrder (value poisoning)
+  assert.equal(
+    evaluateProductCreate(
+      'prod-101',
+      { ...makeBaseValidPayload(AUTHORIZED_UID), featuredOrder: -1 },
+      authorizedDeveloperUidAuth
+    ),
+    'PERMISSION_DENIED'
+  );
+  assert.equal(
+    evaluateProductCreate(
+      'prod-101',
+      { ...makeBaseValidPayload(AUTHORIZED_UID), featuredOrder: 100001 },
+      authorizedDeveloperUidAuth
+    ),
+    'PERMISSION_DENIED'
+  );
+  assert.equal(
+    evaluateProductCreate(
+      'prod-101',
+      { ...makeBaseValidPayload(AUTHORIZED_UID), featuredOrder: 'first' },
+      authorizedDeveloperUidAuth
+    ),
+    'PERMISSION_DENIED'
+  );
+  // Legacy documents without featuredOrder remain valid
+  const legacyPayload = makeBaseValidPayload(AUTHORIZED_UID);
+  delete legacyPayload.featuredOrder;
+  assert.equal(
+    evaluateProductCreate('prod-101', legacyPayload, authorizedDeveloperUidAuth),
+    'ALLOWED'
+  );
+
+  // Build test catalog
+  const pOld = sanitizeProductPayload(
+    {
+      name: 'كاميرا مراقبة قديمة',
+      brand: 'Hikvision',
+      category: 'قسم كاميرات المراقبة',
+      categoryId: 'cctv',
+      shortDescription: '',
+      description: '',
+      price: 1500,
+      originalPrice: 1500,
+      discountEnabled: false,
+      inStock: true,
+      isFeatured: false,
+      featuredOrder: 0,
+      isPublished: true,
+      images: ['https://res.cloudinary.com/obvb7rtp/image/upload/v1/old.jpg'],
+      specs: [],
+      options: [],
+    },
+    'prod-old',
+    AUTHORIZED_UID
+  );
+  pOld.createdAt = '2026-10-01T10:00:00.000Z';
+
+  const pNew = sanitizeProductPayload(
+    {
+      name: 'رسيفر ستلايت حديث',
+      brand: 'Astra',
+      category: 'قسم الستلايت',
+      categoryId: 'satellite',
+      shortDescription: '',
+      description: '',
+      price: 950,
+      originalPrice: 950,
+      discountEnabled: false,
+      inStock: true,
+      isFeatured: false,
+      featuredOrder: 0,
+      isPublished: true,
+      images: ['https://res.cloudinary.com/obvb7rtp/image/upload/v1/new.jpg'],
+      specs: [],
+      options: [],
+    },
+    'prod-new',
+    AUTHORIZED_UID
+  );
+  pNew.createdAt = '2026-10-25T10:00:00.000Z';
+
+  // Scenario 4: Zero featured products -> automatic fallback to latest products (newest first)
+  const catalogNoFeatured = [pOld, pNew];
+  assert.equal(isStorefrontShowingFeatured(catalogNoFeatured, '', 'featured'), false);
+  const fallbackList = filterAndSortProducts(
+    catalogNoFeatured,
+    '',
+    'featured',
+    SortOption.FEATURED
+  );
+  assert.deepEqual(
+    fallbackList.map((p) => p.id),
+    ['prod-new', 'prod-old']
+  );
+
+  // Scenario 1: Mark one product as featured -> only featured product appears in Homepage featured view
+  const pOldFeatured = { ...pOld, isFeatured: true, featuredOrder: 1 };
+  const catalogOneFeatured = [pOldFeatured, pNew];
+  assert.equal(isStorefrontShowingFeatured(catalogOneFeatured, '', 'featured'), true);
+  const singleFeaturedView = filterAndSortProducts(
+    catalogOneFeatured,
+    '',
+    'featured',
+    SortOption.FEATURED
+  );
+  assert.deepEqual(
+    singleFeaturedView.map((p) => p.id),
+    ['prod-old']
+  );
+
+  // Scenario 3: Multiple featured products appear in exact featuredOrder without duplicates
+  const pThird = {
+    ...pNew,
+    id: 'prod-third',
+    name: 'قفل ذكي بصمة',
+    isFeatured: true,
+    featuredOrder: 1,
+    createdAt: '2026-10-10T10:00:00.000Z',
+  };
+  const pSecond = { ...pOldFeatured, featuredOrder: 2 };
+  const pFourth = {
+    ...pNew,
+    id: 'prod-fourth',
+    name: 'سماعة محيطية',
+    isFeatured: true,
+    featuredOrder: 3,
+  };
+  const catalogMultiWithDupes = [pSecond, pFourth, pThird, pThird, pNew];
+  const multiFeaturedView = filterAndSortProducts(
+    catalogMultiWithDupes,
+    '',
+    'featured',
+    SortOption.FEATURED
+  );
+  assert.deepEqual(
+    multiFeaturedView.map((p) => p.id),
+    ['prod-third', 'prod-old', 'prod-fourth']
+  );
+  assert.equal(getNextFeaturedOrder(catalogMultiWithDupes), 4);
+
+  // Scenario 2: Unmark featured product -> disappears immediately from featured list
+  const afterUnmark = catalogMultiWithDupes.map((p) =>
+    p.id === 'prod-old' ? { ...p, isFeatured: false, featuredOrder: 0 } : p
+  );
+  assert.deepEqual(
+    getFeaturedProducts(afterUnmark).map((p) => p.id),
+    ['prod-third', 'prod-fourth']
+  );
+
+  // Scenario 5 & 6: Search and category filters still access non-featured products cleanly
+  const searchResults = filterAndSortProducts(
+    catalogMultiWithDupes,
+    'رسيفر',
+    'featured',
+    SortOption.FEATURED
+  );
+  assert.deepEqual(
+    searchResults.map((p) => p.id),
+    ['prod-new']
+  );
+  const categoryResults = filterAndSortProducts(
+    catalogMultiWithDupes,
+    '',
+    'satellite',
+    SortOption.FEATURED
+  );
+  assert.ok(categoryResults.some((p) => p.id === 'prod-new'));
 });

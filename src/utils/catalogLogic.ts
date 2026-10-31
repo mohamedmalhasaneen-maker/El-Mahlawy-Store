@@ -33,6 +33,7 @@ export const MAX_SPEC_LENGTH = 200;
 export const MAX_OPTIONS = 10;
 export const MAX_OPTION_LENGTH = 80;
 export const MAX_DATE_STRING_LENGTH = 32;
+export const MAX_FEATURED_ORDER = 100000;
 
 export function roundCurrency(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -680,6 +681,15 @@ export function validateProductInput(input: ProductFormInput): ValidationResult 
     errors.push('تاريخ نهاية الخصم يجب أن يكون بعد أو مساويًا لتاريخ البداية.');
   }
 
+  if (
+    input.featuredOrder !== undefined &&
+    (!Number.isFinite(input.featuredOrder) ||
+      input.featuredOrder < 0 ||
+      input.featuredOrder > MAX_FEATURED_ORDER)
+  ) {
+    errors.push('ترتيب ظهور المنتج المفضّل غير صالح.');
+  }
+
   const cleanImages = (input.images || []).map((img) => img.trim()).filter(Boolean);
   if (cleanImages.length < 1) {
     errors.push('يرجى رفع أو إضافة صورة واحدة على الأقل للمنتج.');
@@ -776,6 +786,11 @@ export function sanitizeProductPayload(
     discountEndDate,
     inStock: Boolean(input.inStock),
     isFeatured: Boolean(input.isFeatured),
+    featuredOrder: Boolean(input.isFeatured)
+      ? input.featuredOrder !== undefined && Number.isFinite(Number(input.featuredOrder))
+        ? Math.max(0, Math.min(MAX_FEATURED_ORDER, Math.floor(Number(input.featuredOrder))))
+        : 0
+      : 0,
     isPublished: input.isPublished !== false,
     images: (input.images || [])
       .map((u) => u.trim())
@@ -805,6 +820,63 @@ export function getDiscountedProducts(
   return products.filter((p) => p.isPublished && isDiscountActive(p, referenceDate));
 }
 
+export function deduplicateProductsById(products: Product[]): Product[] {
+  const seen = new Set<string>();
+  const unique: Product[] = [];
+  for (const product of products) {
+    if (!product.id || seen.has(product.id)) continue;
+    seen.add(product.id);
+    unique.push(product);
+  }
+  return unique;
+}
+
+export function compareFeaturedProducts(a: Product, b: Product): number {
+  const orderA =
+    typeof a.featuredOrder === 'number' && Number.isFinite(a.featuredOrder) && a.featuredOrder > 0
+      ? a.featuredOrder
+      : Number.MAX_SAFE_INTEGER;
+  const orderB =
+    typeof b.featuredOrder === 'number' && Number.isFinite(b.featuredOrder) && b.featuredOrder > 0
+      ? b.featuredOrder
+      : Number.MAX_SAFE_INTEGER;
+  if (orderA !== orderB) {
+    return orderA - orderB;
+  }
+  return (b.createdAt || '').localeCompare(a.createdAt || '');
+}
+
+export function getFeaturedProducts(
+  products: Product[],
+  options?: { includeUnpublished?: boolean }
+): Product[] {
+  const includeUnpublished = Boolean(options?.includeUnpublished);
+  return deduplicateProductsById(products)
+    .filter((p) => (includeUnpublished ? true : p.isPublished) && p.isFeatured)
+    .sort(compareFeaturedProducts);
+}
+
+export function getNextFeaturedOrder(products: Product[]): number {
+  const featured = getFeaturedProducts(products, { includeUnpublished: true });
+  let maxOrder = featured.length;
+  for (const p of featured) {
+    if (typeof p.featuredOrder === 'number' && Number.isFinite(p.featuredOrder) && p.featuredOrder > maxOrder) {
+      maxOrder = Math.floor(p.featuredOrder);
+    }
+  }
+  return Math.min(MAX_FEATURED_ORDER, Math.max(1, maxOrder + 1));
+}
+
+export function isStorefrontShowingFeatured(
+  products: Product[],
+  searchQuery: string,
+  selectedCategoryId: string
+): boolean {
+  if (searchQuery.trim().length > 0) return false;
+  if (selectedCategoryId !== 'featured') return false;
+  return getFeaturedProducts(products).length > 0;
+}
+
 export function filterAndSortProducts(
   products: Product[],
   searchQuery: string,
@@ -813,10 +885,22 @@ export function filterAndSortProducts(
   referenceDate: Date = new Date()
 ): Product[] {
   const q = searchQuery.trim().toLowerCase();
+  const uniquePublished = deduplicateProductsById(products).filter((p) => p.isPublished);
+  const showingFeatured =
+    !q &&
+    selectedCategoryId === 'featured' &&
+    uniquePublished.some((p) => p.isFeatured);
 
-  const filtered = products.filter((p) => {
-    if (!p.isPublished) return false;
-    if (selectedCategoryId && selectedCategoryId !== 'all' && p.categoryId !== selectedCategoryId) {
+  const filtered = uniquePublished.filter((p) => {
+    if (showingFeatured) {
+      return p.isFeatured;
+    }
+    if (
+      selectedCategoryId &&
+      selectedCategoryId !== 'all' &&
+      selectedCategoryId !== 'featured' &&
+      p.categoryId !== selectedCategoryId
+    ) {
       return false;
     }
     if (!q) return true;
@@ -857,6 +941,13 @@ export function filterAndSortProducts(
           : 0;
         return discB - discA;
       });
+      break;
+    case SortOption.FEATURED:
+      if (showingFeatured) {
+        sorted.sort(compareFeaturedProducts);
+      } else {
+        sorted.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      }
       break;
     case SortOption.NEWEST:
     default:

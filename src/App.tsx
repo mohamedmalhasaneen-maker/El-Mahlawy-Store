@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowUpDown, MessageCircle, RotateCcw, Search } from 'lucide-react';
+import { ArrowUpDown, MessageCircle, RotateCcw, Search, Star } from 'lucide-react';
 import './lib/firebase';
 import { SiteConfigContext } from './contexts/SiteConfigContext';
 import { Product, ProductFormInput, SortOption } from './types/store';
@@ -7,6 +7,8 @@ import {
   filterAndSortProducts,
   findProductByShareParam,
   getDiscountedProducts,
+  getFeaturedProducts,
+  isStorefrontShowingFeatured,
 } from './utils/catalogLogic';
 import { DEFAULT_SITE_CONFIG, SiteConfig, sanitizeSiteConfig } from './utils/siteConfig';
 import {
@@ -22,6 +24,7 @@ import {
   isAuthorizedDeveloperUser,
   migrateLegacySiteConfigMapsInCloud,
   onAuthStateChanged,
+  reorderCloudFeaturedProducts,
   saveCloudSiteConfig,
   signOutAdmin,
   subscribeToAllProductsForAdmin,
@@ -49,23 +52,8 @@ import { listenForRatingPromptTrigger, recordUsefulActivity } from './utils/acti
 import { useTheme } from './utils/useTheme';
 import { getCategoryName, getOrderedCategories } from './constants/categories';
 
-const LOCAL_STORAGE_KEY = 'mahallawy_store_catalog_v1';
+const LEGACY_PRODUCT_STORAGE_KEY = 'mahallawy_store_catalog_v1';
 const SITE_CONFIG_CACHE_KEY = 'mahallawy_site_config_v1';
-
-function loadCachedProducts(): Product[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Product[];
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    }
-  } catch {
-    // Ignore malformed cache
-  }
-  return [];
-}
 
 function loadCachedSiteConfig(): SiteConfig {
   try {
@@ -111,11 +99,9 @@ export default function App() {
     if (initial === 'about') return 'store';
     return initial;
   });
-  const [products, setProducts] = useState<Product[]>(loadCachedProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [adminProducts, setAdminProducts] = useState<Product[] | null>(null);
-  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(
-    () => loadCachedProducts().length === 0
-  );
+  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true);
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(loadCachedSiteConfig);
 
   // Firebase Auth state for Developer Settings
@@ -125,7 +111,7 @@ export default function App() {
 
   // Storefront search, sort & detail modal
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>(SortOption.NEWEST);
+  const [sortBy, setSortBy] = useState<SortOption>(SortOption.FEATURED);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sharedProductId, setSharedProductId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -134,7 +120,7 @@ export default function App() {
   const [publicOrigin, setPublicOrigin] = useState<string>(() =>
     typeof window !== 'undefined' ? window.location.origin : ''
   );
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('featured');
 
   // Visitor Rating invitation prompt & modal state
   const [isRatingPromptOpen, setIsRatingPromptOpen] = useState(false);
@@ -162,7 +148,10 @@ export default function App() {
 
   const handleCategoryChange = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
-    if (categoryId !== 'all') {
+    if (categoryId === 'featured') {
+      setSortBy(SortOption.FEATURED);
+    }
+    if (categoryId !== 'all' && categoryId !== 'featured') {
       recordUsefulActivity('category_switch', categoryId);
     }
   };
@@ -332,15 +321,16 @@ export default function App() {
         // Keep window.location.origin fallback
       });
 
+    try {
+      localStorage.removeItem(LEGACY_PRODUCT_STORAGE_KEY);
+    } catch {
+      // Ignore storage restrictions
+    }
+
     const unsubProducts = subscribeToPublishedProducts(
       (items) => {
         setProducts(items);
         setIsLoadingProducts(false);
-        try {
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(items));
-        } catch {
-          // Ignore storage quota warnings
-        }
       },
       (err) => {
         console.error('Error fetching published products:', err);
@@ -468,13 +458,7 @@ export default function App() {
   const syncAuthoritativeProductIntoState = useCallback((saved: Product) => {
     setProducts((prev) => {
       const withoutTarget = prev.filter((item) => item.id !== saved.id);
-      const next = saved.isPublished ? [saved, ...withoutTarget] : withoutTarget;
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // Ignore storage quota warnings
-      }
-      return next;
+      return saved.isPublished ? [saved, ...withoutTarget] : withoutTarget;
     });
     setAdminProducts((prev) => {
       if (!prev) return prev;
@@ -500,15 +484,7 @@ export default function App() {
 
   const handleDeleteProduct = async (productId: string) => {
     await deleteCloudProduct(productId);
-    setProducts((prev) => {
-      const next = prev.filter((item) => item.id !== productId);
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // Ignore storage quota warnings
-      }
-      return next;
-    });
+    setProducts((prev) => prev.filter((item) => item.id !== productId));
     setAdminProducts((prev) => (prev ? prev.filter((item) => item.id !== productId) : prev));
   };
 
@@ -522,10 +498,17 @@ export default function App() {
 
   const handleQuickUpdateProductFlags = async (
     product: Product,
-    updates: Partial<Pick<Product, 'isPublished' | 'inStock' | 'isFeatured'>>
+    updates: Partial<Pick<Product, 'isPublished' | 'inStock' | 'isFeatured' | 'featuredOrder'>>
   ) => {
     const saved = await updateCloudProductFlags(product.id, updates);
     syncAuthoritativeProductIntoState(saved);
+  };
+
+  const handleReorderFeaturedProducts = async (orderedIds: string[]) => {
+    const updatedItems = await reorderCloudFeaturedProducts(orderedIds);
+    for (const saved of updatedItems) {
+      syncAuthoritativeProductIntoState(saved);
+    }
   };
 
   const handleSaveSiteConfig = async (nextConfig: SiteConfig) => {
@@ -550,13 +533,22 @@ export default function App() {
   useEffect(() => {
     if (
       selectedCategoryId !== 'all' &&
+      selectedCategoryId !== 'featured' &&
       !orderedStoreCategories.some((c) => c.id === selectedCategoryId)
     ) {
-      setSelectedCategoryId('all');
+      setSelectedCategoryId('featured');
     }
   }, [selectedCategoryId, orderedStoreCategories]);
 
   const discountedProducts = useMemo(() => getDiscountedProducts(products), [products]);
+  const featuredProducts = useMemo(() => getFeaturedProducts(products), [products]);
+  const hasFeaturedProducts = featuredProducts.length > 0;
+  const isShowingFeatured = useMemo(
+    () => isStorefrontShowingFeatured(products, searchQuery, selectedCategoryId),
+    [products, searchQuery, selectedCategoryId]
+  );
+  const effectiveSortValue =
+    !isShowingFeatured && sortBy === SortOption.FEATURED ? SortOption.NEWEST : sortBy;
 
   const filteredProducts = useMemo(() => {
     return filterAndSortProducts(products, searchQuery, selectedCategoryId, sortBy);
@@ -600,6 +592,7 @@ export default function App() {
               onDeleteProduct={handleDeleteProduct}
               onSaveProductDiscount={handleSaveProductDiscount}
               onQuickUpdateProductFlags={handleQuickUpdateProductFlags}
+              onReorderFeaturedProducts={handleReorderFeaturedProducts}
               onSaveSiteConfig={handleSaveSiteConfig}
             />
           </div>
@@ -633,6 +626,8 @@ export default function App() {
               onConsumeInitialProduct={clearSharedProductParam}
               selectedCategoryId={selectedCategoryId}
               onCategoryChange={handleCategoryChange}
+              hasFeaturedProducts={hasFeaturedProducts}
+              isShowingFeatured={isShowingFeatured}
               onOpenRatingModal={() => setIsRatingModalOpen(true)}
             />
 
@@ -684,13 +679,33 @@ export default function App() {
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 mb-8">
                       <div>
                         <p className="text-xs sm:text-sm font-bold text-[#0284C7] dark:text-[#38BDF8] mb-1">
-                          أحدث المنتجات والأجهزة المتاحة
+                          {searchQuery.trim()
+                            ? 'نتائج البحث في الكتالوج'
+                            : isShowingFeatured
+                              ? `اختياراتنا المميزة في ${siteConfig.storeName}`
+                              : selectedCategoryId !== 'all' && selectedCategoryId !== 'featured'
+                                ? `تصفح منتجات القسم في ${siteConfig.storeName}`
+                                : 'أحدث المنتجات والأجهزة المتاحة'}
                         </p>
                         <h2
                           id="catalog-heading"
-                          className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]"
+                          className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] flex items-center gap-2.5"
                         >
-                          منتجات {siteConfig.storeName}
+                          {isShowingFeatured && (
+                            <Star
+                              className="h-6 w-6 sm:h-7 sm:w-7 text-[#F59E0B] fill-[#F59E0B] shrink-0"
+                              aria-hidden="true"
+                            />
+                          )}
+                          <span>
+                            {searchQuery.trim()
+                              ? `نتائج البحث في ${siteConfig.storeName}`
+                              : isShowingFeatured
+                                ? 'منتجاتنا المفضّلة'
+                                : selectedCategoryId !== 'all' && selectedCategoryId !== 'featured'
+                                  ? getCategoryName(selectedCategoryId, orderedStoreCategories)
+                                  : 'أحدث منتجاتنا'}
+                          </span>
                         </h2>
                       </div>
 
@@ -725,10 +740,13 @@ export default function App() {
                             />
                             <select
                               id="catalog-sort-select"
-                              value={sortBy}
+                              value={effectiveSortValue}
                               onChange={(e) => setSortBy(e.target.value as SortOption)}
                               className="min-h-[44px] w-full sm:w-auto rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] pr-9 pl-4 py-2 text-xs sm:text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE] focus:bg-white dark:focus:bg-[#081830] focus:outline-2 focus:outline-[#1D4ED8] cursor-pointer"
                             >
+                              {isShowingFeatured && (
+                                <option value={SortOption.FEATURED}>الترتيب المميز</option>
+                              )}
                               <option value={SortOption.NEWEST}>الأحدث إضافة</option>
                               <option value={SortOption.PRICE_ASC}>السعر: من الأقل للأعلى</option>
                               <option value={SortOption.PRICE_DESC}>السعر: من الأعلى للأقل</option>
@@ -742,16 +760,39 @@ export default function App() {
                     {/* Category Filter Bar */}
                     <div className="mb-10 overflow-x-auto pb-2 scrollbar-hide">
                       <div className="flex items-center gap-3 min-w-max">
+                        {hasFeaturedProducts && (
+                          <button
+                            type="button"
+                            onClick={() => handleCategoryChange('featured')}
+                            className={`inline-flex min-h-[44px] items-center gap-2 px-6 py-2.5 rounded-2xl text-sm font-extrabold transition-all border ${
+                              !searchQuery.trim() && selectedCategoryId === 'featured'
+                                ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
+                                : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
+                            } cursor-pointer`}
+                          >
+                            <Star
+                              className={`h-4 w-4 shrink-0 ${
+                                !searchQuery.trim() && selectedCategoryId === 'featured'
+                                  ? 'text-[#FCD34D] fill-[#FCD34D]'
+                                  : 'text-[#F59E0B] fill-[#F59E0B]'
+                              }`}
+                              aria-hidden="true"
+                            />
+                            <span>منتجاتنا المفضّلة</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleCategoryChange('all')}
                           className={`min-h-[44px] px-6 py-2.5 rounded-2xl text-sm font-extrabold transition-all border ${
-                            selectedCategoryId === 'all'
+                            selectedCategoryId === 'all' ||
+                            (!hasFeaturedProducts && selectedCategoryId === 'featured') ||
+                            (Boolean(searchQuery.trim()) && selectedCategoryId === 'featured')
                               ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
                               : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
                           } cursor-pointer`}
                         >
-                          الكل
+                          {hasFeaturedProducts ? 'كل المنتجات' : 'الكل'}
                         </button>
                         {orderedStoreCategories.map((cat) => (
                           <button
@@ -770,8 +811,25 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Product Cards Grid or Empty State */}
-                    {filteredProducts.length === 0 ? (
+                    {/* Product Cards Grid, Skeleton, or Empty State */}
+                    {isLoadingProducts && products.length === 0 ? (
+                      <div
+                        aria-label="جاري تحميل المنتجات"
+                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
+                      >
+                        {[0, 1, 2].map((idx) => (
+                          <div
+                            key={idx}
+                            className="rounded-2xl bg-white dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-5 space-y-4"
+                          >
+                            <div className="aspect-[4/3] w-full rounded-xl bg-[#F2FAFF] dark:bg-[#081830] animate-pulse" />
+                            <div className="h-3.5 w-1/3 rounded bg-[#E8F4FD] dark:bg-[#1E3F73] animate-pulse" />
+                            <div className="h-5 w-4/5 rounded bg-[#E8F4FD] dark:bg-[#1E3F73] animate-pulse" />
+                            <div className="h-11 w-full rounded-xl bg-[#E8F4FD] dark:bg-[#1E3F73] animate-pulse mt-3" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : filteredProducts.length === 0 ? (
                       <div className="rounded-3xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-10 sm:p-14 text-center">
                         {searchQuery.trim() ? (
                           <>
@@ -790,7 +848,7 @@ export default function App() {
                               <span>عرض جميع المنتجات</span>
                             </button>
                           </>
-                        ) : selectedCategoryId !== 'all' ? (
+                        ) : selectedCategoryId !== 'all' && selectedCategoryId !== 'featured' ? (
                           <>
                             <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2">
                               لا توجد منتجات في «
@@ -801,10 +859,10 @@ export default function App() {
                             </p>
                             <button
                               type="button"
-                              onClick={() => handleCategoryChange('all')}
+                              onClick={() => handleCategoryChange(hasFeaturedProducts ? 'featured' : 'all')}
                               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-2.5 text-xs sm:text-sm font-bold text-white cursor-pointer"
                             >
-                              عرض جميع الأقسام
+                              عرض {hasFeaturedProducts ? 'المنتجات المفضّلة' : 'جميع الأقسام'}
                             </button>
                           </>
                         ) : (

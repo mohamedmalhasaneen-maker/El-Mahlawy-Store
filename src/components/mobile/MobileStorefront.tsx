@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Search,
   ShoppingBag,
+  Star,
   Truck,
   X,
 } from 'lucide-react';
@@ -49,6 +50,8 @@ interface MobileStorefrontProps {
   onConsumeInitialProduct?: () => void;
   selectedCategoryId?: string;
   onCategoryChange?: (id: string) => void;
+  hasFeaturedProducts?: boolean;
+  isShowingFeatured?: boolean;
   onOpenRatingModal?: () => void;
 }
 
@@ -68,8 +71,10 @@ export function MobileStorefront({
   publicOrigin,
   initialProductId,
   onConsumeInitialProduct,
-  selectedCategoryId = 'all',
+  selectedCategoryId = 'featured',
   onCategoryChange,
+  hasFeaturedProducts = false,
+  isShowingFeatured = false,
   onOpenRatingModal,
 }: MobileStorefrontProps) {
   const siteConfig = useSiteConfig();
@@ -112,6 +117,8 @@ export function MobileStorefront({
   };
 
   const isSearching = searchQuery.trim().length > 0;
+  const effectiveSortValue =
+    !isShowingFeatured && sortBy === SortOption.FEATURED ? SortOption.NEWEST : sortBy;
 
   return (
     <div
@@ -206,16 +213,39 @@ export function MobileStorefront({
         {/* Category Bar */}
         <div className="px-3.5 mb-2 overflow-x-auto pb-2 no-scrollbar">
           <div className="flex items-center gap-2 min-w-max">
+            {hasFeaturedProducts && (
+              <button
+                type="button"
+                onClick={() => onCategoryChange?.('featured')}
+                className={`inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
+                  !isSearching && selectedCategoryId === 'featured'
+                    ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
+                    : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
+                } cursor-pointer`}
+              >
+                <Star
+                  className={`h-3.5 w-3.5 shrink-0 ${
+                    !isSearching && selectedCategoryId === 'featured'
+                      ? 'text-[#FCD34D] fill-[#FCD34D]'
+                      : 'text-[#F59E0B] fill-[#F59E0B]'
+                  }`}
+                  aria-hidden="true"
+                />
+                <span>منتجاتنا المفضّلة</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onCategoryChange?.('all')}
               className={`min-h-[40px] px-5 py-2 rounded-xl text-xs font-extrabold transition-all border ${
-                selectedCategoryId === 'all'
+                selectedCategoryId === 'all' ||
+                (!hasFeaturedProducts && selectedCategoryId === 'featured') ||
+                (isSearching && selectedCategoryId === 'featured')
                   ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
                   : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
               } cursor-pointer`}
             >
-              الكل
+              {hasFeaturedProducts ? 'كل المنتجات' : 'الكل'}
             </button>
             {orderedCategories.map((cat) => (
               <button
@@ -251,10 +281,7 @@ export function MobileStorefront({
                 ) : null}
               </p>
 
-              <h1
-                className="mt-1 text-lg min-[380px]:text-xl font-extrabold leading-snug text-white"
-                style={{ textWrap: 'balance' }}
-              >
+              <h1 className="mt-1 text-lg min-[380px]:text-xl font-extrabold leading-snug text-white text-balance">
                 {siteConfig.tagline}
               </h1>
 
@@ -400,14 +427,30 @@ export function MobileStorefront({
             <div className="min-w-0">
               <h2
                 id="mobile-catalog-heading"
-                className="text-base min-[380px]:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] truncate"
+                className="text-base min-[380px]:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] truncate flex items-center gap-1.5"
               >
-                {isSearching ? 'نتائج البحث' : 'شبكة المنتجات'}
+                {isShowingFeatured && (
+                  <Star
+                    className="h-4 w-4 text-[#F59E0B] fill-[#F59E0B] shrink-0"
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="truncate">
+                  {isSearching
+                    ? 'نتائج البحث'
+                    : isShowingFeatured
+                      ? 'منتجاتنا المفضّلة'
+                      : selectedCategoryId !== 'all' && selectedCategoryId !== 'featured'
+                        ? getCategoryName(selectedCategoryId, orderedCategories)
+                        : 'أحدث منتجاتنا'}
+                </span>
               </h2>
               <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                 {isLoadingProducts && products.length === 0
                   ? 'جاري تحميل المنتجات...'
-                  : `${filteredProducts.length} منتج متاح للعرض`}
+                  : isShowingFeatured
+                    ? `اختياراتنا المميزة · ${filteredProducts.length} منتج`
+                    : `${filteredProducts.length} منتج متاح للعرض`}
               </p>
             </div>
 
@@ -422,10 +465,13 @@ export function MobileStorefront({
                 />
                 <select
                   id="mobile-sort-select"
-                  value={sortBy}
+                  value={effectiveSortValue}
                   onChange={(e) => onSortChange(e.target.value as SortOption)}
                   className="min-h-[44px] rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] pr-7 pl-2.5 py-2 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE] focus:bg-white dark:focus:bg-[#081830] focus:outline-2 focus:outline-[#1D4ED8] cursor-pointer"
                 >
+                  {isShowingFeatured && (
+                    <option value={SortOption.FEATURED}>الترتيب المميز</option>
+                  )}
                   <option value={SortOption.NEWEST}>الأحدث</option>
                   <option value={SortOption.PRICE_ASC}>الأقل سعرًا</option>
                   <option value={SortOption.PRICE_DESC}>الأعلى سعرًا</option>
@@ -471,7 +517,7 @@ export function MobileStorefront({
                     <span>عرض كل المنتجات</span>
                   </button>
                 </>
-              ) : selectedCategoryId !== 'all' ? (
+              ) : selectedCategoryId !== 'all' && selectedCategoryId !== 'featured' ? (
                 <>
                   <p className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-1.5">
                     لا توجد منتجات في «{getCategoryName(selectedCategoryId, orderedCategories)}» حاليًا
@@ -481,10 +527,10 @@ export function MobileStorefront({
                   </p>
                   <button
                     type="button"
-                    onClick={() => onCategoryChange?.('all')}
+                    onClick={() => onCategoryChange?.(hasFeaturedProducts ? 'featured' : 'all')}
                     className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] px-4 py-2.5 text-xs font-extrabold text-white whitespace-nowrap cursor-pointer"
                   >
-                    <span>عرض كل الأقسام</span>
+                    <span>عرض {hasFeaturedProducts ? 'المنتجات المفضّلة' : 'كل الأقسام'}</span>
                   </button>
                 </>
               ) : (

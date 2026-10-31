@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
+  ArrowDown,
   ArrowRight,
+  ArrowUp,
   Calendar,
   Camera,
   Check,
@@ -60,6 +62,8 @@ import {
   formatPriceEgp,
   getDiscountScheduleStatus,
   getEffectiveProductPrice,
+  getFeaturedProducts,
+  getNextFeaturedOrder,
   isDiscountActive,
   prepareProductFormSubmission,
   roundCurrency,
@@ -101,8 +105,9 @@ interface DeveloperSettingsPageProps {
   ) => Promise<void>;
   onQuickUpdateProductFlags: (
     product: Product,
-    updates: Partial<Pick<Product, 'isPublished' | 'inStock' | 'isFeatured'>>
+    updates: Partial<Pick<Product, 'isPublished' | 'inStock' | 'isFeatured' | 'featuredOrder'>>
   ) => Promise<void>;
+  onReorderFeaturedProducts: (orderedIds: string[]) => Promise<void>;
   onSaveSiteConfig: (nextConfig: SiteConfig) => Promise<void>;
 }
 
@@ -125,6 +130,7 @@ const EMPTY_PRODUCT_FORM: ProductFormInput = {
   discountEndDate: '',
   inStock: true,
   isFeatured: false,
+  featuredOrder: 0,
   isPublished: true,
   images: [],
   specs: [],
@@ -144,6 +150,7 @@ export function DeveloperSettingsPage({
   onDeleteProduct,
   onSaveProductDiscount,
   onQuickUpdateProductFlags,
+  onReorderFeaturedProducts,
   onSaveSiteConfig,
 }: DeveloperSettingsPageProps) {
   // Auth Login State (never pre-fill or expose credentials on public screen)
@@ -168,7 +175,7 @@ export function DeveloperSettingsPage({
   const [productViewMode, setProductViewMode] = useState<'list' | 'form'>('list');
   const [productSearch, setProductSearch] = useState<string>('');
   const [productStatusFilter, setProductStatusFilter] = useState<
-    'all' | 'published' | 'hidden' | 'discounted' | 'out_of_stock'
+    'all' | 'featured' | 'published' | 'hidden' | 'discounted' | 'out_of_stock'
   >('all');
   const [editingProductId, setEditingProductId] = useState<string | undefined>(undefined);
   const [productForm, setProductForm] = useState<ProductFormInput>(EMPTY_PRODUCT_FORM);
@@ -183,6 +190,7 @@ export function DeveloperSettingsPage({
   const [uploadingImages, setUploadingImages] = useState<boolean>(false);
   const [savingProduct, setSavingProduct] = useState<boolean>(false);
   const [quickUpdatingId, setQuickUpdatingId] = useState<string | null>(null);
+  const [reorderingFeatured, setReorderingFeatured] = useState<boolean>(false);
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<boolean>(false);
@@ -225,23 +233,45 @@ export function DeveloperSettingsPage({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isCloudAdmin, hasUnsavedOrActiveWork]);
 
+  const orderedFeaturedProducts = useMemo(
+    () => getFeaturedProducts(products, { includeUnpublished: true }),
+    [products]
+  );
+
+  const featuredRankById = useMemo(() => {
+    const rankMap = new Map<string, number>();
+    orderedFeaturedProducts.forEach((item, index) => {
+      rankMap.set(item.id, index + 1);
+    });
+    return rankMap;
+  }, [orderedFeaturedProducts]);
+
   // Filtered Products for Tab 1
   const filteredProducts = useMemo(() => {
     const q = productSearch.trim().toLowerCase();
-    return products
-      .filter((p) => {
-        if (productStatusFilter === 'published' && !p.isPublished) return false;
-        if (productStatusFilter === 'hidden' && p.isPublished) return false;
-        if (productStatusFilter === 'discounted' && !isDiscountActive(p)) return false;
-        if (productStatusFilter === 'out_of_stock' && p.inStock) return false;
-        if (!q) return true;
-        return [p.name, p.brand, p.category, p.shortDescription]
-          .join(' ')
-          .toLowerCase()
-          .includes(q);
-      })
-      .sort((a, b) => (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || ''));
-  }, [products, productSearch, productStatusFilter]);
+    const list = products.filter((p) => {
+      if (productStatusFilter === 'featured' && !p.isFeatured) return false;
+      if (productStatusFilter === 'published' && !p.isPublished) return false;
+      if (productStatusFilter === 'hidden' && p.isPublished) return false;
+      if (productStatusFilter === 'discounted' && !isDiscountActive(p)) return false;
+      if (productStatusFilter === 'out_of_stock' && p.inStock) return false;
+      if (!q) return true;
+      return [p.name, p.brand, p.category, p.shortDescription]
+        .join(' ')
+        .toLowerCase()
+        .includes(q);
+    });
+    if (productStatusFilter === 'featured') {
+      return [...list].sort((a, b) => {
+        const rankA = featuredRankById.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+        const rankB = featuredRankById.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+        return rankA - rankB;
+      });
+    }
+    return list.sort((a, b) =>
+      (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || '')
+    );
+  }, [products, productSearch, productStatusFilter, featuredRankById]);
 
   const activeCategories = useMemo(
     () => getOrderedCategories(configDraft.categories),
@@ -714,6 +744,12 @@ export function DeveloperSettingsPage({
       discountEndDate: initialDraft.discountEndDate,
       inStock: product.inStock,
       isFeatured: product.isFeatured,
+      featuredOrder:
+        product.isFeatured
+          ? product.featuredOrder && product.featuredOrder > 0
+            ? product.featuredOrder
+            : featuredRankById.get(product.id) ?? getNextFeaturedOrder(products)
+          : 0,
       isPublished: product.isPublished,
       images: [...product.images],
       specs: [...product.specs],
@@ -1173,7 +1209,7 @@ export function DeveloperSettingsPage({
 
   const handleQuickToggle = async (
     product: Product,
-    updates: Partial<Pick<Product, 'isPublished' | 'inStock' | 'isFeatured'>>,
+    updates: Partial<Pick<Product, 'isPublished' | 'inStock' | 'isFeatured' | 'featuredOrder'>>,
     successText: string
   ) => {
     setQuickUpdatingId(product.id);
@@ -1188,6 +1224,46 @@ export function DeveloperSettingsPage({
       });
     } finally {
       setQuickUpdatingId(null);
+    }
+  };
+
+  const handleToggleFeaturedQuick = async (product: Product) => {
+    const nextFeatured = !product.isFeatured;
+    const nextOrder = nextFeatured ? getNextFeaturedOrder(products) : 0;
+    await handleQuickToggle(
+      product,
+      { isFeatured: nextFeatured, featuredOrder: nextOrder },
+      nextFeatured
+        ? `تمت إضافة «${product.name}» إلى المنتجات المفضّلة وحفظها في Firestore.`
+        : `تمت إزالة «${product.name}» من المنتجات المفضّلة في الصفحة الرئيسية.`
+    );
+  };
+
+  const handleMoveFeaturedProduct = async (productId: string, direction: 'up' | 'down') => {
+    const currentIndex = orderedFeaturedProducts.findIndex((item) => item.id === productId);
+    if (currentIndex < 0) return;
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= orderedFeaturedProducts.length) return;
+
+    const reordered = [...orderedFeaturedProducts];
+    const [movedItem] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, movedItem);
+
+    setReorderingFeatured(true);
+    setGlobalBanner(null);
+    try {
+      await onReorderFeaturedProducts(reordered.map((item) => item.id));
+      setGlobalBanner({
+        type: 'success',
+        message: `تم تحديث ترتيب «${movedItem.name}» ليصبح في المركز #${targetIndex + 1} ضمن المنتجات المفضّلة في الصفحة الرئيسية.`,
+      });
+    } catch (err) {
+      setGlobalBanner({
+        type: 'error',
+        message: formatCloudErrorForDeveloper(err, 'حفظ ترتيب المنتجات المفضّلة'),
+      });
+    } finally {
+      setReorderingFeatured(false);
     }
   };
 
@@ -1620,6 +1696,7 @@ export function DeveloperSettingsPage({
                       {(
                         [
                           ['all', `الكل (${products.length})`],
+                          ['featured', `⭐ المفضّلة (${orderedFeaturedProducts.length})`],
                           ['published', 'ظاهر بالموقع'],
                           ['hidden', 'مخفي'],
                           ['discounted', 'عليه خصم'],
@@ -1640,6 +1717,109 @@ export function DeveloperSettingsPage({
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Featured Products Ordering & Homepage Status Card */}
+                  <div className="rounded-2xl bg-[#141414] border border-[#D4AF37]/40 p-4 sm:p-5 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Star className="h-4 w-4 text-[#D4AF37] fill-[#D4AF37] shrink-0" aria-hidden="true" />
+                          <h3 className="text-sm sm:text-base font-extrabold text-white">
+                            المنتجات المفضّلة وترتيب ظهورها في الصفحة الرئيسية
+                          </h3>
+                        </div>
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                          {orderedFeaturedProducts.filter((p) => p.isPublished).length > 0
+                            ? `يظهر حاليًا ${orderedFeaturedProducts.filter((p) => p.isPublished).length} منتج مفضّل في قسم «منتجاتنا المفضّلة» بالصفحة الرئيسية بالترتيب المحدد أدناه.`
+                            : 'لم يتم تحديد أي منتج مفضّل ظاهر حاليًا — تعرض الصفحة الرئيسية تلقائيًا «أحدث منتجاتنا» حتى لا يظهر القسم فارغًا.'}
+                        </p>
+                      </div>
+                      {reorderingFeatured && (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#D4AF37] shrink-0">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                          <span>جاري حفظ الترتيب سحابيًا...</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {orderedFeaturedProducts.length > 0 && (
+                      <div className="divide-y divide-white/10 rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/25 overflow-hidden">
+                        {orderedFeaturedProducts.map((favProduct, idx) => {
+                          const isItemBusy = quickUpdatingId === favProduct.id || reorderingFeatured;
+                          return (
+                            <div
+                              key={favProduct.id}
+                              className="px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/[0.02]"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <span className="inline-flex h-8 min-w-[36px] items-center justify-center rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/50 px-2 text-xs font-extrabold text-[#D4AF37] tabular-nums shrink-0">
+                                  #{idx + 1}
+                                </span>
+                                <ProductImage
+                                  src={favProduct.images[0]}
+                                  alt={favProduct.name}
+                                  containerClassName="h-10 w-10 shrink-0 rounded-lg bg-[#141414] border border-white/10 p-1"
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-xs sm:text-sm font-extrabold text-white truncate">
+                                    {favProduct.name}
+                                  </p>
+                                  <p className="text-[11px] text-gray-400 flex flex-wrap items-center gap-1.5 tabular-nums">
+                                    <span className="text-[#D4AF37] font-bold">
+                                      {formatPriceEgp(getEffectiveProductPrice(favProduct))} ج.م
+                                    </span>
+                                    <span aria-hidden="true">·</span>
+                                    <span
+                                      className={
+                                        favProduct.isPublished
+                                          ? 'text-emerald-400 font-semibold'
+                                          : 'text-amber-400 font-semibold'
+                                      }
+                                    >
+                                      {favProduct.isPublished ? 'معروض بالرئيسية' : 'مخفي عن الزوار'}
+                                    </span>
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0 || isItemBusy}
+                                  onClick={() => void handleMoveFeaturedProduct(favProduct.id, 'up')}
+                                  aria-label={`تحريك ${favProduct.name} للأعلى في المنتجات المفضّلة`}
+                                  title="تقديم للأعلى"
+                                  className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg bg-[#141414] hover:bg-[#1E1E1E] border border-white/15 text-gray-200 hover:text-[#D4AF37] disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === orderedFeaturedProducts.length - 1 || isItemBusy}
+                                  onClick={() => void handleMoveFeaturedProduct(favProduct.id, 'down')}
+                                  aria-label={`تحريك ${favProduct.name} للأسفل في المنتجات المفضّلة`}
+                                  title="تأخير للأسفل"
+                                  className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg bg-[#141414] hover:bg-[#1E1E1E] border border-white/15 text-gray-200 hover:text-[#D4AF37] disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isItemBusy}
+                                  onClick={() => void handleToggleFeaturedQuick(favProduct)}
+                                  aria-label={`إزالة ${favProduct.name} من المنتجات المفضّلة`}
+                                  className="inline-flex min-h-[36px] items-center gap-1 rounded-lg bg-[#141414] hover:bg-[#1E1E1E] border border-[#D4AF37]/40 px-2.5 py-1.5 text-[11px] font-bold text-[#D4AF37] whitespace-nowrap cursor-pointer disabled:opacity-45"
+                                >
+                                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                                  <span>إزالة من المفضّلة</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Products Rows */}
@@ -1681,9 +1861,22 @@ export function DeveloperSettingsPage({
                                 containerClassName="h-18 w-18 shrink-0 rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/25 p-1.5"
                               />
                               <div className="min-w-0 space-y-1">
-                                <h3 className="text-sm sm:text-base font-extrabold text-white truncate">
-                                  {product.name}
-                                </h3>
+                                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                  <h3 className="text-sm sm:text-base font-extrabold text-white truncate">
+                                    {product.name}
+                                  </h3>
+                                  {product.isFeatured && (
+                                    <span className="inline-flex items-center gap-1 rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/60 px-2.5 py-0.5 text-[11px] font-extrabold text-[#D4AF37] shrink-0 tabular-nums">
+                                      <Star className="h-3 w-3 fill-[#D4AF37]" aria-hidden="true" />
+                                      <span>
+                                        منتج مفضّل
+                                        {featuredRankById.get(product.id)
+                                          ? ` #${featuredRankById.get(product.id)}`
+                                          : ''}
+                                      </span>
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-[10px] sm:text-xs flex flex-wrap items-center gap-x-2 gap-y-1">
                                   {(() => {
                                     const resolvedCatId =
@@ -1722,12 +1915,6 @@ export function DeveloperSettingsPage({
                                   >
                                     {product.inStock ? 'متوفر' : 'غير متوفر'}
                                   </span>
-                                  {product.isFeatured && (
-                                    <>
-                                      <span aria-hidden="true">·</span>
-                                      <span className="text-[#D4AF37] font-semibold">مميز بالرئيسية</span>
-                                    </>
-                                  )}
                                 </div>
 
                                 {/* Pricing Line */}
@@ -1766,6 +1953,30 @@ export function DeveloperSettingsPage({
 
                             {/* Left: Product Actions */}
                             <div className="flex flex-wrap items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                disabled={isBusy || reorderingFeatured}
+                                onClick={() => void handleToggleFeaturedQuick(product)}
+                                aria-label={
+                                  product.isFeatured
+                                    ? `إزالة ${product.name} من المنتجات المفضّلة`
+                                    : `إضافة ${product.name} إلى المنتجات المفضّلة`
+                                }
+                                className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-extrabold transition-colors whitespace-nowrap cursor-pointer disabled:opacity-50 ${
+                                  product.isFeatured
+                                    ? 'bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 border-[#D4AF37] text-[#D4AF37]'
+                                    : 'bg-[#0B0B0B] hover:bg-[#1E1E1E] border-white/15 text-gray-300 hover:text-[#D4AF37]'
+                                }`}
+                              >
+                                <Star
+                                  className={`h-3.5 w-3.5 ${
+                                    product.isFeatured ? 'fill-[#D4AF37] text-[#D4AF37]' : ''
+                                  }`}
+                                  aria-hidden="true"
+                                />
+                                <span>{product.isFeatured ? 'مفضّل بالرئيسية' : 'إضافة للمفضّلة'}</span>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => setDiscountModalProduct(product)}
@@ -2646,8 +2857,8 @@ export function DeveloperSettingsPage({
                     </div>
                   </div>
 
-                  {/* Visibility, Stock, and Featured Switches */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-3 border-t border-white/10">
+                  {/* Visibility & Stock Switches */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-3 border-t border-white/10">
                     <button
                       type="button"
                       role="switch"
@@ -2702,34 +2913,96 @@ export function DeveloperSettingsPage({
                         aria-hidden="true"
                       />
                     </button>
+                  </div>
 
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={productForm.isFeatured}
-                      onClick={() => {
-                        setProductForm((prev) => ({ ...prev, isFeatured: !prev.isFeatured }));
-                        setIsProductFormDirty(true);
-                      }}
-                      className={`min-h-[52px] rounded-xl px-4 py-3 border text-right flex items-center justify-between gap-2 cursor-pointer transition-colors ${
-                        productForm.isFeatured
-                          ? 'bg-[#0B0B0B] border-[#D4AF37] text-white'
-                          : 'bg-[#0B0B0B] border-white/15 text-gray-400'
-                      }`}
-                    >
-                      <div>
-                        <p className="text-xs font-extrabold">تمييز بأعلى الرئيسية</p>
-                        <p className="text-[11px] text-[#D4AF37]">
-                          {productForm.isFeatured ? 'معروض كمنتج مميز' : 'منتج قياسي'}
-                        </p>
-                      </div>
-                      <Star
-                        className={`h-4 w-4 shrink-0 ${
-                          productForm.isFeatured ? 'text-[#D4AF37]' : 'text-gray-600'
-                        }`}
-                        aria-hidden="true"
-                      />
-                    </button>
+                  {/* Featured Product Checkbox & Order Option */}
+                  <div
+                    className={`rounded-2xl border p-4 sm:p-5 transition-colors ${
+                      productForm.isFeatured
+                        ? 'bg-[#0B0B0B] border-[#D4AF37] shadow-[0_0_24px_rgba(212,175,55,0.12)]'
+                        : 'bg-[#0B0B0B] border-white/15 hover:border-[#D4AF37]/50'
+                    }`}
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <label
+                        htmlFor="prod-is-featured-checkbox"
+                        className="flex items-start gap-3.5 cursor-pointer select-none flex-1"
+                      >
+                        <input
+                          id="prod-is-featured-checkbox"
+                          type="checkbox"
+                          checked={productForm.isFeatured}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setProductForm((prev) => ({
+                              ...prev,
+                              isFeatured: checked,
+                              featuredOrder: checked
+                                ? prev.featuredOrder && prev.featuredOrder > 0
+                                  ? prev.featuredOrder
+                                  : getNextFeaturedOrder(products)
+                                : 0,
+                            }));
+                            setIsProductFormDirty(true);
+                          }}
+                          className="mt-1 h-5 w-5 rounded border-[#D4AF37] bg-[#141414] accent-[#D4AF37] cursor-pointer shrink-0"
+                        />
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm sm:text-base font-extrabold text-white">
+                              ⭐ إضافة إلى المنتجات المفضّلة
+                            </span>
+                            {productForm.isFeatured && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-[#D4AF37]/20 border border-[#D4AF37]/60 px-2 py-0.5 text-[11px] font-extrabold text-[#D4AF37]">
+                                <Star className="h-3 w-3 fill-[#D4AF37]" aria-hidden="true" />
+                                <span>مفعّل</span>
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 leading-relaxed">
+                            {productForm.isFeatured
+                              ? 'سيُعرض هذا المنتج ضمن قسم «منتجاتنا المفضّلة» في الصفحة الرئيسية لجميع الزوار بدلًا من أحدث المنتجات.'
+                              : 'فعّل هذا الخيار لإدراج المنتج ضمن قسم «منتجاتنا المفضّلة» في الصفحة الرئيسية لمتجر المحلاوي ستور.'}
+                          </p>
+                        </div>
+                      </label>
+
+                      {productForm.isFeatured && (
+                        <div className="md:w-56 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
+                          <label
+                            htmlFor="prod-featured-order-input"
+                            className="block text-xs font-bold text-[#D4AF37] mb-1.5"
+                          >
+                            ترتيب الظهور في المفضّلة (1 = الأول)
+                          </label>
+                          <input
+                            id="prod-featured-order-input"
+                            type="number"
+                            min={1}
+                            max={100000}
+                            step={1}
+                            dir="ltr"
+                            value={
+                              productForm.featuredOrder && productForm.featuredOrder > 0
+                                ? productForm.featuredOrder
+                                : 1
+                            }
+                            onChange={(e) => {
+                              const parsed = Math.floor(Number(e.target.value));
+                              setProductForm((prev) => ({
+                                ...prev,
+                                featuredOrder:
+                                  Number.isFinite(parsed) && parsed >= 1
+                                    ? Math.min(100000, parsed)
+                                    : 1,
+                              }));
+                              setIsProductFormDirty(true);
+                            }}
+                            className="w-full min-h-[42px] rounded-xl bg-[#141414] border border-[#D4AF37]/45 px-3.5 py-2 text-sm font-extrabold text-white text-right tabular-nums focus:outline-none focus:border-[#D4AF37]"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Form Action Bar */}

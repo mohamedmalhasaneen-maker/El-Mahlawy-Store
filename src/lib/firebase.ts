@@ -483,6 +483,10 @@ export function mapDocToProduct(
     discountEndDate: typeof data.discountEndDate === 'string' ? data.discountEndDate : '',
     inStock: data.inStock !== false,
     isFeatured: Boolean(data.isFeatured),
+    featuredOrder:
+      typeof data.featuredOrder === 'number' && Number.isFinite(data.featuredOrder)
+        ? Math.max(0, Math.floor(data.featuredOrder))
+        : 0,
     isPublished: data.isPublished !== false,
     images,
     specs: Array.isArray(data.specs) ? data.specs.map(String) : [],
@@ -827,6 +831,10 @@ function buildFirestoreProductRecord(
     discountEndDate: sanitized.discountEndDate ?? '',
     inStock: sanitized.inStock,
     isFeatured: sanitized.isFeatured,
+    featuredOrder:
+      typeof sanitized.featuredOrder === 'number' && Number.isFinite(sanitized.featuredOrder)
+        ? Math.max(0, Math.floor(sanitized.featuredOrder))
+        : 0,
     isPublished: sanitized.isPublished,
     images: sanitized.images,
     specs: sanitized.specs,
@@ -931,14 +939,22 @@ export async function updateCloudProduct(
     const productRef = doc(db, 'products', productId);
 
     currentStage = 'pre_write_server_merge';
-    const { preservedAuthorUid, preservedCreatedAt } =
+    const { existingProduct, preservedAuthorUid, preservedCreatedAt } =
       await resolveExistingProductImmutableMeta(
         productId,
         SAFE_ID_REGEX.test(existingAuthorUid) ? existingAuthorUid : verifiedUser.uid
       );
 
     currentStage = 'payload_validation';
-    const sanitized = sanitizeProductPayload(input, productId, preservedAuthorUid);
+    const mergedInputWithOrder: ProductFormInput = {
+      ...input,
+      featuredOrder: input.isFeatured
+        ? input.featuredOrder && input.featuredOrder > 0
+          ? input.featuredOrder
+          : existingProduct?.featuredOrder ?? 0
+        : 0,
+    };
+    const sanitized = sanitizeProductPayload(mergedInputWithOrder, productId, preservedAuthorUid);
     const record = buildFirestoreProductRecord(sanitized, preservedCreatedAt);
 
     currentStage = 'firestore_write';
@@ -1013,6 +1029,7 @@ export async function updateCloudProductDiscount(
       discountEndDate: discount.discountEndDate,
       inStock: existingProduct.inStock,
       isFeatured: existingProduct.isFeatured,
+      featuredOrder: existingProduct.featuredOrder,
       isPublished: existingProduct.isPublished,
       images:
         existingProduct.images.length > 0 ? existingProduct.images : ['/logo.png'],
@@ -1048,7 +1065,7 @@ export async function updateCloudProductDiscount(
 
 export async function updateCloudProductFlags(
   productId: string,
-  updates: Partial<Pick<Product, 'isPublished' | 'inStock' | 'isFeatured'>>
+  updates: Partial<Pick<Product, 'isPublished' | 'inStock' | 'isFeatured' | 'featuredOrder'>>
 ): Promise<Product> {
   const path = `products/${productId}`;
   let currentStage: CloudWriteStage = 'config_validation';
@@ -1067,6 +1084,10 @@ export async function updateCloudProductFlags(
     }
 
     currentStage = 'payload_validation';
+    const nextIsFeatured = updates.isFeatured ?? existingProduct.isFeatured;
+    const nextFeaturedOrder = nextIsFeatured
+      ? updates.featuredOrder ?? existingProduct.featuredOrder ?? 0
+      : 0;
     const mergedInput: ProductFormInput = {
       id: productId,
       name: existingProduct.name,
@@ -1083,7 +1104,8 @@ export async function updateCloudProductFlags(
       discountStartDate: existingProduct.discountStartDate,
       discountEndDate: existingProduct.discountEndDate,
       inStock: updates.inStock ?? existingProduct.inStock,
-      isFeatured: updates.isFeatured ?? existingProduct.isFeatured,
+      isFeatured: nextIsFeatured,
+      featuredOrder: nextFeaturedOrder,
       isPublished: updates.isPublished ?? existingProduct.isPublished,
       images:
         existingProduct.images.length > 0 ? existingProduct.images : ['/logo.png'],
@@ -1115,6 +1137,22 @@ export async function updateCloudProductFlags(
       failedStage: currentStage,
     });
   }
+}
+
+export async function reorderCloudFeaturedProducts(orderedIds: string[]): Promise<Product[]> {
+  const uniqueIds = Array.from(new Set(orderedIds.map((id) => id.trim()).filter(Boolean)));
+  const updatedProducts: Product[] = [];
+
+  for (let index = 0; index < uniqueIds.length; index += 1) {
+    const productId = uniqueIds[index];
+    const saved = await updateCloudProductFlags(productId, {
+      isFeatured: true,
+      featuredOrder: index + 1,
+    });
+    updatedProducts.push(saved);
+  }
+
+  return updatedProducts;
 }
 
 export async function deleteCloudProduct(productId: string): Promise<void> {

@@ -62,7 +62,7 @@ service cloud.firestore {
         data.keys().hasOnly([
           'id', 'name', 'brand', 'category', 'categoryId', 'shortDescription', 'description',
           'price', 'originalPrice', 'discountEnabled', 'discountType', 'discountValue',
-          'discountStartDate', 'discountEndDate', 'inStock', 'isFeatured',
+          'discountStartDate', 'discountEndDate', 'inStock', 'isFeatured', 'featuredOrder',
           'isPublished', 'images', 'specs', 'options', 'authorUid', 'createdAt', 'updatedAt'
         ]) &&
         data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
@@ -82,6 +82,7 @@ service cloud.firestore {
         (!('discountEndDate' in data) || (data.discountEndDate is string && data.discountEndDate.size() <= 32)) &&
         data.inStock is bool &&
         data.isFeatured is bool &&
+        (!('featuredOrder' in data) || ((data.featuredOrder is int || data.featuredOrder is float) && data.featuredOrder >= 0 && data.featuredOrder <= 100000)) &&
         data.isPublished is bool &&
         data.images is list && data.images.size() >= 1 && data.images.size() <= 15 &&
         data.images[0] is string && data.images[0].size() >= 1 && data.images[0].size() <= 2000 &&
@@ -227,14 +228,14 @@ service cloud.firestore {
             'name', 'brand', 'category', 'categoryId', 'shortDescription', 'description',
             'price', 'originalPrice', 'discountEnabled', 'discountType',
             'discountValue', 'discountStartDate', 'discountEndDate',
-            'inStock', 'isFeatured', 'isPublished', 'images', 'specs',
+            'inStock', 'isFeatured', 'featuredOrder', 'isPublished', 'images', 'specs',
             'options', 'updatedAt'
           ]) ||
           incoming().diff(existing()).affectedKeys().hasOnly([
             'category', 'categoryId',
             'price', 'originalPrice', 'discountEnabled', 'discountType',
             'discountValue', 'discountStartDate', 'discountEndDate',
-            'inStock', 'isFeatured', 'isPublished', 'updatedAt'
+            'inStock', 'isFeatured', 'featuredOrder', 'isPublished', 'updatedAt'
           ])
         ) &&
         isAdmin();

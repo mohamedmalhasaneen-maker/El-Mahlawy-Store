@@ -88,6 +88,10 @@
           "type": "boolean",
           "description": "Whether the product is highlighted as a featured item."
         },
+        "featuredOrder": {
+          "type": "number",
+          "description": "Optional display priority order (0..100000) for featured products on the homepage."
+        },
         "isPublished": {
           "type": "boolean",
           "description": "Whether the product is publicly visible on the storefront."

@@ -12,6 +12,7 @@ import {
   Plus,
   ShieldCheck,
   SlidersHorizontal,
+  Star,
   Tag,
 } from 'lucide-react';
 import { Product } from '../../types/store';
@@ -65,6 +66,7 @@ export function OverviewSection({
 }: OverviewSectionProps) {
   let publishedCount = 0;
   let hiddenCount = 0;
+  let featuredCount = 0;
   let activeDiscountCount = 0;
   let scheduledDiscountCount = 0;
   let outOfStockCount = 0;
@@ -73,6 +75,7 @@ export function OverviewSection({
     if (product.isPublished) publishedCount += 1;
     else hiddenCount += 1;
 
+    if (product.isFeatured) featuredCount += 1;
     if (!product.inStock) outOfStockCount += 1;
 
     const status = getDiscountScheduleStatus(product);
@@ -216,6 +219,12 @@ export function OverviewSection({
             <span className="text-emerald-400 font-semibold">{publishedCount} ظاهر</span>
             <span aria-hidden="true"> · </span>
             <span>{hiddenCount} مخفي</span>
+            {featuredCount > 0 ? (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span className="text-[#D4AF37] font-semibold">⭐ {featuredCount} مفضّل</span>
+              </>
+            ) : null}
             {outOfStockCount > 0 ? (
               <>
                 <span aria-hidden="true"> · </span>
@@ -357,9 +366,17 @@ export function OverviewSection({
                       containerClassName="h-12 w-12 shrink-0 rounded-xl bg-[#0B0B0B] border border-[#D4AF37]/25 p-1"
                     />
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-extrabold text-white truncate">
-                        {product.name}
-                      </p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="text-xs sm:text-sm font-extrabold text-white truncate">
+                          {product.name}
+                        </p>
+                        {product.isFeatured && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-[#D4AF37]/15 border border-[#D4AF37]/50 px-2 py-0.5 text-[10px] font-extrabold text-[#D4AF37] shrink-0">
+                            <Star className="h-2.5 w-2.5 fill-[#D4AF37]" aria-hidden="true" />
+                            <span>مفضّل</span>
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-400 mt-0.5 flex flex-wrap items-center gap-1.5 tabular-nums">
                         <span className="text-[#D4AF37] font-bold">
                           {formatPriceEgp(effectivePrice)} ج.م

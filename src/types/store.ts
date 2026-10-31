@@ -1,4 +1,5 @@
 export enum SortOption {
+  FEATURED = 'featured',
   NEWEST = 'newest',
   PRICE_ASC = 'price_asc',
   PRICE_DESC = 'price_desc',
@@ -33,6 +34,7 @@ export interface Product {
   discountEndDate?: string;
   inStock: boolean;
   isFeatured: boolean;
+  featuredOrder?: number;
   isPublished: boolean;
   images: string[];
   specs: string[];
@@ -59,6 +61,7 @@ export interface ProductFormInput {
   discountEndDate?: string;
   inStock: boolean;
   isFeatured: boolean;
+  featuredOrder?: number;
   isPublished: boolean;
   images: string[];
   specs: string[];

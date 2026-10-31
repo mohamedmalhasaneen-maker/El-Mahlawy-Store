@@ -13,8 +13,8 @@
 3. **Strict Schema, Key Whitelisting & CEL Expression Budget (<1,000 Limit)**:
    - Every write to `/products/{productId}` and `/siteConfig/{configId}` enforces exact `hasAll` and `hasOnly` field sets, string `.size()` bounds (`category` 0..80, `categoryId` 0..60), bounded list sizes (`images` 1..15, `specs` 0..15, `options` 0..10, `contactChannels` 0..20, `socialLinks` 0..15, `branches` 0..10, `categories` 1..20 ordered maps `{ id, name, order }`, `essentialCategories` 0..20 ordered maps `{ id, name, imageUrl, order }`), and regex ID constraints (`^[a-zA-Z0-9_\-]+$`).
    - `/siteConfig/main` writes always persist the complete sanitized 53-key `SiteConfig` document (matching `/products/{productId}` full-document writes) and validate fields via compact grouped primitives so total evaluated CEL expressions remain well below Cloud Firestore's 1,000-expression hard limit per request.
-4. **Pricing & Discount Integrity**:
-   - `price > 0`, `originalPrice >= price`, and whenever `discountEnabled == true`, `originalPrice > price` must hold. Optional `discountType` must be `'percentage'` or `'fixed'`, and `discountValue >= 0`.
+4. **Pricing, Featured Ordering & Discount Integrity**:
+   - `price > 0`, `originalPrice >= price`, and whenever `discountEnabled == true`, `originalPrice > price` must hold. Optional `discountType` must be `'percentage'` or `'fixed'`, `discountValue >= 0`, and optional `featuredOrder` must be a bounded number `0 <= featuredOrder <= 100000`.
 5. **Immutable Provenance & Server Timestamps**:
    - On `/products/{productId}`, `id`, `authorUid`, and `createdAt` are immutable after creation (while allowing legacy cloud documents lacking those metadata fields to be upgraded to full schema by any verified developer, and allowing either authorized developer to update products created by the other while preserving original `authorUid` and `createdAt`). `createdAt` on create and `updatedAt` on create/update must equal `request.time`.
    - On `/siteConfig/main`, `id` is locked to `'main'`, `updatedBy` must equal `request.auth.uid`, `updatedAt` must equal `request.time`, and `delete` is forbidden.
