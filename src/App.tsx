@@ -772,39 +772,16 @@ export default function App() {
                     {/* Category Filter Bar */}
                     <div className="mb-10 overflow-x-auto pb-2 scrollbar-hide">
                       <div className="flex items-center gap-3 min-w-max">
-                        {hasFeaturedProducts && (
-                          <button
-                            type="button"
-                            onClick={() => handleCategoryChange('featured')}
-                            className={`inline-flex min-h-[44px] items-center gap-2 px-6 py-2.5 rounded-2xl text-sm font-extrabold transition-all border ${
-                              !searchQuery.trim() && selectedCategoryId === 'featured'
-                                ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
-                                : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
-                            } cursor-pointer`}
-                          >
-                            <Star
-                              className={`h-4 w-4 shrink-0 ${
-                                !searchQuery.trim() && selectedCategoryId === 'featured'
-                                  ? 'text-[#FCD34D] fill-[#FCD34D]'
-                                  : 'text-[#F59E0B] fill-[#F59E0B]'
-                              }`}
-                              aria-hidden="true"
-                            />
-                            <span>منتجاتنا المفضّلة</span>
-                          </button>
-                        )}
                         <button
                           type="button"
                           onClick={() => handleCategoryChange('all')}
                           className={`min-h-[44px] px-6 py-2.5 rounded-2xl text-sm font-extrabold transition-all border ${
-                            selectedCategoryId === 'all' ||
-                            (!hasFeaturedProducts && selectedCategoryId === 'featured') ||
-                            (Boolean(searchQuery.trim()) && selectedCategoryId === 'featured')
+                            selectedCategoryId === 'all' || selectedCategoryId === 'featured'
                               ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
                               : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
                           } cursor-pointer`}
                         >
-                          {hasFeaturedProducts ? 'كل المنتجات' : 'الكل'}
+                          الكل
                         </button>
                         {orderedStoreCategories.map((cat) => (
                           <button
