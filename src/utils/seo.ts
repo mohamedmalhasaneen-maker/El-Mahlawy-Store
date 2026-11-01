@@ -15,6 +15,7 @@ import {
 } from './siteConfig';
 import { formatPriceEgp, getEffectiveProductPrice, isDiscountActive } from './catalogLogic';
 
+export const OFFICIAL_SITE_ORIGIN = 'https://elmahlawy-store.vercel.app';
 export const OFFICIAL_SITE_NAME = 'Elmahlawy Store';
 export const ARABIC_SITE_NAME = 'المحلاوي ستور';
 
@@ -356,22 +357,26 @@ export function buildPageSeoMetadata({
     };
   }
 
-  // Product URL requested, but product does not exist in loaded catalog
+  // Product URL requested, either still loading catalog or not found in loaded catalog
   if (route.kind === 'product') {
-    const fallbackCanonical = buildAbsoluteUrl(origin, '/');
-    const title = `المنتج غير متوفر | ${ARABIC_SITE_NAME} - ${OFFICIAL_SITE_NAME}`;
+    const canonicalUrl = catalogLoaded
+      ? buildAbsoluteUrl(origin, '/')
+      : buildAbsoluteUrl(origin, route.canonicalPath);
+    const title = catalogLoaded
+      ? `المنتج غير متوفر | ${ARABIC_SITE_NAME} - ${OFFICIAL_SITE_NAME}`
+      : resolveHomeSeoTitle(siteConfig);
     const description = resolveHomeSeoDescription(siteConfig);
     return {
       title,
       description,
-      canonicalUrl: fallbackCanonical,
+      canonicalUrl,
       robots: catalogLoaded ? 'noindex, nofollow' : indexRobots,
       ogType: 'website',
       ogSiteName: OFFICIAL_SITE_NAME,
       ogLocale: 'ar_EG',
       ogTitle: title,
       ogDescription: description,
-      ogUrl: fallbackCanonical,
+      ogUrl: canonicalUrl,
       ogImage: logoUrl,
       ogImageAlt: defaultImageAlt,
       twitterCard: 'summary_large_image',
@@ -929,18 +934,22 @@ export function buildSitemapXml(
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urlNodes}\n</urlset>\n`;
 }
 
-export function buildRobotsTxt(origin: string): string {
-  const sitemapUrl = buildAbsoluteUrl(origin, '/sitemap.xml');
+export function buildRobotsTxt(origin: string = OFFICIAL_SITE_ORIGIN): string {
+  const sitemapUrl = buildAbsoluteUrl(origin || OFFICIAL_SITE_ORIGIN, '/sitemap.xml');
   return [
     'User-agent: Googlebot',
     'Allow: /',
     'Disallow: /api/',
     'Disallow: /developer',
+    'Disallow: /developer-settings',
+    'Disallow: /admin',
     '',
     'User-agent: *',
     'Allow: /',
     'Disallow: /api/',
     'Disallow: /developer',
+    'Disallow: /developer-settings',
+    'Disallow: /admin',
     '',
     `Sitemap: ${sitemapUrl}`,
     '',

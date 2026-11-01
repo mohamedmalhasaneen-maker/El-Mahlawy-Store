@@ -124,6 +124,7 @@ export default function App() {
   const [adminProducts, setAdminProducts] = useState<Product[] | null>(null);
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true);
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(loadCachedSiteConfig);
+  const [isSiteConfigLoaded, setIsSiteConfigLoaded] = useState<boolean>(false);
 
   // Firebase Auth state for Developer Settings
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -328,7 +329,7 @@ export default function App() {
       siteConfig,
       products,
       activeProductOverride: activeSeoProduct,
-      catalogLoaded: !isLoadingProducts,
+      catalogLoaded: !isLoadingProducts && isSiteConfigLoaded,
     };
 
     const meta = buildPageSeoMetadata(seoInput);
@@ -338,6 +339,7 @@ export default function App() {
     activeSeoProduct,
     activeView,
     isLoadingProducts,
+    isSiteConfigLoaded,
     locationSnapshot.hash,
     locationSnapshot.pathname,
     locationSnapshot.search,
@@ -485,6 +487,7 @@ export default function App() {
     const unsubSiteConfig = subscribeToSiteConfig(
       (cfg) => {
         setSiteConfig(cfg);
+        setIsSiteConfigLoaded(true);
         try {
           localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(cfg));
         } catch {
@@ -493,6 +496,7 @@ export default function App() {
       },
       (err) => {
         console.error('Error fetching site config:', err);
+        setIsSiteConfigLoaded(true);
       }
     );
 

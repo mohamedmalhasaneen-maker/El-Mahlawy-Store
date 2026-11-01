@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { Product } from '../types/store';
 import { DEFAULT_SITE_CONFIG } from './siteConfig';
 import {
   ALTERNATE_SITE_NAMES,
   DEFAULT_HOME_SEO_TITLE,
   OFFICIAL_SITE_NAME,
+  OFFICIAL_SITE_ORIGIN,
   buildCrawlableNoscriptHtml,
   buildPageSeoMetadata,
   buildProductImageAlt,
@@ -301,4 +304,73 @@ test('Cloudinary optimizer, product alt builder, and Firestore REST decoder work
     isPublished: true,
     images: ['/img1.jpg'],
   });
+});
+
+test('Generated public/sitemap.xml, public/robots.txt, and vercel.json comply with Google & Vercel requirements', () => {
+  assert.equal(OFFICIAL_SITE_ORIGIN, 'https://elmahlawy-store.vercel.app');
+
+  const rootDir = process.cwd();
+  const sitemapPath = path.join(rootDir, 'public', 'sitemap.xml');
+  const robotsPath = path.join(rootDir, 'public', 'robots.txt');
+  const vercelPath = path.join(rootDir, 'vercel.json');
+
+  assert.equal(fs.existsSync(sitemapPath), true, 'public/sitemap.xml must exist');
+  assert.equal(fs.existsSync(robotsPath), true, 'public/robots.txt must exist');
+  assert.equal(fs.existsSync(vercelPath), true, 'vercel.json must exist');
+
+  const sitemapXml = fs.readFileSync(sitemapPath, 'utf8');
+  assert.equal(
+    sitemapXml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'),
+    true,
+    'sitemap.xml must begin at byte 0 with valid XML declaration and sitemaps.org 0.9 namespace'
+  );
+  assert.equal(sitemapXml.trimEnd().endsWith('</urlset>'), true);
+
+  const locs = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  assert.ok(locs.length >= 8, 'sitemap.xml must include homepage, about, and real store categories');
+  assert.ok(locs.includes('https://elmahlawy-store.vercel.app/'));
+  assert.ok(locs.includes('https://elmahlawy-store.vercel.app/about'));
+
+  const uniqueLocs = new Set(locs);
+  assert.equal(uniqueLocs.size, locs.length, 'sitemap.xml must contain no duplicate URLs');
+
+  for (const loc of locs) {
+    assert.equal(
+      loc.startsWith('https://elmahlawy-store.vercel.app/'),
+      true,
+      `Every <loc> must use official domain, got: ${loc}`
+    );
+    assert.equal(loc.includes('/developer'), false, 'Admin/developer routes must never appear in sitemap');
+    assert.equal(loc.includes('/admin'), false, 'Admin routes must never appear in sitemap');
+  }
+
+  for (const lastmodMatch of sitemapXml.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)) {
+    assert.match(lastmodMatch[1], /^\d{4}-\d{2}-\d{2}$/);
+  }
+
+  const robotsTxt = fs.readFileSync(robotsPath, 'utf8');
+  assert.ok(robotsTxt.includes('User-agent: Googlebot'));
+  assert.ok(robotsTxt.includes('Allow: /'));
+  assert.ok(robotsTxt.includes('Disallow: /developer'));
+  assert.ok(robotsTxt.includes('Sitemap: https://elmahlawy-store.vercel.app/sitemap.xml'));
+
+  const vercelConfig = JSON.parse(fs.readFileSync(vercelPath, 'utf8')) as {
+    headers?: Array<{ source: string; headers: Array<{ key: string; value: string }> }>;
+    rewrites?: Array<{ source: string; destination: string }>;
+  };
+  const sitemapHeaderRule = (vercelConfig.headers || []).find((h) => h.source === '/sitemap.xml');
+  assert.ok(sitemapHeaderRule, 'vercel.json must configure headers for /sitemap.xml');
+  assert.ok(
+    sitemapHeaderRule.headers.some(
+      (hdr) => hdr.key.toLowerCase() === 'content-type' && hdr.value.includes('application/xml')
+    )
+  );
+
+  const rewriteSources = (vercelConfig.rewrites || []).map((r) => r.source);
+  assert.equal(rewriteSources.includes('/sitemap.xml'), false);
+  assert.equal(rewriteSources.includes('/robots.txt'), false);
+  assert.equal(rewriteSources.includes('/(.*)'), false, 'Avoid catch-all rewrite that could mask XML/404s');
+  assert.equal(rewriteSources.includes('/about'), true);
+  assert.equal(rewriteSources.includes('/category/:id'), true);
+  assert.equal(rewriteSources.includes('/product/:id'), true);
 });

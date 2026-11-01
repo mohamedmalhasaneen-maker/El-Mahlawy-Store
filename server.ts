@@ -8,6 +8,7 @@ import type { Product } from './src/types/store';
 import { getOrderedCategories } from './src/constants/categories';
 import { DEFAULT_SITE_CONFIG, SiteConfig, sanitizeSiteConfig } from './src/utils/siteConfig';
 import {
+  OFFICIAL_SITE_ORIGIN,
   buildCrawlableNoscriptHtml,
   buildPageSeoMetadata,
   buildRobotsTxt,
@@ -214,6 +215,14 @@ function resolveRequestOrigin(req: Request): string {
       : req.protocol || 'http';
   const host = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${PORT}`;
   return `${proto}://${host}`;
+}
+
+function resolveCanonicalSeoOrigin(): string {
+  const customCanonical = (process.env.CANONICAL_SITE_URL || '').trim();
+  if (customCanonical && /^https?:\/\//i.test(customCanonical)) {
+    return customCanonical.replace(/\/+$/, '');
+  }
+  return OFFICIAL_SITE_ORIGIN;
 }
 
 interface SeoStoreSnapshot {
@@ -776,21 +785,21 @@ async function startServer() {
   });
 
   // Dynamic robots.txt for search engine crawlers
-  app.get('/robots.txt', (req: Request, res: Response) => {
-    const origin = resolveRequestOrigin(req);
+  app.get('/robots.txt', (_req: Request, res: Response) => {
+    const seoOrigin = resolveCanonicalSeoOrigin();
     res
       .status(200)
       .setHeader('Content-Type', 'text/plain; charset=utf-8')
       .setHeader('Cache-Control', 'public, max-age=3600')
-      .send(buildRobotsTxt(origin));
+      .send(buildRobotsTxt(seoOrigin));
   });
 
   // Dynamic XML Sitemap synced with live Firestore categories & published products
-  app.get('/sitemap.xml', async (req: Request, res: Response) => {
-    const origin = resolveRequestOrigin(req);
+  app.get('/sitemap.xml', async (_req: Request, res: Response) => {
+    const seoOrigin = resolveCanonicalSeoOrigin();
     const snapshot = await getSeoStoreSnapshot();
     const categories = getOrderedCategories(snapshot.siteConfig.categories);
-    const xml = buildSitemapXml(origin, categories, snapshot.products);
+    const xml = buildSitemapXml(seoOrigin, categories, snapshot.products);
     res
       .status(200)
       .setHeader('Content-Type', 'application/xml; charset=utf-8')
