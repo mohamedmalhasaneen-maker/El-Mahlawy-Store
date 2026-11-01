@@ -100,6 +100,7 @@ export function HeroSection({
               </p>
 
               <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-extrabold leading-[1.24] text-white mb-4 text-balance">
+                <span className="sr-only">{siteConfig.storeName} | Elmahlawy Store — </span>
                 {siteConfig.tagline}
               </h1>
 

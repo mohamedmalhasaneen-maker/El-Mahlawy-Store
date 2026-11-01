@@ -8,6 +8,7 @@ import {
   getEffectiveProductPrice,
   isDiscountActive,
 } from '../../utils/catalogLogic';
+import { buildProductImageAlt } from '../../utils/seo';
 import { ProductImage } from '../ProductImage';
 
 interface MobileProductCardProps {
@@ -78,7 +79,7 @@ export function MobileProductCard({
 
             <ProductImage
               src={product.images[0]}
-              alt={product.name}
+              alt={buildProductImageAlt(product)}
               containerClassName="h-full w-full rounded-lg bg-[#F2FAFF] dark:bg-[#081830]"
               className="max-h-full max-w-full"
             />
@@ -113,15 +114,19 @@ export function MobileProductCard({
         )}
 
         {/* Product Name (Clamped to 2 Lines) */}
-        <button
-          type="button"
-          onClick={() => onOpenDetails(product)}
-          className="mt-0.5 block w-full text-right focus-visible:outline-2 focus-visible:outline-[#1D4ED8] rounded cursor-pointer"
-        >
-          <h3 className="text-[13px] min-[390px]:text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] leading-snug line-clamp-2">
+        <h3 className="mt-0.5 text-[13px] min-[390px]:text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] leading-snug line-clamp-2">
+          <a
+            href={`/product/${encodeURIComponent(product.id)}`}
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+              e.preventDefault();
+              onOpenDetails(product);
+            }}
+            className="block w-full text-right focus-visible:outline-2 focus-visible:outline-[#1D4ED8] rounded cursor-pointer"
+          >
             {product.name}
-          </h3>
-        </button>
+          </a>
+        </h3>
 
         {/* Short Clamped Description so Long Text Never Stretches Cards */}
         <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-300 leading-relaxed line-clamp-2">

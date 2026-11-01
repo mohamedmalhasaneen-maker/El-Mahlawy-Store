@@ -50,7 +50,14 @@ import { RatingInvitationPrompt } from './components/RatingInvitationPrompt';
 import { RatingFormModal } from './components/RatingFormModal';
 import { listenForRatingPromptTrigger, recordUsefulActivity } from './utils/activityTracker';
 import { useTheme } from './utils/useTheme';
-import { getCategoryName, getOrderedCategories } from './constants/categories';
+import { getCategoryIdByName, getCategoryName, getOrderedCategories } from './constants/categories';
+import {
+  SeoRouteInfo,
+  buildPageSeoMetadata,
+  buildStructuredDataGraph,
+  parseStoreSeoRoute,
+  syncDocumentSeoHead,
+} from './utils/seo';
 
 const LEGACY_PRODUCT_STORAGE_KEY = 'mahallawy_store_catalog_v1';
 const SITE_CONFIG_CACHE_KEY = 'mahallawy_site_config_v1';
@@ -73,19 +80,28 @@ function loadCachedSiteConfig(): SiteConfig {
   return DEFAULT_SITE_CONFIG;
 }
 
-function resolveInitialView(): 'store' | 'about' | 'developer' {
-  if (typeof window === 'undefined') return 'store';
-  const hash = window.location.hash.toLowerCase();
-  const search = window.location.search.toLowerCase();
-  if (
-    hash === '#developer' ||
-    hash === '#developer-settings' ||
-    hash === '#admin' ||
-    search.includes('view=developer')
-  ) {
-    return 'developer';
+function readWindowLocationSnapshot(): { pathname: string; search: string; hash: string } {
+  if (typeof window === 'undefined') {
+    return { pathname: '/', search: '', hash: '' };
   }
-  if (hash === '#about' || search.includes('view=about')) {
+  return {
+    pathname: window.location.pathname || '/',
+    search: window.location.search || '',
+    hash: window.location.hash || '',
+  };
+}
+
+function resolveViewFromRoute(
+  route: SeoRouteInfo,
+  pathname: string,
+  hash: string
+): 'store' | 'about' | 'developer' {
+  if (route.kind === 'developer') return 'developer';
+  if (route.kind === 'about') {
+    // Clean stale #about hash on root reload while honoring clean /about pathname & ?view=about
+    if ((pathname === '/' || pathname === '') && hash.toLowerCase() === '#about') {
+      return 'store';
+    }
     return 'about';
   }
   return 'store';
@@ -93,11 +109,16 @@ function resolveInitialView(): 'store' | 'about' | 'developer' {
 
 export default function App() {
   const { isDark, toggleTheme } = useTheme();
+  const [locationSnapshot, setLocationSnapshot] = useState(readWindowLocationSnapshot);
+
+  const initialRoute = useMemo(() => {
+    const snap = readWindowLocationSnapshot();
+    return parseStoreSeoRoute(snap.pathname, snap.search, snap.hash);
+  }, []);
+
   const [activeView, setActiveView] = useState<'store' | 'about' | 'developer'>(() => {
-    const initial = resolveInitialView();
-    // Entry should never be 'about' per user request
-    if (initial === 'about') return 'store';
-    return initial;
+    const snap = readWindowLocationSnapshot();
+    return resolveViewFromRoute(initialRoute, snap.pathname, snap.hash);
   });
   const [products, setProducts] = useState<Product[]>([]);
   const [adminProducts, setAdminProducts] = useState<Product[] | null>(null);
@@ -110,21 +131,42 @@ export default function App() {
   const [isCloudAdmin, setIsCloudAdmin] = useState(false);
 
   // Storefront search, sort & detail modal
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState<string>(() =>
+    initialRoute.kind === 'search' ? initialRoute.query : ''
+  );
   const [sortBy, setSortBy] = useState<SortOption>(SortOption.NEWEST);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [sharedProductId, setSharedProductId] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return new URLSearchParams(window.location.search).get('product');
-  });
+  const [mobileActiveProduct, setMobileActiveProduct] = useState<Product | null>(null);
+  const [sharedProductId, setSharedProductId] = useState<string | null>(() =>
+    initialRoute.kind === 'product' ? initialRoute.productId : null
+  );
   const [publicOrigin, setPublicOrigin] = useState<string>(() =>
     typeof window !== 'undefined' ? window.location.origin : ''
   );
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(() =>
+    initialRoute.kind === 'category' ? initialRoute.categoryId : 'all'
+  );
 
   // Visitor Rating invitation prompt & modal state
   const [isRatingPromptOpen, setIsRatingPromptOpen] = useState(false);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+
+  const updateBrowserUrl = useCallback((nextUrl: string, mode: 'push' | 'replace' = 'push') => {
+    if (typeof window === 'undefined') return;
+    try {
+      const currentFull = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (currentFull !== nextUrl) {
+        if (mode === 'replace') {
+          window.history.replaceState(window.history.state, '', nextUrl);
+        } else {
+          window.history.pushState(null, '', nextUrl);
+        }
+      }
+      setLocationSnapshot(readWindowLocationSnapshot());
+    } catch {
+      // Ignore history restrictions in sandboxed iframes
+    }
+  }, []);
 
   useEffect(() => {
     return listenForRatingPromptTrigger(() => {
@@ -132,12 +174,42 @@ export default function App() {
     });
   }, []);
 
+  const getStoreFallbackPath = useCallback((catId: string): string => {
+    if (catId && catId !== 'all' && catId !== 'featured') {
+      return `/category/${encodeURIComponent(catId)}`;
+    }
+    return '/';
+  }, []);
+
   const handleSelectProduct = (product: Product | null) => {
     setSelectedProduct(product);
     if (product) {
       recordUsefulActivity('view_product_details', product.name);
+      updateBrowserUrl(`/product/${encodeURIComponent(product.id)}`, 'replace');
+    } else if (typeof window !== 'undefined') {
+      const snap = readWindowLocationSnapshot();
+      const currentRoute = parseStoreSeoRoute(snap.pathname, snap.search, snap.hash);
+      if (currentRoute.kind === 'product') {
+        updateBrowserUrl(getStoreFallbackPath(selectedCategoryId), 'replace');
+      }
     }
   };
+
+  const handleMobileActiveProductChange = useCallback(
+    (product: Product | null) => {
+      setMobileActiveProduct(product);
+      if (product) {
+        updateBrowserUrl(`/product/${encodeURIComponent(product.id)}`, 'replace');
+      } else if (typeof window !== 'undefined') {
+        const snap = readWindowLocationSnapshot();
+        const currentRoute = parseStoreSeoRoute(snap.pathname, snap.search, snap.hash);
+        if (currentRoute.kind === 'product') {
+          updateBrowserUrl(getStoreFallbackPath(selectedCategoryId), 'replace');
+        }
+      }
+    },
+    [getStoreFallbackPath, selectedCategoryId, updateBrowserUrl]
+  );
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
@@ -156,50 +228,124 @@ export default function App() {
     if (categoryId !== 'all' && categoryId !== 'featured') {
       recordUsefulActivity('category_switch', categoryId);
     }
+    updateBrowserUrl(getStoreFallbackPath(categoryId), 'push');
   };
 
-  // Sync URL hash <-> activeView
+  // Sync URL pathname/search/hash <-> activeView, category, search & product state
   useEffect(() => {
-    // Force reset to home if the entry was #about to satisfy "entry should be home" request
-    if (typeof window !== 'undefined' && window.location.hash.toLowerCase() === '#about') {
-      try {
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        setActiveView('store');
-      } catch {
-        // Ignore iframe history restrictions
+    if (typeof window === 'undefined') return;
+
+    // Clean legacy #about hash on root reload so home entry stays clean
+    if (
+      (window.location.pathname === '/' || window.location.pathname === '') &&
+      window.location.hash.toLowerCase() === '#about'
+    ) {
+      updateBrowserUrl(window.location.pathname + window.location.search || '/', 'replace');
+      setActiveView('store');
+    }
+
+    const syncFromWindowLocation = () => {
+      const snap = readWindowLocationSnapshot();
+      setLocationSnapshot(snap);
+      const route = parseStoreSeoRoute(snap.pathname, snap.search, snap.hash);
+
+      if (route.kind === 'developer') {
+        setActiveView('developer');
+        setSelectedProduct(null);
+        setMobileActiveProduct(null);
+        return;
       }
-    }
 
-    const syncViewWithUrl = () => {
-      setActiveView(resolveInitialView());
+      if (route.kind === 'about') {
+        setActiveView('about');
+        setSelectedProduct(null);
+        setMobileActiveProduct(null);
+        return;
+      }
+
+      setActiveView('store');
+      if (route.kind === 'product') {
+        setSharedProductId(route.productId);
+      } else {
+        setSelectedProduct(null);
+        setMobileActiveProduct(null);
+        setSharedProductId(null);
+      }
+
+      if (route.kind === 'category') {
+        setSelectedCategoryId(route.categoryId);
+      } else if (route.kind === 'home') {
+        setSelectedCategoryId('all');
+      }
+
+      if (route.kind === 'search') {
+        setSearchQuery(route.query);
+      }
     };
-    syncViewWithUrl();
-    if (typeof window !== 'undefined') {
-      window.addEventListener('hashchange', syncViewWithUrl);
-      window.addEventListener('popstate', syncViewWithUrl);
-      return () => {
-        window.removeEventListener('hashchange', syncViewWithUrl);
-        window.removeEventListener('popstate', syncViewWithUrl);
-      };
-    }
-  }, []);
 
-  // Sync document SEO title & meta description dynamically with cloud SiteConfig
+    window.addEventListener('hashchange', syncFromWindowLocation);
+    window.addEventListener('popstate', syncFromWindowLocation);
+    return () => {
+      window.removeEventListener('hashchange', syncFromWindowLocation);
+      window.removeEventListener('popstate', syncFromWindowLocation);
+    };
+  }, [updateBrowserUrl]);
+
+  // Synchronize document <title>, <meta>, <link rel="canonical">, OpenGraph, Twitter & JSON-LD
+  const activeSeoProduct = selectedProduct || mobileActiveProduct;
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const title = siteConfig.seoTitle?.trim() || `${siteConfig.storeName} | ${siteConfig.storeSubtitle}`;
-    document.title = title;
+    const baseRoute = parseStoreSeoRoute(
+      locationSnapshot.pathname,
+      locationSnapshot.search,
+      locationSnapshot.hash
+    );
 
-    const description = siteConfig.seoDescription?.trim();
-    if (description) {
-      const metaDesc = document.querySelector('meta[name="description"]');
-      if (metaDesc) metaDesc.setAttribute('content', description);
-      const ogDesc = document.querySelector('meta[property="og:description"]');
-      if (ogDesc) ogDesc.setAttribute('content', description);
+    let effectiveRoute: SeoRouteInfo = baseRoute;
+    if (activeView === 'developer') {
+      effectiveRoute = { kind: 'developer', canonicalPath: '/developer' };
+    } else if (activeView === 'about') {
+      effectiveRoute = { kind: 'about', canonicalPath: '/about' };
+    } else if (activeSeoProduct) {
+      effectiveRoute = {
+        kind: 'product',
+        productId: activeSeoProduct.id,
+        canonicalPath: `/product/${encodeURIComponent(activeSeoProduct.id)}`,
+      };
+    } else if (baseRoute.kind === 'home' && searchQuery.trim().length > 0) {
+      effectiveRoute = {
+        kind: 'search',
+        query: searchQuery.trim(),
+        canonicalPath: '/',
+      };
     }
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) ogTitle.setAttribute('content', title);
-  }, [siteConfig.seoTitle, siteConfig.seoDescription, siteConfig.storeName, siteConfig.storeSubtitle]);
+
+    const origin =
+      publicOrigin || (typeof window !== 'undefined' ? window.location.origin : '');
+    const seoInput = {
+      origin,
+      route: effectiveRoute,
+      siteConfig,
+      products,
+      activeProductOverride: activeSeoProduct,
+      catalogLoaded: !isLoadingProducts,
+    };
+
+    const meta = buildPageSeoMetadata(seoInput);
+    const jsonLdGraph = buildStructuredDataGraph(seoInput);
+    syncDocumentSeoHead(meta, jsonLdGraph);
+  }, [
+    activeSeoProduct,
+    activeView,
+    isLoadingProducts,
+    locationSnapshot.hash,
+    locationSnapshot.pathname,
+    locationSnapshot.search,
+    products,
+    publicOrigin,
+    searchQuery,
+    siteConfig,
+  ]);
 
   // Listen to Firebase Auth state & verify admin role
   useEffect(() => {
@@ -242,18 +388,18 @@ export default function App() {
     if (view === 'about') {
       recordUsefulActivity('view_about_page');
     }
+    setSelectedProduct(null);
+    setMobileActiveProduct(null);
+    setSharedProductId(null);
     setActiveView(view);
     if (typeof window !== 'undefined') {
-      try {
-        if (view === 'about') {
-          window.history.pushState(null, '', '#about');
-        } else if (view === 'developer') {
-          window.history.pushState(null, '', '#developer');
-        } else {
-          window.history.pushState(null, '', window.location.pathname + window.location.search);
-        }
-      } catch {
-        // Ignore history restrictions in sandboxed iframes
+      if (view === 'about') {
+        updateBrowserUrl('/about', 'push');
+      } else if (view === 'developer') {
+        updateBrowserUrl('/developer', 'push');
+      } else {
+        setSelectedCategoryId('all');
+        updateBrowserUrl('/', 'push');
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -263,20 +409,16 @@ export default function App() {
     navigateToView('developer');
   };
 
-  const clearSharedProductParam = () => {
-    setSharedProductId(null);
-    if (typeof window === 'undefined') return;
-    try {
-      const url = new URL(window.location.href);
-      if (url.searchParams.has('product')) {
-        url.searchParams.delete('product');
-        const nextUrl = `${url.pathname}${url.search}${url.hash}`;
-        window.history.replaceState({}, '', nextUrl);
+  const consumeSharedProduct = useCallback(
+    (matchedProductId?: string) => {
+      setSharedProductId(null);
+      if (typeof window === 'undefined') return;
+      if (matchedProductId) {
+        updateBrowserUrl(`/product/${encodeURIComponent(matchedProductId)}`, 'replace');
       }
-    } catch {
-      // Ignore URL history restrictions
-    }
-  };
+    },
+    [updateBrowserUrl]
+  );
 
   useEffect(() => {
     if (!sharedProductId || products.length === 0) return;
@@ -284,10 +426,10 @@ export default function App() {
       const matched = findProductByShareParam(products, sharedProductId);
       if (matched) {
         setSelectedProduct(matched);
-        clearSharedProductParam();
+        consumeSharedProduct(matched.id);
       }
     }
-  }, [sharedProductId, products]);
+  }, [consumeSharedProduct, sharedProductId, products]);
 
   // Increment visitor count
   useEffect(() => {
@@ -533,17 +675,19 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (
-      selectedCategoryId !== 'all' &&
-      selectedCategoryId !== 'featured' &&
-      !orderedStoreCategories.some((c) => c.id === selectedCategoryId)
-    ) {
-      setSelectedCategoryId('all');
+    if (isLoadingProducts) return;
+    if (selectedCategoryId !== 'all' && selectedCategoryId !== 'featured') {
+      const resolvedId = getCategoryIdByName(selectedCategoryId, orderedStoreCategories);
+      if (!resolvedId) {
+        setSelectedCategoryId('all');
+      } else if (resolvedId !== selectedCategoryId) {
+        setSelectedCategoryId(resolvedId);
+      }
     }
     if (selectedCategoryId === 'featured' && !products.some((p) => p.isPublished && p.isFeatured)) {
       setSelectedCategoryId('all');
     }
-  }, [selectedCategoryId, orderedStoreCategories, products]);
+  }, [isLoadingProducts, selectedCategoryId, orderedStoreCategories, products]);
 
   const discountedProducts = useMemo(() => getDiscountedProducts(products), [products]);
   const featuredProducts = useMemo(() => getFeaturedProducts(products), [products]);
@@ -631,7 +775,7 @@ export default function App() {
               onToggleTheme={toggleTheme}
               publicOrigin={publicOrigin}
               initialProductId={sharedProductId}
-              onConsumeInitialProduct={clearSharedProductParam}
+              onConsumeInitialProduct={() => consumeSharedProduct(sharedProductId || undefined)}
               selectedCategoryId={selectedCategoryId}
               onCategoryChange={handleCategoryChange}
               hasFeaturedProducts={hasFeaturedProducts}
@@ -639,6 +783,7 @@ export default function App() {
               featuredProducts={siteConfig.showHeroSpotlight ? featuredProducts : []}
               heroSpotlightProduct={heroSpotlightProduct}
               onOpenRatingModal={() => setIsRatingModalOpen(true)}
+              onActiveProductChange={handleMobileActiveProductChange}
             />
 
             {/* Desktop Storefront (>= 768px) */}

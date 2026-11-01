@@ -10,6 +10,7 @@ import {
   getEffectiveProductPrice,
   isDiscountActive,
 } from '../utils/catalogLogic';
+import { buildProductImageAlt } from '../utils/seo';
 import { ProductImage } from './ProductImage';
 
 interface ProductCardProps {
@@ -108,7 +109,7 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
 
             <ProductImage
               src={product.images[0]}
-              alt={product.name}
+              alt={buildProductImageAlt(product)}
               showPedestalHalo={true}
               containerClassName="aspect-square w-full p-2.5"
               className="group-hover:scale-[1.02]"
@@ -132,13 +133,17 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
           )}
 
           <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] leading-snug mb-2">
-            <button
-              type="button"
-              onClick={() => onViewDetails(product)}
+            <a
+              href={`/product/${encodeURIComponent(product.id)}`}
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                e.preventDefault();
+                onViewDetails(product);
+              }}
               className="text-right hover:text-[#1D4ED8] dark:hover:text-[#38BDF8] transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#1D4ED8] rounded"
             >
               {product.name}
-            </button>
+            </a>
           </h3>
 
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2 min-h-[2.6rem]">

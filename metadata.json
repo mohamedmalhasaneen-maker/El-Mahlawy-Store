@@ -1,6 +1,6 @@
 {
   "name": "المحلاوي ستور | El Mahlawy Store",
-  "description": "متجر المحلاوي ستور الإلكتروني لعرض المنتجات ومواصفاتها وأسعارها والطلب عبر WhatsApp.",
+  "description": "المحلاوي ستور (Elmahlawy Store) في مصر — تسوق كاميرات المراقبة، الستالايت والرسيفرات، أنظمة الصوتيات، السمارت هوم، والإنذار المبكر مع شحن لجميع المحافظات.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

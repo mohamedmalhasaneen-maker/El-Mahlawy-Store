@@ -25,6 +25,7 @@ import {
   roundCurrency,
 } from '../utils/catalogLogic';
 import { getCategoryName } from '../constants/categories';
+import { buildProductImageAlt } from '../utils/seo';
 import { ProductImage } from './ProductImage';
 
 interface ProductDetailModalProps {
@@ -195,7 +196,8 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
 
                 <ProductImage
                   src={images[activeImageIndex]}
-                  alt={`${product.name} - صورة ${activeImageIndex + 1}`}
+                  alt={buildProductImageAlt(product, activeImageIndex + 1)}
+                  loading="eager"
                   showPedestalHalo={true}
                   containerClassName="aspect-square max-h-[420px] w-full p-3 bg-[#F2FAFF] dark:bg-[#081830]"
                   className=""

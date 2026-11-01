@@ -9,6 +9,7 @@ import {
   getDiscountedProducts,
   getEffectiveProductPrice,
 } from '../utils/catalogLogic';
+import { buildProductImageAlt } from '../utils/seo';
 import { ProductImage } from './ProductImage';
 
 interface OffersSectionProps {
@@ -87,7 +88,7 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
 
                   <ProductImage
                     src={product.images[0]}
-                    alt={product.name}
+                    alt={buildProductImageAlt(product)}
                     showPedestalHalo={true}
                     containerClassName="h-56 sm:h-full w-full p-2.5 bg-[#F7FCFF] dark:bg-[#081830]"
                     className=""
@@ -102,13 +103,17 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
                       <span className="font-num">{formatPriceEgp(savings)}</span> ج.م
                     </p>
                     <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] leading-snug mb-2">
-                      <button
-                        type="button"
-                        onClick={() => onViewDetails(product)}
+                      <a
+                        href={`/product/${encodeURIComponent(product.id)}`}
+                        onClick={(e) => {
+                          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                          e.preventDefault();
+                          onViewDetails(product);
+                        }}
                         className="text-right hover:text-[#1D4ED8] dark:hover:text-[#38BDF8] transition-colors cursor-pointer"
                       >
                         {product.name}
-                      </button>
+                      </a>
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-4">
                       {product.shortDescription}

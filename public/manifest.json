@@ -1,12 +1,21 @@
 {
-  "name": "المحلاوي ستور | El Mahlawy Store",
-  "short_name": "المحلاوي ستور",
-  "description": "متجر المحلاوي ستور الإلكتروني لعرض المنتجات ومواصفاتها وأسعارها والطلب عبر WhatsApp.",
+  "name": "المحلاوي ستور | Elmahlawy Store",
+  "short_name": "Elmahlawy Store",
+  "description": "المحلاوي ستور (Elmahlawy Store) في مصر — تسوق كاميرات المراقبة، الستالايت والرسيفرات، أنظمة الصوتيات، السمارت هوم، والإنذار المبكر مع شحن لجميع المحافظات.",
+  "lang": "ar",
+  "dir": "rtl",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1D4ED8",
   "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/logo.png",
       "sizes": "512x512",

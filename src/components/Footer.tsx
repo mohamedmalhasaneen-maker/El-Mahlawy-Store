@@ -89,7 +89,11 @@ export function Footer({
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl">
                   <img
                     src="/logo.png"
-                    alt={siteConfig.storeName}
+                    alt={`شعار ${siteConfig.storeName} | Elmahlawy Store`}
+                    width={40}
+                    height={40}
+                    loading="lazy"
+                    decoding="async"
                     referrerPolicy="no-referrer"
                     className="h-full w-full object-contain"
                   />
@@ -547,13 +551,15 @@ export function Footer({
             </p>
 
             <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => {
+              <a
+                href="/about"
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
                   if (onNavigateAbout) {
                     onNavigateAbout();
                   } else if (typeof window !== 'undefined') {
-                    window.location.hash = '#about';
+                    window.location.href = '/about';
                   }
                 }}
                 className="inline-flex min-h-[50px] items-center justify-center gap-3 rounded-2xl bg-white hover:bg-[#F0F9FF] text-[#0B1F3A] active:scale-95 px-7 py-3 text-sm sm:text-base font-extrabold shadow-xl hover:shadow-2xl transition-all cursor-pointer group"
@@ -561,7 +567,7 @@ export function Footer({
                 <Users className="h-5 w-5 text-[#1D4ED8] group-hover:scale-110 transition-transform" />
                 <span>من نحن | About Us</span>
                 <ArrowLeft className="h-5 w-5 text-[#0284C7] group-hover:-translate-x-1 transition-transform" />
-              </button>
+              </a>
             </div>
           </div>
         </div>

@@ -395,10 +395,17 @@ test('resolvePublicImageUrl, WhatsApp order builder, share links, and catalog fi
   assert.ok(chargers[0].price <= chargers[1].price);
 
   const directUrl = buildProductShareUrl('prod-charger-2', 'https://mahallawy.example.com/');
-  assert.equal(directUrl, 'https://mahallawy.example.com/?product=prod-charger-2');
+  assert.equal(directUrl, 'https://mahallawy.example.com/product/prod-charger-2');
   const links = buildProductShareLinks(TEST_PRODUCTS[3], 'https://mahallawy.example.com');
   assert.ok(links.shareText.includes('800 ج.م'));
   assert.ok(findProductByShareParam(TEST_PRODUCTS, 'prod-charger-2'));
+  assert.equal(
+    resolvePublicImageUrl(
+      'https://res.cloudinary.com/demo/image/upload/v1700000000/camera.jpg',
+      'https://mahallawy.example.com'
+    ),
+    'https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/v1700000000/camera.jpg'
+  );
 });
 
 test('deriveInitialDiscountDraft initializes add-product and edit-product discount drafts without price drift', () => {

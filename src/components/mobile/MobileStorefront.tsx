@@ -23,6 +23,7 @@ import {
 } from '../../utils/catalogLogic';
 import { getCategoryName, getOrderedCategories } from '../../constants/categories';
 import { recordUsefulActivity } from '../../utils/activityTracker';
+import { buildProductImageAlt } from '../../utils/seo';
 import { ProductImage } from '../ProductImage';
 import { FeaturedSpotlightCarousel } from '../FeaturedSpotlightCarousel';
 import { Footer } from '../Footer';
@@ -56,6 +57,7 @@ interface MobileStorefrontProps {
   featuredProducts?: Product[];
   heroSpotlightProduct?: Product;
   onOpenRatingModal?: () => void;
+  onActiveProductChange?: (product: Product | null) => void;
 }
 
 export function MobileStorefront({
@@ -81,6 +83,7 @@ export function MobileStorefront({
   featuredProducts = [],
   heroSpotlightProduct,
   onOpenRatingModal,
+  onActiveProductChange,
 }: MobileStorefrontProps) {
   const siteConfig = useSiteConfig();
   const orderedCategories = getOrderedCategories(siteConfig.categories);
@@ -90,7 +93,13 @@ export function MobileStorefront({
 
   const handleOpenDetails = (p: Product) => {
     setDetailsProduct(p);
+    onActiveProductChange?.(p);
     recordUsefulActivity('view_product_details', p.name);
+  };
+
+  const handleCloseDetails = () => {
+    setDetailsProduct(null);
+    onActiveProductChange?.(null);
   };
 
   const handleStartOrder = (p: Product) => {
@@ -104,9 +113,10 @@ export function MobileStorefront({
     const matched = findProductByShareParam(products, initialProductId);
     if (matched) {
       setDetailsProduct(matched);
+      onActiveProductChange?.(matched);
       onConsumeInitialProduct?.();
     }
-  }, [initialProductId, products, onConsumeInitialProduct]);
+  }, [initialProductId, products, onConsumeInitialProduct, onActiveProductChange]);
 
   const scrollToSection = (sectionId: string) => {
     if (sectionId === 'mobile-top' || sectionId === 'top') {
@@ -139,8 +149,9 @@ export function MobileStorefront({
       <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#081A33]/95 backdrop-blur-md border-b border-[#D8EEFB] dark:border-[#163663] pt-[env(safe-area-inset-top)]">
         <div className="flex h-14 items-center justify-between gap-2 px-3.5">
           <a
-            href="#mobile-top"
+            href="/"
             onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
@@ -149,7 +160,9 @@ export function MobileStorefront({
           >
             <img
               src="/logo.png"
-              alt={siteConfig.storeName}
+              alt={`شعار ${siteConfig.storeName} | Elmahlawy Store`}
+              width={36}
+              height={36}
               referrerPolicy="no-referrer"
               className="h-9 w-9 rounded-xl object-contain shadow-xs shrink-0 bg-white"
             />
@@ -286,9 +299,9 @@ export function MobileStorefront({
                 ) : null}
               </p>
 
-              <h1 className="mt-1 text-lg min-[380px]:text-xl font-extrabold leading-snug text-white text-balance">
+              <p className="mt-1 text-lg min-[380px]:text-xl font-extrabold leading-snug text-white text-balance">
                 {siteConfig.tagline}
-              </h1>
+              </p>
 
               {siteConfig.shippingSummary && (
                 <p className="mt-1.5 text-xs text-[#E0F2FE]/95 leading-relaxed">
@@ -377,7 +390,7 @@ export function MobileStorefront({
                   >
                     <button
                       type="button"
-                      onClick={() => setDetailsProduct(offer)}
+                      onClick={() => handleOpenDetails(offer)}
                       aria-label={`تفاصيل عرض ${offer.name}`}
                       className="relative h-22 w-22 shrink-0 rounded-xl bg-[#F2FAFF] dark:bg-[#081830] border border-[#E1F2FE] dark:border-[#1E3F73] p-1.5 overflow-hidden cursor-pointer"
                     >
@@ -386,7 +399,7 @@ export function MobileStorefront({
                       </span>
                       <ProductImage
                         src={offer.images[0]}
-                        alt={offer.name}
+                        alt={buildProductImageAlt(offer)}
                         containerClassName="h-full w-full rounded-lg bg-[#F2FAFF] dark:bg-[#081830]"
                       />
                     </button>
@@ -399,7 +412,7 @@ export function MobileStorefront({
 
                       <button
                         type="button"
-                        onClick={() => setDetailsProduct(offer)}
+                        onClick={() => handleOpenDetails(offer)}
                         className="mt-0.5 block w-full text-right cursor-pointer"
                       >
                         <h3 className="text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] leading-snug line-clamp-1">
@@ -679,7 +692,7 @@ export function MobileStorefront({
       {/* Mobile Product Details Bottom Sheet */}
       <MobileProductSheet
         product={detailsProduct}
-        onClose={() => setDetailsProduct(null)}
+        onClose={handleCloseDetails}
         onOrderProduct={(p) => setOrderProduct(p)}
         publicOrigin={publicOrigin}
       />

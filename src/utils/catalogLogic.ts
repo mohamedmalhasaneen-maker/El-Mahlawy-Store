@@ -430,6 +430,12 @@ export function normalizeImageSrc(imagePath?: string): string {
   if (localUploadMatch) {
     return localUploadMatch[1];
   }
+  if (/^https?:\/\/res\.cloudinary\.com\//i.test(trimmed)) {
+    return trimmed.replace(
+      /^(https?:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(?!f_auto|q_auto|[a-z]{1,3}_[a-z0-9]+)/i,
+      '$1f_auto,q_auto/'
+    );
+  }
   return trimmed;
 }
 
@@ -551,10 +557,10 @@ export function buildProductShareUrl(productId: string, baseOrigin?: string): st
     (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '');
   const cleanId = encodeURIComponent((productId || '').trim());
   if (!origin) {
-    return `/?product=${cleanId}`;
+    return `/product/${cleanId}`;
   }
   const cleanOrigin = origin.replace(/\/+$/, '');
-  return `${cleanOrigin}/?product=${cleanId}`;
+  return `${cleanOrigin}/product/${cleanId}`;
 }
 
 export function buildProductShareLinks(

@@ -126,14 +126,20 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false,
       {/* Top Standalone Header Bar */}
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#081A33]/95 backdrop-blur-md border-b border-[#D8EEFB] dark:border-[#163663]">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <button
-            type="button"
-            onClick={onBackToStore}
+          <a
+            href="/"
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+              e.preventDefault();
+              onBackToStore();
+            }}
             className="inline-flex items-center gap-2 text-sm sm:text-base font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] hover:text-[#1D4ED8] dark:hover:text-[#38BDF8] transition-colors cursor-pointer"
           >
             <img
               src="/logo.png"
-              alt={siteConfig.storeName}
+              alt={`شعار ${siteConfig.storeName} | Elmahlawy Store`}
+              width={36}
+              height={36}
               referrerPolicy="no-referrer"
               className="h-9 w-9 rounded-xl object-contain shadow-xs bg-white"
             />
@@ -147,18 +153,22 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false,
                 </>
               ) : null}
             </span>
-          </button>
+          </a>
 
           <div className="flex items-center gap-2">
             {onToggleTheme && <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />}
-            <button
-              type="button"
-              onClick={onBackToStore}
+            <a
+              href="/"
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                e.preventDefault();
+                onBackToStore();
+              }}
               className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] hover:bg-[#E2F3FE] dark:hover:bg-[#153666] border border-[#CBE7FA] dark:border-[#1E3F73] px-4 py-2 text-xs sm:text-sm font-extrabold text-[#1D4ED8] dark:text-[#E0F2FE] transition-colors cursor-pointer"
             >
               <ArrowRight className="h-4 w-4" />
               <span>العودة للرئيسية</span>
-            </button>
+            </a>
           </div>
         </div>
       </header>
@@ -174,6 +184,7 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false,
 
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
               {siteConfig.aboutHeroTitle || `${siteConfig.storeName} × ${siteConfig.partnerName}`}
+              <span className="sr-only"> — من نحن | Elmahlawy Store</span>
             </h1>
 
             <p className="text-sm sm:text-lg text-gray-300 max-w-3xl mx-auto font-medium leading-relaxed">
@@ -181,14 +192,18 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false,
             </p>
 
             <div className="pt-2">
-              <button
-                type="button"
-                onClick={onBackToStore}
+              <a
+                href="/"
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  onBackToStore();
+                }}
                 className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] text-white px-5 py-2.5 text-xs sm:text-sm font-extrabold shadow-lg border border-[#D4AF37] transition-colors cursor-pointer"
               >
                 <Home className="h-4 w-4" />
                 <span>الرئيسية</span>
-              </button>
+              </a>
             </div>
           </div>
         </section>
@@ -502,14 +517,18 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false,
             </div>
 
             <div className="pt-4 flex justify-center">
-              <button
-                type="button"
-                onClick={onBackToStore}
+              <a
+                href="/"
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  onBackToStore();
+                }}
                 className="inline-flex min-h-[50px] items-center justify-center gap-3 rounded-2xl bg-[#0F4C5C] hover:bg-[#0A3D4A] text-white active:scale-95 px-8 py-3 text-sm sm:text-base font-extrabold shadow-xl border border-[#D4AF37] transition-all cursor-pointer"
               >
                 <ArrowRight className="h-5 w-5" />
                 <span>العودة للمتجر</span>
-              </button>
+              </a>
             </div>
           </div>
         </section>

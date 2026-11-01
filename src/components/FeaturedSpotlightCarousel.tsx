@@ -28,6 +28,7 @@ import {
   resolveRtlSwipeDirection,
   resolveSpotlightCarouselItems,
 } from '../utils/carouselLogic';
+import { buildProductImageAlt } from '../utils/seo';
 import { ProductImage } from './ProductImage';
 
 interface FeaturedSpotlightCarouselProps {
@@ -512,8 +513,9 @@ export function FeaturedSpotlightCarousel({
 
                     <ProductImage
                       src={product.images[0]}
-                      alt={product.name}
-                      loading="eager"
+                      alt={buildProductImageAlt(product)}
+                      loading={isCurrentLogical ? 'eager' : 'lazy'}
+                      fetchPriority={isCurrentLogical ? 'high' : 'auto'}
                       showPedestalHalo={true}
                       containerClassName={`${
                         isCompactMobile ? 'h-48 min-[400px]:h-52' : 'h-60 sm:h-64'
@@ -530,13 +532,13 @@ export function FeaturedSpotlightCarousel({
                             {showCategory ? product.category : ''}
                           </p>
                         )}
-                        <h2
+                        <h3
                           className={`${
                             isCompactMobile ? 'text-sm min-[390px]:text-base' : 'text-base sm:text-lg'
                           } font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] leading-snug line-clamp-2 min-h-[2.5rem]`}
                         >
                           {product.name}
-                        </h2>
+                        </h3>
                       </div>
 
                       <div className="text-left shrink-0">

@@ -1,9 +1,22 @@
 import 'dotenv/config';
 import express from 'express';
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import multer from 'multer';
+import type { Product } from './src/types/store';
+import { getOrderedCategories } from './src/constants/categories';
+import { DEFAULT_SITE_CONFIG, SiteConfig, sanitizeSiteConfig } from './src/utils/siteConfig';
+import {
+  buildCrawlableNoscriptHtml,
+  buildPageSeoMetadata,
+  buildRobotsTxt,
+  buildSitemapXml,
+  buildStructuredDataGraph,
+  decodeFirestoreRestFields,
+  injectSeoIntoHtml,
+  parseStoreSeoRoute,
+} from './src/utils/seo';
 
 const PORT = 3000;
 const ROOT_DIR = process.cwd();
@@ -11,6 +24,7 @@ const UPLOADS_DIR = path.join(ROOT_DIR, 'uploads');
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
 const ASSETS_IMAGES_DIR = path.join(ROOT_DIR, 'src', 'assets', 'images');
+const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 const FIREBASE_CONFIG_FILE = path.join(ROOT_DIR, 'firebase-applet-config.json');
 
 const ALLOWED_FIREBASE_AUTH_HOSTS = new Set([
@@ -27,19 +41,37 @@ const ALLOWED_FIREBASE_AUTH_PATH_PREFIXES = [
   '/v2/recaptchaConfig',
 ];
 
-function loadConfiguredFirebaseApiKey(): string {
+interface LoadedFirebaseClientConfig {
+  apiKey: string;
+  projectId: string;
+  firestoreDatabaseId: string;
+}
+
+function loadConfiguredFirebaseConfig(): LoadedFirebaseClientConfig {
   try {
-    if (!fs.existsSync(FIREBASE_CONFIG_FILE)) return '';
+    if (!fs.existsSync(FIREBASE_CONFIG_FILE)) {
+      return { apiKey: '', projectId: '', firestoreDatabaseId: '(default)' };
+    }
     const parsed = JSON.parse(fs.readFileSync(FIREBASE_CONFIG_FILE, 'utf8')) as {
       apiKey?: unknown;
+      projectId?: unknown;
+      firestoreDatabaseId?: unknown;
     };
-    return typeof parsed.apiKey === 'string' ? parsed.apiKey.trim() : '';
+    return {
+      apiKey: typeof parsed.apiKey === 'string' ? parsed.apiKey.trim() : '',
+      projectId: typeof parsed.projectId === 'string' ? parsed.projectId.trim() : '',
+      firestoreDatabaseId:
+        typeof parsed.firestoreDatabaseId === 'string' && parsed.firestoreDatabaseId.trim()
+          ? parsed.firestoreDatabaseId.trim()
+          : '(default)',
+    };
   } catch {
-    return '';
+    return { apiKey: '', projectId: '', firestoreDatabaseId: '(default)' };
   }
 }
 
-const CONFIGURED_FIREBASE_API_KEY = loadConfiguredFirebaseApiKey();
+const CONFIGURED_FIREBASE = loadConfiguredFirebaseConfig();
+const CONFIGURED_FIREBASE_API_KEY = CONFIGURED_FIREBASE.apiKey;
 
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -78,7 +110,7 @@ const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 const DEFAULT_SETTINGS = {
   storeName: 'المحلاوي ستور',
-  storeEnglishName: 'El Mahlawy Store',
+  storeEnglishName: 'Elmahlawy Store',
   tagline: 'منتجات متنوعة وحلول ذكية لحياة أسهل',
   address: 'جنوب سيناء – شرم الشيخ – الرويسات – مدخل 1 – شارع دستي، بجوار قسم الشرطة، الشارع الجانبي لمول الشيخ عيد، محل المحلاوي ستور.',
   googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=27.9074681,34.2805336',
@@ -97,10 +129,10 @@ const DEFAULT_SETTINGS = {
   instagramUrl: 'https://instagram.com/elmahlawystore',
   whatsappOrderTemplate: 'السلام عليكم، أرغب في طلب المنتج التالي:\n- المنتج: {productName}\n- السعر: {price} جنيه\n- الرابط: {productUrl}\n\nملاحظات العميل: {notes}',
   orderConfirmationMessage: 'تم استلام طلبك بنجاح! سيتم التواصل معك قريباً لتأكيد التوصيل.',
-  htmlTitle: 'المحلاوي ستور | El Mahlawy Store',
-  seoDescription: 'المحلاوي ستور - تسوق أحدث المنتجات والإلكترونيات وحلول الذكاء التكنولوجي بشرم الشيخ وجميع محافظات مصر.',
-  seoKeywords: 'المحلاوي ستور, شرم الشيخ, تسوق, إلكترونيات, الرويسات, Infinity Corp',
-  ogImageUrl: '',
+  htmlTitle: 'المحلاوي ستور | Elmahlawy Store - تسوق منتجاتنا',
+  seoDescription: 'المحلاوي ستور (Elmahlawy Store) في مصر — تسوق كاميرات المراقبة، الستالايت والرسيفرات، أنظمة الصوتيات، السمارت هوم، والإنذار المبكر مع شحن لجميع المحافظات.',
+  seoKeywords: 'المحلاوي ستور, المحلاوي, Elmahlawy Store, El Mahlawy Store, Elmahlawy, Elmahlawy Store Egypt, شرم الشيخ',
+  ogImageUrl: '/logo.png',
   primaryColor: '#0284c7',
   secondaryColor: '#0ea5e9',
   bannerImageUrl: '',
@@ -182,6 +214,211 @@ function resolveRequestOrigin(req: Request): string {
       : req.protocol || 'http';
   const host = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${PORT}`;
   return `${proto}://${host}`;
+}
+
+interface SeoStoreSnapshot {
+  siteConfig: SiteConfig;
+  products: Product[];
+  catalogLoaded: boolean;
+  fetchedAt: number;
+}
+
+const SEO_CACHE_TTL_MS = 60_000;
+let cachedSeoSnapshot: SeoStoreSnapshot | null = null;
+let inflightSeoFetch: Promise<SeoStoreSnapshot> | null = null;
+
+function mapRawRecordToProduct(raw: Record<string, unknown>, fallbackId = ''): Product | null {
+  const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : fallbackId;
+  const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+  const price = Number(raw.price);
+  if (!id || !name || !Number.isFinite(price) || price <= 0) return null;
+
+  const originalPrice = Number.isFinite(Number(raw.originalPrice)) && Number(raw.originalPrice) > 0
+    ? Number(raw.originalPrice)
+    : price;
+
+  return {
+    id,
+    name,
+    brand: typeof raw.brand === 'string' ? raw.brand : '',
+    category: typeof raw.category === 'string' ? raw.category : '',
+    categoryId: typeof raw.categoryId === 'string' ? raw.categoryId : '',
+    shortDescription: typeof raw.shortDescription === 'string' ? raw.shortDescription : '',
+    description: typeof raw.description === 'string' ? raw.description : '',
+    price,
+    originalPrice,
+    discountEnabled: Boolean(raw.discountEnabled),
+    discountType: raw.discountType === 'fixed' ? 'fixed' : 'percentage',
+    discountValue: Number.isFinite(Number(raw.discountValue)) ? Number(raw.discountValue) : 0,
+    discountStartDate: typeof raw.discountStartDate === 'string' ? raw.discountStartDate : '',
+    discountEndDate: typeof raw.discountEndDate === 'string' ? raw.discountEndDate : '',
+    inStock: raw.inStock !== false,
+    isFeatured: Boolean(raw.isFeatured),
+    featuredOrder: Number.isFinite(Number(raw.featuredOrder)) ? Number(raw.featuredOrder) : 0,
+    isPublished: raw.isPublished !== false,
+    images: Array.isArray(raw.images)
+      ? raw.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
+      : [],
+    specs: Array.isArray(raw.specs)
+      ? raw.specs.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+      : [],
+    options: Array.isArray(raw.options)
+      ? raw.options.filter((o): o is string => typeof o === 'string' && o.trim().length > 0)
+      : [],
+    authorUid: typeof raw.authorUid === 'string' ? raw.authorUid : 'admin',
+    createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : '',
+    updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : '',
+  };
+}
+
+async function fetchLiveSeoSnapshot(): Promise<SeoStoreSnapshot> {
+  const { projectId, firestoreDatabaseId, apiKey } = CONFIGURED_FIREBASE;
+  if (!projectId || !apiKey) {
+    const localStored = (readStoredProducts() || [])
+      .map((item) => mapRawRecordToProduct(item))
+      .filter((p): p is Product => Boolean(p && p.isPublished));
+    return {
+      siteConfig: DEFAULT_SITE_CONFIG,
+      products: localStored,
+      catalogLoaded: localStored.length > 0,
+      fetchedAt: Date.now(),
+    };
+  }
+
+  const baseDocsUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
+    projectId
+  )}/databases/${encodeURIComponent(firestoreDatabaseId)}/documents`;
+
+  let siteConfig: SiteConfig = cachedSeoSnapshot?.siteConfig || DEFAULT_SITE_CONFIG;
+  let products: Product[] = cachedSeoSnapshot?.products || [];
+  let catalogLoaded = Boolean(cachedSeoSnapshot?.catalogLoaded);
+
+  const [configResult, productsResult] = await Promise.allSettled([
+    fetch(`${baseDocsUrl}/siteConfig/main?key=${encodeURIComponent(apiKey)}`, {
+      signal: AbortSignal.timeout(3500),
+    }),
+    fetch(`${baseDocsUrl}:runQuery?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'products' }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'isPublished' },
+              op: 'EQUAL',
+              value: { booleanValue: true },
+            },
+          },
+          limit: 300,
+        },
+      }),
+      signal: AbortSignal.timeout(3500),
+    }),
+  ]);
+
+  if (configResult.status === 'fulfilled' && configResult.value.ok) {
+    try {
+      const json = (await configResult.value.json()) as {
+        fields?: Record<string, unknown>;
+      };
+      if (json.fields) {
+        const decoded = decodeFirestoreRestFields(json.fields);
+        siteConfig = sanitizeSiteConfig(
+          decoded as Partial<SiteConfig>,
+          typeof decoded.updatedBy === 'string' ? decoded.updatedBy : 'system'
+        );
+      }
+    } catch {
+      // Keep fallback siteConfig
+    }
+  }
+
+  if (productsResult.status === 'fulfilled' && productsResult.value.ok) {
+    try {
+      const rows = (await productsResult.value.json()) as Array<{
+        document?: {
+          name?: string;
+          fields?: Record<string, unknown>;
+        };
+      }>;
+      if (Array.isArray(rows)) {
+        const parsedProducts: Product[] = [];
+        for (const row of rows) {
+          if (!row?.document?.fields) continue;
+          const docPath = row.document.name || '';
+          const fallbackDocId = docPath.split('/').pop() || '';
+          const decoded = decodeFirestoreRestFields(row.document.fields);
+          const mapped = mapRawRecordToProduct(decoded, fallbackDocId);
+          if (mapped && mapped.isPublished) {
+            parsedProducts.push(mapped);
+          }
+        }
+        parsedProducts.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        products = parsedProducts;
+        catalogLoaded = true;
+      }
+    } catch {
+      // Keep fallback products
+    }
+  }
+
+  const snapshot: SeoStoreSnapshot = {
+    siteConfig,
+    products,
+    catalogLoaded,
+    fetchedAt: Date.now(),
+  };
+  cachedSeoSnapshot = snapshot;
+  return snapshot;
+}
+
+async function getSeoStoreSnapshot(): Promise<SeoStoreSnapshot> {
+  const now = Date.now();
+  if (cachedSeoSnapshot && now - cachedSeoSnapshot.fetchedAt < SEO_CACHE_TTL_MS) {
+    return cachedSeoSnapshot;
+  }
+  if (!inflightSeoFetch) {
+    inflightSeoFetch = fetchLiveSeoSnapshot().finally(() => {
+      inflightSeoFetch = null;
+    });
+  }
+  return inflightSeoFetch;
+}
+
+const STATIC_ASSET_EXT_REGEX =
+  /\.(?:js|mjs|cjs|ts|tsx|jsx|css|png|jpg|jpeg|webp|gif|svg|ico|bmp|avif|json|xml|txt|woff|woff2|ttf|otf|eot|map|webmanifest)$/i;
+
+function shouldServeEnrichedHtml(req: Request): boolean {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+  const p = req.path || '/';
+  if (
+    p.startsWith('/api/') ||
+    p === '/api' ||
+    p.startsWith('/uploads/') ||
+    p.startsWith('/src/') ||
+    p.startsWith('/@') ||
+    p.startsWith('/node_modules/') ||
+    p.startsWith('/assets/') ||
+    p.startsWith('/__vite')
+  ) {
+    return false;
+  }
+  if (/^\/google[a-z0-9_-]+\.html$/i.test(p)) {
+    return false;
+  }
+  if (STATIC_ASSET_EXT_REGEX.test(p)) {
+    return false;
+  }
+  return true;
+}
+
+function getGoogleSiteVerificationToken(): string {
+  return (
+    process.env.GOOGLE_SITE_VERIFICATION ||
+    process.env.VITE_GOOGLE_SITE_VERIFICATION ||
+    ''
+  ).trim();
 }
 
 async function startServer() {
@@ -519,18 +756,193 @@ async function startServer() {
     });
   });
 
+  // Google Search Console HTML file verification support (via env or /public/google*.html)
+  app.get(/^\/(google[a-z0-9_-]+\.html)$/i, (req: Request, res: Response, next: NextFunction) => {
+    const fileName = req.params[0];
+    const configuredFile = (process.env.GOOGLE_SITE_VERIFICATION_FILE || '').trim();
+    if (configuredFile && configuredFile === fileName) {
+      res
+        .status(200)
+        .setHeader('Content-Type', 'text/html; charset=utf-8')
+        .send(`google-site-verification: ${configuredFile}`);
+      return;
+    }
+    const publicVerificationPath = path.join(PUBLIC_DIR, fileName);
+    if (fs.existsSync(publicVerificationPath)) {
+      res.sendFile(publicVerificationPath);
+      return;
+    }
+    next();
+  });
+
+  // Dynamic robots.txt for search engine crawlers
+  app.get('/robots.txt', (req: Request, res: Response) => {
+    const origin = resolveRequestOrigin(req);
+    res
+      .status(200)
+      .setHeader('Content-Type', 'text/plain; charset=utf-8')
+      .setHeader('Cache-Control', 'public, max-age=3600')
+      .send(buildRobotsTxt(origin));
+  });
+
+  // Dynamic XML Sitemap synced with live Firestore categories & published products
+  app.get('/sitemap.xml', async (req: Request, res: Response) => {
+    const origin = resolveRequestOrigin(req);
+    const snapshot = await getSeoStoreSnapshot();
+    const categories = getOrderedCategories(snapshot.siteConfig.categories);
+    const xml = buildSitemapXml(origin, categories, snapshot.products);
+    res
+      .status(200)
+      .setHeader('Content-Type', 'application/xml; charset=utf-8')
+      .setHeader('Cache-Control', 'public, max-age=900')
+      .send(xml);
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: 'spa',
+      appType: 'custom',
     });
+
+    // Serve /public static assets with clean caching before HTML route enrichment
+    if (fs.existsSync(PUBLIC_DIR)) {
+      app.use(
+        express.static(PUBLIC_DIR, {
+          index: false,
+          maxAge: '1h',
+          fallthrough: true,
+        })
+      );
+    }
+
+    app.use(async (req: Request, res: Response, next: NextFunction) => {
+      if (!shouldServeEnrichedHtml(req)) {
+        next();
+        return;
+      }
+
+      try {
+        const origin = resolveRequestOrigin(req);
+        const queryIdx = req.originalUrl.indexOf('?');
+        const search = queryIdx >= 0 ? req.originalUrl.slice(queryIdx) : '';
+        const route = parseStoreSeoRoute(req.path, search, '');
+        const snapshot = await getSeoStoreSnapshot();
+
+        const meta = buildPageSeoMetadata({
+          origin,
+          route,
+          siteConfig: snapshot.siteConfig,
+          products: snapshot.products,
+          catalogLoaded: snapshot.catalogLoaded,
+        });
+        const jsonLd = buildStructuredDataGraph({
+          origin,
+          route,
+          siteConfig: snapshot.siteConfig,
+          products: snapshot.products,
+        });
+        const noscriptHtml = buildCrawlableNoscriptHtml({
+          origin,
+          route,
+          siteConfig: snapshot.siteConfig,
+          products: snapshot.products,
+        });
+
+        const rawTemplate = fs.readFileSync(path.join(ROOT_DIR, 'index.html'), 'utf8');
+        const viteTransformed = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
+        const enrichedHtml = injectSeoIntoHtml(
+          viteTransformed,
+          meta,
+          jsonLd,
+          noscriptHtml,
+          getGoogleSiteVerificationToken()
+        );
+
+        res
+          .status(meta.httpStatus)
+          .setHeader('Content-Type', 'text/html; charset=utf-8')
+          .setHeader('Cache-Control', 'no-cache')
+          .send(enrichedHtml);
+      } catch (err) {
+        next(err);
+      }
+    });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(ROOT_DIR, 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    const distAssetsPath = path.join(distPath, 'assets');
+
+    if (fs.existsSync(distAssetsPath)) {
+      app.use(
+        '/assets',
+        express.static(distAssetsPath, {
+          maxAge: '365d',
+          immutable: true,
+          fallthrough: true,
+        })
+      );
+    }
+
+    app.use(
+      express.static(distPath, {
+        index: false,
+        maxAge: '7d',
+        fallthrough: true,
+      })
+    );
+
+    const distIndexFile = path.join(distPath, 'index.html');
+    const cachedDistTemplate = fs.existsSync(distIndexFile)
+      ? fs.readFileSync(distIndexFile, 'utf8')
+      : '';
+
+    app.get('*', async (req: Request, res: Response) => {
+      try {
+        const rawTemplate = cachedDistTemplate || fs.readFileSync(distIndexFile, 'utf8');
+        const origin = resolveRequestOrigin(req);
+        const queryIdx = req.originalUrl.indexOf('?');
+        const search = queryIdx >= 0 ? req.originalUrl.slice(queryIdx) : '';
+        const route = parseStoreSeoRoute(req.path, search, '');
+        const snapshot = await getSeoStoreSnapshot();
+
+        const meta = buildPageSeoMetadata({
+          origin,
+          route,
+          siteConfig: snapshot.siteConfig,
+          products: snapshot.products,
+          catalogLoaded: snapshot.catalogLoaded,
+        });
+        const jsonLd = buildStructuredDataGraph({
+          origin,
+          route,
+          siteConfig: snapshot.siteConfig,
+          products: snapshot.products,
+        });
+        const noscriptHtml = buildCrawlableNoscriptHtml({
+          origin,
+          route,
+          siteConfig: snapshot.siteConfig,
+          products: snapshot.products,
+        });
+
+        const enrichedHtml = injectSeoIntoHtml(
+          rawTemplate,
+          meta,
+          jsonLd,
+          noscriptHtml,
+          getGoogleSiteVerificationToken()
+        );
+
+        res
+          .status(meta.httpStatus)
+          .setHeader('Content-Type', 'text/html; charset=utf-8')
+          .setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=600')
+          .send(enrichedHtml);
+      } catch {
+        res.sendFile(distIndexFile);
+      }
     });
   }
 

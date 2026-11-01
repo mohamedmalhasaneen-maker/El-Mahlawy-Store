@@ -22,6 +22,7 @@ import {
   isDiscountActive,
 } from '../../utils/catalogLogic';
 import { getCategoryName } from '../../constants/categories';
+import { buildProductImageAlt } from '../../utils/seo';
 import { useMobileOverlay } from '../../utils/useMobileOverlay';
 import { ProductImage } from '../ProductImage';
 
@@ -226,7 +227,8 @@ export function MobileProductSheet({
 
               <ProductImage
                 src={images[activeImageIdx]}
-                alt={`${product.name} - صورة ${activeImageIdx + 1}`}
+                alt={buildProductImageAlt(product, activeImageIdx + 1)}
+                loading="eager"
                 containerClassName="h-full w-full rounded-xl bg-[#F2FAFF]"
                 className="max-h-[220px]"
               />

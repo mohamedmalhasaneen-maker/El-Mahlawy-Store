@@ -54,8 +54,9 @@ export function Navbar({
       <div className="mx-auto flex h-full max-w-7xl items-center justify-between gap-3 md:gap-6 px-4 sm:px-6 lg:px-8">
         {/* Zone 1: Single-element Brand Wordmark */}
         <a
-          href="#top"
+          href="/"
           onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
             e.preventDefault();
             onSwitchView('store');
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -64,7 +65,9 @@ export function Navbar({
         >
           <img
             src="/logo.png"
-            alt={siteConfig.storeName}
+            alt={`شعار ${siteConfig.storeName} | Elmahlawy Store`}
+            width={36}
+            height={36}
             referrerPolicy="no-referrer"
             className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl object-contain shadow-xs shrink-0 bg-white p-0.5"
           />
@@ -88,8 +91,9 @@ export function Navbar({
           className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600 dark:text-slate-200"
         >
           <a
-            href="#top"
+            href="/"
             onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
               e.preventDefault();
               onSwitchView('store');
               window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -114,13 +118,17 @@ export function Navbar({
           >
             المنتجات
           </a>
-          <button
-            type="button"
-            onClick={() => onSwitchView('about')}
+          <a
+            href="/about"
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+              e.preventDefault();
+              onSwitchView('about');
+            }}
             className="hover:text-[#1D4ED8] dark:hover:text-[#38BDF8] transition-colors whitespace-nowrap shrink-0 py-1 border-b-2 border-transparent hover:border-[#38BDF8] cursor-pointer"
           >
             من نحن | About Us
-          </button>
+          </a>
           <a
             href="#footer-contact"
             onClick={(e) => {

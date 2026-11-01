@@ -9,6 +9,7 @@ interface ProductImageProps {
   containerClassName?: string;
   showPedestalHalo?: boolean;
   loading?: 'lazy' | 'eager';
+  fetchPriority?: 'high' | 'low' | 'auto';
 }
 
 export function ProductImage({
@@ -18,6 +19,7 @@ export function ProductImage({
   containerClassName = '',
   showPedestalHalo = false,
   loading = 'lazy',
+  fetchPriority,
 }: ProductImageProps) {
   const [hasError, setHasError] = useState(false);
   const resolvedSrc = normalizeImageSrc(src);
@@ -45,6 +47,7 @@ export function ProductImage({
           alt={alt}
           referrerPolicy="no-referrer"
           loading={loading}
+          fetchPriority={fetchPriority}
           decoding="async"
           draggable={false}
           onError={() => setHasError(true)}
