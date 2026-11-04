@@ -129,18 +129,7 @@ export interface SiteConfig {
   showAboutBanner: boolean;
   showRatingsSection: boolean;
 
-  // 7. Hero Banner Customization Settings
-  heroBgType: 'color' | 'gradient' | 'image';
-  heroBgColor: string;
-  heroBgColor2: string;
-  heroBgGradientDirection: string;
-  heroBgImage: string;
-  heroBgFit: 'cover' | 'contain';
-  heroBgPosition: 'center' | 'top' | 'bottom' | 'left' | 'right';
-  heroOverlayColor: string;
-  heroOverlayOpacity: number;
-
-  // 8. Audit Metadata
+  // 7. Audit Metadata
   updatedBy: string;
   updatedAt: string;
 }
@@ -346,16 +335,6 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   showPartnerCard: true,
   showAboutBanner: true,
   showRatingsSection: true,
-
-  heroBgType: 'gradient',
-  heroBgColor: '#0B2354',
-  heroBgColor2: '#0EA5E9',
-  heroBgGradientDirection: 'to-bl',
-  heroBgImage: '',
-  heroBgFit: 'cover',
-  heroBgPosition: 'center',
-  heroOverlayColor: '#000000',
-  heroOverlayOpacity: 0.2,
 
   updatedBy: 'system',
   updatedAt: new Date(0).toISOString(),
@@ -940,37 +919,6 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     showAboutBanner: merged.showAboutBanner !== false,
     showRatingsSection: merged.showRatingsSection !== false,
 
-    heroBgType:
-      merged.heroBgType && ['color', 'gradient', 'image'].includes(merged.heroBgType)
-        ? merged.heroBgType
-        : 'gradient',
-    heroBgColor: cleanStr(merged.heroBgColor, DEFAULT_SITE_CONFIG.heroBgColor, 30, 3),
-    heroBgColor2: cleanStr(merged.heroBgColor2, DEFAULT_SITE_CONFIG.heroBgColor2, 30, 3),
-    heroBgGradientDirection: cleanStr(
-      merged.heroBgGradientDirection,
-      DEFAULT_SITE_CONFIG.heroBgGradientDirection,
-      40,
-      2
-    ),
-    heroBgImage: isValidOptionalHttpUrl(cleanStr(merged.heroBgImage, '', 600, 0))
-      ? cleanStr(merged.heroBgImage, '', 600, 0)
-      : '',
-    heroBgFit: merged.heroBgFit === 'contain' ? 'contain' : 'cover',
-    heroBgPosition: [
-      'center',
-      'top',
-      'bottom',
-      'left',
-      'right',
-    ].includes(merged.heroBgPosition as string)
-      ? (merged.heroBgPosition as any)
-      : 'center',
-    heroOverlayColor: cleanStr(merged.heroOverlayColor, DEFAULT_SITE_CONFIG.heroOverlayColor, 30, 3),
-    heroOverlayOpacity:
-      typeof merged.heroOverlayOpacity === 'number' && Number.isFinite(merged.heroOverlayOpacity)
-        ? Math.min(1, Math.max(0, merged.heroOverlayOpacity))
-        : 0.2,
-
     updatedBy: safeUpdatedBy,
     updatedAt: typeof merged.updatedAt === 'string' ? merged.updatedAt : new Date().toISOString(),
   };
@@ -1186,15 +1134,6 @@ export function buildFirestoreSiteConfigPayload(
     showPartnerCard: Boolean(clean.showPartnerCard),
     showAboutBanner: Boolean(clean.showAboutBanner),
     showRatingsSection: Boolean(clean.showRatingsSection),
-    heroBgType: clean.heroBgType,
-    heroBgColor: clean.heroBgColor,
-    heroBgColor2: clean.heroBgColor2,
-    heroBgGradientDirection: clean.heroBgGradientDirection,
-    heroBgImage: clean.heroBgImage,
-    heroBgFit: clean.heroBgFit,
-    heroBgPosition: clean.heroBgPosition,
-    heroOverlayColor: clean.heroOverlayColor,
-    heroOverlayOpacity: clean.heroOverlayOpacity,
     updatedBy: clean.updatedBy,
     updatedAt: updatedAtValue,
   };

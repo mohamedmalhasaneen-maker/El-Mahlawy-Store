@@ -32,27 +32,6 @@ export function HeroSection({
 }: HeroSectionProps) {
   const siteConfig = useSiteConfig();
 
-  const getBannerStyle = (): React.CSSProperties => {
-    if (siteConfig.heroBgType === 'image' && siteConfig.heroBgImage) {
-      return {
-        backgroundImage: `url(${siteConfig.heroBgImage})`,
-        backgroundSize: siteConfig.heroBgFit || 'cover',
-        backgroundPosition: siteConfig.heroBgPosition || 'center',
-      };
-    }
-    if (siteConfig.heroBgType === 'color') {
-      return {
-        backgroundColor: siteConfig.heroBgColor || '#0B2354',
-      };
-    }
-    const c1 = siteConfig.heroBgColor || '#0B2354';
-    const c2 = siteConfig.heroBgColor2 || '#0EA5E9';
-    const dir = siteConfig.heroBgGradientDirection || 'to-bl';
-    return {
-      backgroundImage: `linear-gradient(${dir}, ${c1}, ${c2})`,
-    };
-  };
-
   const scrollToProducts = () => {
     document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -78,43 +57,29 @@ export function HeroSection({
         </div>
       )}
 
-      {/* Main Welcome Banner */}
-      <div className="relative overflow-hidden text-white" style={getBannerStyle()}>
-        {/* Custom Overlay Layer */}
-        <div
-          className="absolute inset-0 pointer-events-none z-0"
-          style={{
-            backgroundColor: siteConfig.heroOverlayColor || '#000000',
-            opacity:
-              typeof siteConfig.heroOverlayOpacity === 'number'
-                ? siteConfig.heroOverlayOpacity
-                : 0.2,
-          }}
-        />
-
-        {/* Subtle Water-Inspired Geometric Contours (shown for gradient/color modes) */}
-        {siteConfig.heroBgType !== 'image' && (
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 1440 560"
-            fill="none"
-            preserveAspectRatio="none"
-            className="pointer-events-none absolute inset-0 h-full w-full opacity-20 z-0"
-          >
-            <circle cx="180" cy="90" r="240" stroke="#BAE6FD" strokeWidth="1.5" />
-            <circle cx="180" cy="90" r="340" stroke="#7DD3FC" strokeWidth="1" />
-            <path
-              d="M-100 430 C 320 310, 680 540, 1120 390 C 1300 330, 1420 380, 1540 350"
-              stroke="#E0F2FE"
-              strokeWidth="1.5"
-            />
-            <path
-              d="M-100 490 C 360 370, 740 580, 1180 440 C 1340 390, 1440 420, 1540 400"
-              stroke="#7DD3FC"
-              strokeWidth="1.2"
-            />
-          </svg>
-        )}
+      {/* Main Royal-Blue to Sky-Blue Welcome Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-bl from-[#0B2354] via-[#164BB0] to-[#0EA5E9] text-white">
+        {/* Subtle Water-Inspired Geometric Contours */}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 1440 560"
+          fill="none"
+          preserveAspectRatio="none"
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-20"
+        >
+          <circle cx="180" cy="90" r="240" stroke="#BAE6FD" strokeWidth="1.5" />
+          <circle cx="180" cy="90" r="340" stroke="#7DD3FC" strokeWidth="1" />
+          <path
+            d="M-100 430 C 320 310, 680 540, 1120 390 C 1300 330, 1420 380, 1540 350"
+            stroke="#E0F2FE"
+            strokeWidth="1.5"
+          />
+          <path
+            d="M-100 490 C 360 370, 740 580, 1180 440 C 1340 390, 1440 420, 1540 400"
+            stroke="#7DD3FC"
+            strokeWidth="1.2"
+          />
+        </svg>
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-16">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">

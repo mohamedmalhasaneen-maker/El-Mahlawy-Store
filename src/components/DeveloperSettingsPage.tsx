@@ -75,7 +75,6 @@ import { ProductImage } from './ProductImage';
 import { AccountSettingsSection } from './developer/AccountSettingsSection';
 import { BranchesMapsSection } from './developer/BranchesMapsSection';
 import { EssentialProductsSection } from './developer/EssentialProductsSection';
-import { HeroBannerSettingsSection } from './developer/HeroBannerSettingsSection';
 import { ContentSectionsSettings } from './developer/ContentSectionsSettings';
 import { DeveloperSectionId, OverviewSection } from './developer/OverviewSection';
 import { PhonesWhatsAppSection } from './developer/PhonesWhatsAppSection';
@@ -1381,12 +1380,6 @@ export function DeveloperSettingsPage({
       label: 'تقييمات وآراء الزوار',
       subtitle: 'تحليلات ونسبة التوصية',
       Icon: HeartHandshake,
-    },
-    {
-      id: 'hero_banner',
-      label: 'إعدادات البانر الرئيسي',
-      subtitle: 'الخلفية، الألوان، الصورة والتغشية',
-      Icon: ImagePlus,
     },
     {
       id: 'account',
@@ -3292,17 +3285,6 @@ export function DeveloperSettingsPage({
           {/* ================================================================ */}
           {activeTab === 'sections' && (
             <ContentSectionsSettings
-              configDraft={configDraft}
-              isSiteConfigDirty={isSiteConfigDirty}
-              savingSiteConfig={savingSiteConfig}
-              onUpdateField={updateConfigField}
-              onSaveSubmit={handleSaveConfigSubmit}
-              onCancelChanges={handleCancelConfigChanges}
-            />
-          )}
-
-          {activeTab === 'hero_banner' && (
-            <HeroBannerSettingsSection
               configDraft={configDraft}
               isSiteConfigDirty={isSiteConfigDirty}
               savingSiteConfig={savingSiteConfig}
