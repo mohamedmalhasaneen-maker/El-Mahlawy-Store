@@ -1382,6 +1382,12 @@ export function DeveloperSettingsPage({
       Icon: HeartHandshake,
     },
     {
+      id: 'hero_banner',
+      label: 'إعدادات البانر الرئيسي',
+      subtitle: 'الخلفية، الألوان، الصورة والتغشية',
+      Icon: ImagePlus,
+    },
+    {
       id: 'account',
       label: 'الحساب والجلسة',
       subtitle: 'هوية المطور وتسجيل الخروج',

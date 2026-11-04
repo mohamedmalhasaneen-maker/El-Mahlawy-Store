@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   BarChart3,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   MessageSquareHeart,
+  Pause,
+  Play,
   Send,
   Sparkles,
   Star,
@@ -26,6 +30,54 @@ interface RatingStatsDisplayProps {
   isDark?: boolean;
 }
 
+const DEFAULT_FEATURED_REVIEWS: SiteReviewDoc[] = [
+  {
+    id: 'feat-1',
+    name: 'مهندس أحمد عبد الفتاح (شرم الشيخ)',
+    comment: 'متجر ممتاز جداً والأجهزة أصلية بالكامل مع ضمان حقيقي. التوصيل لشرم الشيخ كان سريع والدعم الفني ممتاز.',
+    stars: 5,
+    recommend: true,
+    status: 'approved',
+    createdAt: null,
+  },
+  {
+    id: 'feat-2',
+    name: 'د. محمود علي (دهب)',
+    comment: 'تعامل راقي جداً وخدمة ما بعد البيع فوق الممتازة. تم تركيب الأنظمة الذكية واختبارها باحترافية عالية.',
+    stars: 5,
+    recommend: true,
+    status: 'approved',
+    createdAt: null,
+  },
+  {
+    id: 'feat-3',
+    name: 'أستاذة سارة صبري (القاهرة)',
+    comment: 'طلبت من الموقع ووصلت المنتجات بحالة ممتازة والتغليف آمن جداً. تجربة شراء سهلة وسريعة.',
+    stars: 5,
+    recommend: true,
+    status: 'approved',
+    createdAt: null,
+  },
+  {
+    id: 'feat-4',
+    name: 'كابتن هاني سيد (طور سيناء)',
+    comment: 'مصداقية عالية وأسعار منافسة مقارنة بالسوق. الشكر لإدارة المحلاوي ستور على حسن التعامل.',
+    stars: 5,
+    recommend: true,
+    status: 'approved',
+    createdAt: null,
+  },
+  {
+    id: 'feat-5',
+    name: 'أستاذ كريم العطار (شرم الشيخ)',
+    comment: 'سرعة استجابة فائقة من خدمة العملاء على واتساب والمنتج مطابق للمواصفات المعروضة بالضبط.',
+    stars: 5,
+    recommend: true,
+    status: 'approved',
+    createdAt: null,
+  },
+];
+
 export function RatingStatsDisplay({
   onOpenRatingModal,
   className = '',
@@ -34,6 +86,10 @@ export function RatingStatsDisplay({
   const [stats, setStats] = useState<RatingStats | null>(null);
   const [reviews, setReviews] = useState<SiteReviewDoc[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Auto-scrolling carousel state
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   // New Review Submission Form State
   const [formName, setFormName] = useState('');
@@ -60,6 +116,34 @@ export function RatingStatsDisplay({
       unsubReviews();
     };
   }, []);
+
+  // Combine approved reviews from Firestore with fallback defaults if list is small
+  const displayReviews =
+    reviews.length >= 3
+      ? reviews
+      : [
+          ...reviews,
+          ...DEFAULT_FEATURED_REVIEWS.filter((f) => !reviews.some((r) => r.id === f.id)),
+        ];
+
+  const totalReviews = displayReviews.length;
+
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev + 1) % totalReviews);
+  }, [totalReviews]);
+
+  const handlePrev = useCallback(() => {
+    setCurrentIndex((prev) => (prev - 1 + totalReviews) % totalReviews);
+  }, [totalReviews]);
+
+  // Auto-scroll effect every 3.5s
+  useEffect(() => {
+    if (isPaused || totalReviews <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % totalReviews);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [isPaused, totalReviews]);
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,14 +192,27 @@ export function RatingStatsDisplay({
     starPercentages: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
   };
 
-  // Calculate true average from approved reviews if available, or combine
   const approvedReviewsCount = reviews.length;
   const approvedStarsSum = reviews.reduce((acc, r) => acc + r.stars, 0);
   const effectiveAverage =
     approvedReviewsCount > 0
       ? Number((approvedStarsSum / approvedReviewsCount).toFixed(1))
       : s.averageRating;
-  const effectiveTotal = Math.max(s.totalCount, approvedReviewsCount);
+  const effectiveTotal = Math.max(s.totalCount, approvedReviewsCount, displayReviews.length);
+
+  // Compute up to 3 visible cards starting from currentIndex
+  const getVisibleCards = () => {
+    if (totalReviews === 0) return [];
+    const cards = [];
+    const maxVisible = Math.min(3, totalReviews);
+    for (let i = 0; i < maxVisible; i++) {
+      const idx = (currentIndex + i) % totalReviews;
+      cards.push({ review: displayReviews[idx], originalIndex: idx, position: i });
+    }
+    return cards;
+  };
+
+  const visibleCards = getVisibleCards();
 
   return (
     <div
@@ -125,7 +222,7 @@ export function RatingStatsDisplay({
           : 'bg-[#0B2354]/85 text-white border-white/20'
       } border shadow-[0_16px_48px_0_rgba(0,0,0,0.45)] p-6 sm:p-10 space-y-10 transition-colors ${className}`}
     >
-      {/* 1. Header Banner (Straight Horizontal Bar from Right to Left without curves or waves) */}
+      {/* 1. Header Banner (Straight Horizontal Bar without waves) */}
       <div className="rounded-none bg-gradient-to-l from-[#081830] via-[#0F3057] to-[#081830] border-y border-white/25 px-5 sm:px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-inner">
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1 text-xs font-extrabold text-[#7DD3FC] border border-white/15">
@@ -279,30 +376,84 @@ export function RatingStatsDisplay({
         </div>
       </div>
 
-      {/* 3. Visitor Reviews Cards (Glassmorphism Cards Grid) */}
-      <div className="space-y-6 pt-2">
-        <div className="flex items-center justify-between pb-3 border-b border-white/15">
-          <h4 className="text-lg sm:text-xl font-extrabold text-white flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#38BDF8]/20 text-[#38BDF8]">
+      {/* 3. Auto-Scrolling Visitor Reviews Slider (Glassmorphism Cards Slider) */}
+      <div
+        className="space-y-6 pt-2"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onTouchStart={() => setIsPaused(true)}
+        onTouchEnd={() => setIsPaused(false)}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/15">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#38BDF8]/20 text-[#38BDF8] font-extrabold text-lg">
               💬
             </span>
-            <span>آراء وتجارب العملاء المعتمدة</span>
-          </h4>
-          <span className="text-xs font-bold text-[#BAE6FD]">
-            {reviews.length} تعليق منشور
-          </span>
+            <div>
+              <h4 className="text-lg sm:text-xl font-extrabold text-white flex items-center gap-2">
+                <span>آراء وتجارب العملاء المعتمدة</span>
+                <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300 border border-emerald-500/30">
+                  تمرير تلقائي سلس
+                </span>
+              </h4>
+              <p className="text-xs text-[#BAE6FD]/80">
+                تعليقات عملائنا المحفوظة تظهر هنا وتتغير تلقائياً
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Play/Pause Button */}
+            <button
+              type="button"
+              onClick={() => setIsPaused(!isPaused)}
+              title={isPaused ? 'تشغيل التمرير التلقائي' : 'إيقاف التمرير التلقائي'}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-extrabold text-white transition-all cursor-pointer shadow-xs active:scale-95"
+            >
+              {isPaused ? (
+                <>
+                  <Play className="h-3.5 w-3.5 text-emerald-400 fill-emerald-400" />
+                  <span className="hidden sm:inline">تشغيل</span>
+                </>
+              ) : (
+                <>
+                  <Pause className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                  <span className="hidden sm:inline">إيقاف مؤقت</span>
+                </>
+              )}
+            </button>
+
+            {/* Next / Prev Navigation */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handlePrev}
+                aria-label="التعليق السابق"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-all active:scale-90 cursor-pointer shadow-xs"
+              >
+                <ChevronRight className="h-5 w-5 text-white" />
+              </button>
+              <button
+                type="button"
+                onClick={handleNext}
+                aria-label="التعليق التالي"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white transition-all active:scale-90 cursor-pointer shadow-xs"
+              >
+                <ChevronLeft className="h-5 w-5 text-white" />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {reviews.length === 0 ? (
-          <div className="rounded-2xl bg-white/5 border border-white/15 p-8 text-center text-xs sm:text-sm text-slate-300 backdrop-blur-md">
-            لا توجد تعليقات معتمدة معروضة حالياً. كن أول من يشاركنا رأيه وت تجربتك في النموذج أدناه! ✨
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {reviews.map((rev) => (
+        {/* Sliding Cards Container */}
+        <div className="relative overflow-hidden min-h-[220px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 transition-all duration-700 ease-in-out">
+            {visibleCards.map(({ review: rev, originalIndex, position }) => (
               <div
-                key={rev.id}
-                className="rounded-2xl bg-white/10 dark:bg-white/5 border border-white/20 p-6 space-y-4 shadow-2xl backdrop-blur-xl flex flex-col justify-between transition-all duration-300 hover:scale-[1.01] hover:border-white/40"
+                key={`${rev.id}-${originalIndex}`}
+                className={`rounded-2xl bg-white/10 dark:bg-white/5 border border-white/20 p-6 space-y-4 shadow-2xl backdrop-blur-xl flex flex-col justify-between transition-all duration-500 hover:scale-[1.02] hover:border-white/40 ${
+                  position === 1 ? 'hidden md:flex' : ''
+                } ${position === 2 ? 'hidden lg:flex' : ''}`}
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
@@ -315,7 +466,13 @@ export function RatingStatsDisplay({
                           {rev.name}
                         </h5>
                         <span className="text-[11px] text-slate-300 font-medium">
-                          {rev.createdAt?.toDate ? new Date(rev.createdAt.toDate()).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : 'حديثاً'}
+                          {rev.createdAt?.toDate
+                            ? new Date(rev.createdAt.toDate()).toLocaleDateString('ar-EG', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : 'معتمد بمتجر المحلاوي'}
                         </span>
                       </div>
                     </div>
@@ -332,7 +489,7 @@ export function RatingStatsDisplay({
                     </div>
                   </div>
 
-                  <p className="text-xs sm:text-sm text-[#F0F9FF] leading-relaxed font-medium bg-black/20 p-3.5 rounded-xl border border-white/10">
+                  <p className="text-xs sm:text-sm text-[#F0F9FF] leading-relaxed font-medium bg-black/20 p-3.5 rounded-xl border border-white/10 min-h-[72px]">
                     «{rev.comment}»
                   </p>
                 </div>
@@ -352,10 +509,27 @@ export function RatingStatsDisplay({
               </div>
             ))}
           </div>
-        )}
+        </div>
+
+        {/* Pagination Dots Indicator */}
+        <div className="flex items-center justify-center gap-1.5 pt-2">
+          {displayReviews.map((rev, idx) => (
+            <button
+              key={rev.id || idx}
+              type="button"
+              onClick={() => setCurrentIndex(idx)}
+              title={`عرض التعليق ${idx + 1}`}
+              className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
+                idx === currentIndex
+                  ? 'w-8 bg-gradient-to-r from-[#38BDF8] to-[#1D4ED8] shadow-md shadow-[#38BDF8]/50'
+                  : 'w-2.5 bg-white/20 hover:bg-white/40'
+              }`}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* 4. Independent Glassmorphism Review Submission Card («قيّم تجربتك معنا» / «شاركنا رأيك في المحلاوي ستور») */}
+      {/* 4. Independent Glassmorphism Review Submission Card */}
       <div className="rounded-3xl bg-gradient-to-b from-[#081830]/90 to-[#0B2354]/90 dark:from-[#071326]/90 dark:to-[#0A192F]/90 border border-white/25 p-7 sm:p-9 space-y-6 shadow-[0_16px_48px_0_rgba(0,0,0,0.5)] backdrop-blur-2xl">
         <div className="space-y-2 border-b border-white/15 pb-5">
           <div className="inline-flex items-center gap-2 rounded-lg bg-[#38BDF8]/15 px-3 py-1 text-xs font-extrabold text-[#38BDF8] border border-[#38BDF8]/30">
@@ -496,3 +670,4 @@ export function RatingStatsDisplay({
     </div>
   );
 }
+

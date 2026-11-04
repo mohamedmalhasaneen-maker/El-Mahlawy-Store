@@ -340,6 +340,52 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "totalCount", "totalStars", "star1", "star2", "star3", "star4", "star5", "recommendYes", "recommendNo"]
+    },
+    "SiteReview": {
+      "title": "SiteReview",
+      "description": "Visitor comment and rating review document requiring developer moderation before public display.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique review identifier matching document ID."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120,
+          "description": "Visitor display name or pseudonym."
+        },
+        "comment": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 2000,
+          "description": "Visitor written feedback and review comment."
+        },
+        "stars": {
+          "type": "number",
+          "description": "Star rating choice from 1 to 5."
+        },
+        "recommend": {
+          "type": "boolean",
+          "description": "Whether visitor recommends the store."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "maxLength": 20,
+          "description": "Moderation status (strictly pending on creation)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        }
+      },
+      "required": ["id", "name", "comment", "stars", "recommend", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -370,6 +416,10 @@
     "/ratings/{ratingId}": {
       "schema": "Rating",
       "description": "Individual visitor ratings indexed by unique browser ID."
+    },
+    "/site_reviews/{reviewId}": {
+      "schema": "SiteReview",
+      "description": "Public visitor reviews requiring developer moderation before public storefront display."
     }
   }
 }

@@ -363,6 +363,7 @@ test('firestore.rules structural guards match security_spec invariants and cover
   assert.ok(rulesSource.includes('match /admins/{adminUid}'));
   assert.ok(rulesSource.includes('match /test/{probeId}'));
   assert.ok(rulesSource.includes('match /meta/{statId}'));
+  assert.ok(rulesSource.includes('match /site_reviews/{reviewId}'));
   assert.ok(rulesSource.includes('allow create: if false;'));
 });
 
@@ -918,3 +919,127 @@ test('Featured products security rules and all 6 storefront behavior scenarios w
   );
   assert.ok(categoryResults.some((p) => p.id === 'prod-new'));
 });
+
+function isValidSiteReviewRuleSimulator(data: Record<string, unknown>): boolean {
+  const keys = Object.keys(data);
+  const required = ['id', 'name', 'comment', 'stars', 'recommend', 'status', 'createdAt'];
+  if (!required.every((k) => keys.includes(k))) return false;
+  if (!keys.every((k) => required.includes(k))) return false;
+
+  if (!isValidId(data.id)) return false;
+  if (typeof data.name !== 'string' || data.name.length < 2 || data.name.length > 120) return false;
+  if (typeof data.comment !== 'string' || data.comment.length < 3 || data.comment.length > 2000) return false;
+  if (typeof data.stars !== 'number' || data.stars < 1 || data.stars > 5) return false;
+  if (typeof data.recommend !== 'boolean') return false;
+  if (typeof data.status !== 'string' || !['pending', 'approved', 'rejected'].includes(data.status)) return false;
+  if (typeof data.createdAt !== 'string') return false;
+
+  return true;
+}
+
+function evaluateSiteReviewCreate(
+  reviewId: string,
+  incoming: Record<string, unknown>
+): 'ALLOWED' | 'PERMISSION_DENIED' {
+  if (!isValidId(reviewId)) return 'PERMISSION_DENIED';
+  if (!isValidSiteReviewRuleSimulator(incoming)) return 'PERMISSION_DENIED';
+  if (incoming.id !== reviewId) return 'PERMISSION_DENIED';
+  if (incoming.status !== 'pending') return 'PERMISSION_DENIED';
+  if (incoming.createdAt !== REQUEST_TIME) return 'PERMISSION_DENIED';
+  return 'ALLOWED';
+}
+
+function evaluateSiteReviewUpdate(
+  reviewId: string,
+  existing: Record<string, unknown>,
+  incoming: Record<string, unknown>,
+  auth: AuthContext | null
+): 'ALLOWED' | 'PERMISSION_DENIED' {
+  if (!isValidId(reviewId)) return 'PERMISSION_DENIED';
+  if (!isValidSiteReviewRuleSimulator(incoming)) return 'PERMISSION_DENIED';
+  if (incoming.id !== reviewId) return 'PERMISSION_DENIED';
+  if (incoming.id !== existing.id) return 'PERMISSION_DENIED';
+  if (incoming.createdAt !== existing.createdAt) return 'PERMISSION_DENIED';
+  if (!isAuthorizedDeveloper(auth)) return 'PERMISSION_DENIED';
+  return 'ALLOWED';
+}
+
+function evaluateSiteReviewGet(
+  reviewId: string,
+  existing: Record<string, unknown>,
+  auth: AuthContext | null
+): 'ALLOWED' | 'PERMISSION_DENIED' {
+  if (!isValidId(reviewId)) return 'PERMISSION_DENIED';
+  if (existing.status === 'approved' || isAuthorizedDeveloper(auth)) return 'ALLOWED';
+  return 'PERMISSION_DENIED';
+}
+
+test('site_reviews security rules satisfy all 7 requirement scenarios', () => {
+  const validPendingReview = {
+    id: 'rev-101',
+    name: 'عميل من شرم الشيخ',
+    comment: 'خدمة ممتازة وسريعة جداً أنصح بالتعامل معهم',
+    stars: 5,
+    recommend: true,
+    status: 'pending',
+    createdAt: REQUEST_TIME,
+  };
+
+  // Scenario 1: Unregistered visitor sends a valid review with status 'pending' -> ALLOWED
+  assert.equal(evaluateSiteReviewCreate('rev-101', validPendingReview), 'ALLOWED');
+
+  // Scenario 2: Empty comment or short name (<2 chars) -> REJECTED
+  assert.equal(
+    evaluateSiteReviewCreate('rev-101', { ...validPendingReview, comment: '' }),
+    'PERMISSION_DENIED'
+  );
+  assert.equal(
+    evaluateSiteReviewCreate('rev-101', { ...validPendingReview, name: 'أ' }),
+    'PERMISSION_DENIED'
+  );
+
+  // Scenario 3: Rating < 1 or > 5 -> REJECTED
+  assert.equal(
+    evaluateSiteReviewCreate('rev-101', { ...validPendingReview, stars: 0 }),
+    'PERMISSION_DENIED'
+  );
+  assert.equal(
+    evaluateSiteReviewCreate('rev-101', { ...validPendingReview, stars: 6 }),
+    'PERMISSION_DENIED'
+  );
+
+  // Scenario 4: Visitor tries to send review with status 'approved' -> REJECTED
+  assert.equal(
+    evaluateSiteReviewCreate('rev-101', { ...validPendingReview, status: 'approved' }),
+    'PERMISSION_DENIED'
+  );
+
+  // Scenario 5: Visitor tries to update a previous review -> REJECTED
+  assert.equal(
+    evaluateSiteReviewUpdate(
+      'rev-101',
+      validPendingReview,
+      { ...validPendingReview, comment: 'تعديل التعليق' },
+      null // unauthenticated visitor
+    ),
+    'PERMISSION_DENIED'
+  );
+
+  // Scenario 6: Developer approves review (status = 'approved') -> ALLOWED for developer, then visible to public
+  const approvedReview = { ...validPendingReview, status: 'approved' };
+  assert.equal(
+    evaluateSiteReviewUpdate('rev-101', validPendingReview, approvedReview, authorizedDeveloperUidAuth),
+    'ALLOWED'
+  );
+  assert.equal(evaluateSiteReviewGet('rev-101', approvedReview, null), 'ALLOWED');
+
+  // Scenario 7: Developer rejects review (status = 'rejected') -> ALLOWED for developer, hidden from public
+  const rejectedReview = { ...validPendingReview, status: 'rejected' };
+  assert.equal(
+    evaluateSiteReviewUpdate('rev-101', validPendingReview, rejectedReview, authorizedDeveloperUidAuth),
+    'ALLOWED'
+  );
+  assert.equal(evaluateSiteReviewGet('rev-101', rejectedReview, null), 'PERMISSION_DENIED');
+  assert.equal(evaluateSiteReviewGet('rev-101', rejectedReview, authorizedDeveloperUidAuth), 'ALLOWED');
+});
+

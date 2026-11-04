@@ -5,6 +5,7 @@ import {
   FileText,
   Globe,
   HeartHandshake,
+  ImagePlus,
   MapPin,
   Package,
   Percent,
@@ -39,6 +40,7 @@ export type DeveloperSectionId =
   | 'essential-products'
   | 'sections'
   | 'ratings'
+  | 'hero_banner'
   | 'account';
 
 interface OverviewSectionProps {
@@ -146,6 +148,12 @@ export function OverviewSection({
       description: 'عرض تحليلات وتقييمات زوار المتجر، ونسبة التوصيات، والتحكم بإظهار أو إخفاء التقييمات.',
       Icon: HeartHandshake,
       onClick: () => onNavigateSection('ratings'),
+    },
+    {
+      title: 'إعدادات البانر الرئيسي',
+      description: 'تخصيص خلفية البانر الرئيسي (لون ثابت، تدرج لوني، أو صورة من Cloudinary مع ضبط الاحتواء والموضع والتغشية).',
+      Icon: ImagePlus,
+      onClick: () => onNavigateSection('hero_banner'),
     },
   ];
 

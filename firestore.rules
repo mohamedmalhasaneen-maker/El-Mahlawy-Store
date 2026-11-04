@@ -377,6 +377,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    function isValidSiteReview(data) {
+      return data.keys().hasAll(['id', 'name', 'comment', 'stars', 'recommend', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'name', 'comment', 'stars', 'recommend', 'status', 'createdAt']) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 120 &&
+        data.comment is string && data.comment.size() >= 3 && data.comment.size() <= 2000 &&
+        (data.stars is int || data.stars is float) && data.stars >= 1 && data.stars <= 5 &&
+        data.recommend is bool &&
+        data.status is string && data.status in ['pending', 'approved', 'rejected'] &&
+        data.createdAt is timestamp;
+    }
+
     // Individual Visitor Ratings Indexed By Unique Browser ID (/ratings/{ratingId})
     match /ratings/{ratingId} {
       allow get: if isValidId(ratingId);
@@ -391,6 +403,27 @@ service cloud.firestore {
         incoming().createdAt == request.time;
       allow update: if false;
       allow delete: if isAdmin();
+    }
+
+    // Public & Moderated Site Reviews Collection (/site_reviews/{reviewId})
+    match /site_reviews/{reviewId} {
+      allow get: if isValidId(reviewId) && (existing().status == 'approved' || isAdmin());
+      allow list: if existing().status == 'approved' || isAdmin();
+
+      allow create: if isValidId(reviewId) &&
+        isValidSiteReview(incoming()) &&
+        incoming().id == reviewId &&
+        incoming().status == 'pending' &&
+        incoming().createdAt == request.time;
+
+      allow update: if isValidId(reviewId) &&
+        isValidSiteReview(incoming()) &&
+        incoming().id == reviewId &&
+        (!('id' in existing()) || incoming().id == existing().id) &&
+        (!('createdAt' in existing()) || !(existing().createdAt is timestamp) || incoming().createdAt == existing().createdAt) &&
+        isAdmin();
+
+      allow delete: if isValidId(reviewId) && isAdmin();
     }
   }
 }
