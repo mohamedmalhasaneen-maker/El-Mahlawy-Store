@@ -1,23 +1,30 @@
 import { useEffect, useState } from 'react';
 import {
   BarChart3,
+  Check,
   CheckCircle2,
+  Clock,
   Eye,
   EyeOff,
   HeartHandshake,
   Loader2,
   MessageSquareHeart,
-  Save,
   Star,
   ThumbsDown,
   ThumbsUp,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { SiteConfig } from '../../utils/siteConfig';
 import {
   RatingDoc,
   RatingStats,
+  SiteReviewDoc,
+  deleteSiteReview,
   subscribeToAllRatings,
+  subscribeToAllSiteReviews,
   subscribeToRatingStats,
+  updateReviewStatus,
 } from '../../utils/ratingSystem';
 
 interface RatingsSectionProps {
@@ -31,14 +38,17 @@ export function RatingsSection({
 }: RatingsSectionProps) {
   const [stats, setStats] = useState<RatingStats | null>(null);
   const [ratingsList, setRatingsList] = useState<RatingDoc[]>([]);
+  const [siteReviews, setSiteReviews] = useState<SiteReviewDoc[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingList, setLoadingList] = useState(true);
+  const [loadingReviews, setLoadingReviews] = useState(true);
 
   const [showRatingsSection, setShowRatingsSection] = useState<boolean>(
     siteConfig.showRatingsSection !== false
   );
   const [savingConfig, setSavingConfig] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setShowRatingsSection(siteConfig.showRatingsSection !== false);
@@ -55,9 +65,15 @@ export function RatingsSection({
       setLoadingList(false);
     });
 
+    const unsubReviews = subscribeToAllSiteReviews((list) => {
+      setSiteReviews(list);
+      setLoadingReviews(false);
+    });
+
     return () => {
       unsubStats();
       unsubList();
+      unsubReviews();
     };
   }, []);
 
@@ -79,6 +95,40 @@ export function RatingsSection({
     }
   };
 
+  const handleApprove = async (id: string) => {
+    try {
+      setActionMessage(null);
+      await updateReviewStatus(id, 'approved');
+      setActionMessage('تمت الموافقة على التعليق وعرضه بنجاح.');
+      setTimeout(() => setActionMessage(null), 3000);
+    } catch (err) {
+      setActionMessage('تعذر تحديث حالة التعليق.');
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    try {
+      setActionMessage(null);
+      await updateReviewStatus(id, 'rejected');
+      setActionMessage('تم رفض التعليق.');
+      setTimeout(() => setActionMessage(null), 3000);
+    } catch (err) {
+      setActionMessage('تعذر تحديث حالة التعليق.');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا التعليق نهائياً؟')) return;
+    try {
+      setActionMessage(null);
+      await deleteSiteReview(id);
+      setActionMessage('تم حذف التعليق بنجاح.');
+      setTimeout(() => setActionMessage(null), 3000);
+    } catch (err) {
+      setActionMessage('تعذر حذف التعليق.');
+    }
+  };
+
   const s = stats || {
     totalCount: 0,
     totalStars: 0,
@@ -91,6 +141,11 @@ export function RatingsSection({
     starPercentages: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
   };
 
+  // Calculate true average from approved reviews only
+  const approvedReviews = siteReviews.filter((r) => r.status === 'approved');
+  const approvedStarsSum = approvedReviews.reduce((sum, r) => sum + r.stars, 0);
+  const trueApprovedAverage = approvedReviews.length > 0 ? (approvedStarsSum / approvedReviews.length).toFixed(1) : s.averageRating.toFixed(1);
+
   return (
     <div className="space-y-6 text-white">
       {/* Header & Section Toggle */}
@@ -98,13 +153,13 @@ export function RatingsSection({
         <div>
           <div className="inline-flex items-center gap-2 rounded-lg bg-[#0F4C5C]/20 border border-[#D4AF37] px-3 py-1 text-xs font-bold text-[#D4AF37] mb-1.5">
             <HeartHandshake className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden="true" />
-            <span>لوحة تحكم إحصائيات التقييمات</span>
+            <span>لوحة تحكم إحصائيات التقييمات والتعليقات</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-white">
-            إدارة تقييمات وآراء زوار الموقع
+            إدارة تعليقات وتقييمات زوار الموقع
           </h2>
           <p className="text-xs sm:text-sm text-gray-400 mt-1">
-            إحصائيات حقيقية وتحليلات تفصيلية مستندة إلى التقييمات الموثقة عبر معرّف المتصفح الفريد.
+            مراجعة التعليقات الجديدة، الموافقة عليها، أو رفضها لضمان جودة المحتوى المعروض للزوار.
           </p>
         </div>
 
@@ -141,44 +196,40 @@ export function RatingsSection({
         </div>
       </div>
 
+      {actionMessage && (
+        <div className="rounded-xl bg-[#0F4C5C]/30 border border-[#D4AF37]/50 p-3 text-xs font-bold text-[#D4AF37]">
+          {actionMessage}
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Ratings */}
         <div className="rounded-2xl bg-[#141414] border border-[#D4AF37]/25 p-5 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-gray-400">
-            <span>إجمالي التقييمات</span>
+            <span>إجمالي التقييمات السريعة</span>
             <MessageSquareHeart className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-white tabular-nums">
             {s.totalCount.toLocaleString('ar-EG')}
           </p>
           <p className="text-xs text-gray-400">
-            تقييمات فريدة عبر معرّف المتصفح (Browser ID).
+            تقييمات المتصفح الفريدة في النظام.
           </p>
         </div>
 
         {/* Average Rating */}
         <div className="rounded-2xl bg-[#141414] border border-[#D4AF37]/25 p-5 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-gray-400">
-            <span>متوسط النجوم</span>
+            <span>متوسط التقييم المعتمد</span>
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-[#D4AF37] tabular-nums">
-            {s.averageRating.toFixed(1)} / 5.0
+            {trueApprovedAverage} / 5.0
           </p>
-          <div className="flex items-center gap-1 text-amber-400 pt-0.5">
-            {[1, 2, 3, 4, 5].map((idx) => (
-              <Star
-                key={idx}
-                className={`h-3.5 w-3.5 ${
-                  idx <= Math.round(s.averageRating)
-                    ? 'fill-amber-400 text-amber-400'
-                    : 'text-gray-700'
-                }`}
-                aria-hidden="true"
-              />
-            ))}
-          </div>
+          <p className="text-xs text-gray-400">
+            {approvedReviews.length} تعليق معتمد للمتجر.
+          </p>
         </div>
 
         {/* Recommenders % */}
@@ -191,127 +242,136 @@ export function RatingsSection({
             {s.recommendYesPercent}%
           </p>
           <p className="text-xs text-gray-400 tabular-nums">
-            {s.recommendYes.toLocaleString('ar-EG')} شخص من إجمالي {s.totalCount.toLocaleString('ar-EG')}
+            {s.recommendYes.toLocaleString('ar-EG')} شخص
           </p>
         </div>
 
-        {/* Non-recommenders % */}
+        {/* Pending Reviews Count */}
         <div className="rounded-2xl bg-[#141414] border border-[#D4AF37]/25 p-5 space-y-1.5">
           <div className="flex items-center justify-between text-xs text-gray-400">
-            <span>لا يرشحون الموقع</span>
-            <ThumbsDown className="h-4 w-4 text-rose-400" aria-hidden="true" />
+            <span>تعليقات بانتظار المراجعة</span>
+            <Clock className="h-4 w-4 text-amber-400" aria-hidden="true" />
           </div>
-          <p className="text-2xl sm:text-3xl font-extrabold text-rose-400 tabular-nums">
-            {s.recommendNoPercent}%
+          <p className="text-2xl sm:text-3xl font-extrabold text-amber-400 tabular-nums">
+            {siteReviews.filter((r) => r.status === 'pending').length}
           </p>
-          <p className="text-xs text-gray-400 tabular-nums">
-            {s.recommendNo.toLocaleString('ar-EG')} شخص
+          <p className="text-xs text-gray-400">
+            تعليقات جديدة لم تُعتمد بعد.
           </p>
         </div>
       </div>
 
-      {/* Star Tier Distribution */}
-      <div className="rounded-2xl bg-[#141414] border border-[#D4AF37]/25 p-5 space-y-4">
-        <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-[#D4AF37]" aria-hidden="true" />
-          <span>توزيع تقييمات النجوم</span>
-        </h3>
-
-        <div className="space-y-2">
-          {[5, 4, 3, 2, 1].map((starNum) => {
-            const count = s.starCounts[starNum as 1 | 2 | 3 | 4 | 5] || 0;
-            const pct = s.starPercentages[starNum as 1 | 2 | 3 | 4 | 5] || 0;
-            return (
-              <div key={starNum} className="flex items-center gap-3 text-xs sm:text-sm">
-                <span className="font-num font-extrabold text-white w-14 shrink-0 flex items-center gap-1">
-                  <span>{starNum}</span>
-                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400 shrink-0" aria-hidden="true" />
-                </span>
-
-                <div className="flex-1 h-3 rounded-full bg-[#0B0B0B] border border-white/10 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#D4AF37] to-amber-300 rounded-full transition-all duration-500"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-
-                <span className="font-num text-xs font-bold text-gray-300 w-24 text-left shrink-0">
-                  {count.toLocaleString('ar-EG')} ({pct}%)
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Individual Ratings Feed */}
+      {/* Visitor Comments & Moderation Section */}
       <div className="rounded-2xl bg-[#141414] border border-[#D4AF37]/25 p-5 space-y-4">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-base font-extrabold text-white flex items-center gap-2">
             <MessageSquareHeart className="h-5 w-5 text-[#D4AF37]" aria-hidden="true" />
-            <span>آخر التقييمات المسجلة حديثًا</span>
+            <span>إدارة تعليقات الزوار (مراجعة واعتماد)</span>
           </h3>
           <span className="text-xs text-gray-400 font-bold">
-            {ratingsList.length} تقييم في العرض
+            إجمالي {siteReviews.length} تعليق مسجل
           </span>
         </div>
 
-        {loadingList ? (
+        {loadingReviews ? (
           <div className="flex items-center justify-center p-8 text-xs text-gray-400">
             <Loader2 className="h-4 w-4 animate-spin text-[#D4AF37] ml-2" />
-            <span>جاري تحميل سجل التقييمات...</span>
+            <span>جاري تحميل التعليقات...</span>
           </div>
-        ) : ratingsList.length === 0 ? (
+        ) : siteReviews.length === 0 ? (
           <p className="text-xs text-gray-400 text-center py-6">
-            لا توجد تقييمات فردية مسجلة بعد.
+            لا توجد تعليقات مرسلة من الزوار حتى الآن.
           </p>
         ) : (
-          <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1 no-scrollbar">
-            {ratingsList.map((item) => (
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+            {siteReviews.map((rev) => (
               <div
-                key={item.id}
-                className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#0B0B0B] border border-white/10 text-xs"
+                key={rev.id}
+                className="rounded-xl bg-[#0B0B0B] border border-white/10 p-4 space-y-3"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 text-amber-400">
-                    {[1, 2, 3, 4, 5].map((idx) => (
-                      <Star
-                        key={idx}
-                        className={`h-3.5 w-3.5 ${
-                          idx <= item.stars
-                            ? 'fill-amber-400 text-amber-400'
-                            : 'text-gray-700'
-                        }`}
-                        aria-hidden="true"
-                      />
-                    ))}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1D4ED8] text-white font-bold text-xs">
+                      {rev.name ? rev.name.slice(0, 1) : 'ز'}
+                    </span>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-white">{rev.name}</h4>
+                      <span className="text-[10px] text-gray-400">
+                        {rev.createdAt?.toDate ? new Date(rev.createdAt.toDate()).toLocaleString('ar-EG') : 'قيد المعالجة'}
+                      </span>
+                    </div>
                   </div>
 
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[11px] ${
-                      item.recommend
-                        ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/50'
-                        : 'bg-rose-950/60 text-rose-400 border border-rose-800/50'
-                    }`}
-                  >
-                    {item.recommend ? (
-                      <>
-                        <ThumbsUp className="h-3 w-3" />
-                        <span>يرشّح</span>
-                      </>
-                    ) : (
-                      <>
-                        <ThumbsDown className="h-3 w-3" />
-                        <span>لا يرشّح</span>
-                      </>
-                    )}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {/* Status Badge */}
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                        rev.status === 'approved'
+                          ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800'
+                          : rev.status === 'rejected'
+                          ? 'bg-rose-950/60 text-rose-400 border border-rose-800'
+                          : 'bg-amber-950/60 text-amber-400 border border-amber-800'
+                      }`}
+                    >
+                      {rev.status === 'approved' ? 'معتمد ومنشور' : rev.status === 'rejected' ? 'مرفوض' : 'بانتظار الموافقة'}
+                    </span>
+
+                    {/* Star Rating */}
+                    <div className="flex items-center gap-0.5 text-amber-400">
+                      {[1, 2, 3, 4, 5].map((sIdx) => (
+                        <Star
+                          key={sIdx}
+                          className={`h-3 w-3 ${
+                            sIdx <= rev.stars ? 'fill-amber-400 text-amber-400' : 'text-gray-700'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="text-left font-num text-[11px] text-gray-400">
-                  <span className="font-mono text-gray-500">
-                    ID: {item.id.slice(0, 12)}...
+                <p className="text-xs sm:text-sm text-gray-200 leading-relaxed bg-white/5 p-3 rounded-lg">
+                  «{rev.comment}»
+                </p>
+
+                {/* Actions */}
+                <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
+                  <span className={rev.recommend ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                    {rev.recommend ? '👍 يرشح المتجر' : '👎 لا يرشح المتجر'}
                   </span>
+
+                  <div className="flex items-center gap-2">
+                    {rev.status !== 'approved' && (
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(rev.id)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 font-bold transition-colors cursor-pointer"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        <span>موافقة ونشر</span>
+                      </button>
+                    )}
+
+                    {rev.status !== 'rejected' && (
+                      <button
+                        type="button"
+                        onClick={() => handleReject(rev.id)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 font-bold transition-colors cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        <span>رفض</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(rev.id)}
+                      className="inline-flex items-center gap-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 font-bold transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>حذف</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

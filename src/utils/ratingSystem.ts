@@ -298,3 +298,169 @@ export function subscribeToAllRatings(
     }
   );
 }
+
+export interface SiteReviewDoc {
+  id: string;
+  name: string;
+  comment: string;
+  stars: number;
+  recommend: boolean;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: any;
+}
+
+export async function submitSiteReview(
+  name: string,
+  comment: string,
+  stars: number,
+  recommend: boolean
+): Promise<{ success: boolean; message: string }> {
+  const cleanName = (name || '').trim();
+  const cleanComment = (comment || '').trim();
+
+  if (!cleanName || cleanName.length < 2) {
+    throw new Error('يرجى كتابة الاسم أو الاسم المستعار بشكل صحيح.');
+  }
+  if (!cleanComment || cleanComment.length < 3) {
+    throw new Error('يرجى كتابة تعليق مفيد عن تجربتك مع الموقع (3 أحرف على الأقل).');
+  }
+  if (stars < 1 || stars > 5) {
+    throw new Error('يرجى تحديد تقييم من 1 إلى 5 نجوم.');
+  }
+
+  // Anti-spam rate limit check (60 seconds)
+  if (typeof window !== 'undefined') {
+    try {
+      const lastTime = Number(localStorage.getItem('mahallawy_last_review_ts') || '0');
+      if (Date.now() - lastTime < 60_000) {
+        throw new Error('الرجاء الانتظار قليلاً قبل إرسال تعليق آخر.');
+      }
+    } catch (e: any) {
+      if (e?.message && e.message !== 'الرجاء الانتظار قليلاً قبل إرسال تعليق آخر.') {
+        // ignore storage parse errors
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  try {
+    const reviewsRef = collection(db, 'site_reviews');
+    const newDocRef = doc(reviewsRef);
+    const reviewData = {
+      id: newDocRef.id,
+      name: cleanName,
+      comment: cleanComment,
+      stars: Number(stars),
+      recommend: Boolean(recommend),
+      status: 'pending', // Pending developer approval
+      createdAt: serverTimestamp(),
+    };
+
+    const { setDoc } = await import('firebase/firestore');
+    await setDoc(newDocRef, reviewData);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('mahallawy_last_review_ts', String(Date.now()));
+      } catch {}
+    }
+
+    return {
+      success: true,
+      message: 'تم إرسال رأيك بنجاح! سيتم مراجعته وعرضه في قسم آراء الزوار قريباً.',
+    };
+  } catch (err: any) {
+    console.error('[RatingSystem] Error submitting site review:', err);
+    throw err;
+  }
+}
+
+export function subscribeToApprovedSiteReviews(
+  callback: (reviews: SiteReviewDoc[]) => void
+): () => void {
+  const reviewsRef = collection(db, 'site_reviews');
+  const q = query(reviewsRef, limit(100));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list: SiteReviewDoc[] = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        if (d.status === 'approved') {
+          list.push({
+            id: docSnap.id,
+            name: d.name || 'زائر للمتجر',
+            comment: d.comment || '',
+            stars: Number(d.stars) || 5,
+            recommend: d.recommend !== false,
+            status: d.status,
+            createdAt: d.createdAt,
+          });
+        }
+      });
+      // Sort client-side by newest
+      list.sort((a, b) => {
+        const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return tB - tA;
+      });
+      callback(list);
+    },
+    (err) => {
+      console.warn('[RatingSystem] Approved reviews snapshot error:', err);
+      callback([]);
+    }
+  );
+}
+
+export function subscribeToAllSiteReviews(
+  callback: (reviews: SiteReviewDoc[]) => void
+): () => void {
+  const reviewsRef = collection(db, 'site_reviews');
+  const q = query(reviewsRef, limit(200));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list: SiteReviewDoc[] = [];
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          name: d.name || 'زائر',
+          comment: d.comment || '',
+          stars: Number(d.stars) || 5,
+          recommend: d.recommend !== false,
+          status: d.status || 'pending',
+          createdAt: d.createdAt,
+        });
+      });
+      list.sort((a, b) => {
+        const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return tB - tA;
+      });
+      callback(list);
+    },
+    (err) => {
+      console.warn('[RatingSystem] All reviews snapshot error:', err);
+      callback([]);
+    }
+  );
+}
+
+export async function updateReviewStatus(
+  reviewId: string,
+  status: 'approved' | 'rejected'
+): Promise<void> {
+  const { doc, updateDoc } = await import('firebase/firestore');
+  const ref = doc(db, 'site_reviews', reviewId);
+  await updateDoc(ref, { status });
+}
+
+export async function deleteSiteReview(reviewId: string): Promise<void> {
+  const { doc, deleteDoc } = await import('firebase/firestore');
+  const ref = doc(db, 'site_reviews', reviewId);
+  await deleteDoc(ref);
+}
+
