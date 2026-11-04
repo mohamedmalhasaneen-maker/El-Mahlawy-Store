@@ -83,7 +83,7 @@ test('Homepage SEO title, description, canonical, and OpenGraph match brand requ
     products: SAMPLE_PRODUCTS,
   });
 
-  assert.equal(meta.title, 'المحلاوي ستور | Elmahlawy Store - تسوق منتجاتنا');
+  assert.equal(meta.title, 'المحلاوي ستور | Elmahlawy Store - المتجر الرسمي');
   assert.equal(meta.title, DEFAULT_HOME_SEO_TITLE);
   assert.ok(meta.description.includes('المحلاوي ستور'));
   assert.ok(meta.description.includes('Elmahlawy Store'));
@@ -255,7 +255,7 @@ test('injectSeoIntoHtml replaces head metadata cleanly without duplicate tags an
   assert.equal((enriched.match(/rel="canonical"/g) || []).length, 1);
   assert.equal((enriched.match(/google-site-verification/g) || []).length, 1);
   assert.ok(enriched.includes('<meta name="google-site-verification" content="gsc-verify-token-123" />'));
-  assert.ok(enriched.includes('المحلاوي ستور | Elmahlawy Store - تسوق منتجاتنا'));
+  assert.ok(enriched.includes('المحلاوي ستور | Elmahlawy Store - المتجر الرسمي'));
   assert.ok(enriched.includes(`${ORIGIN}/product/prod-hikvision-2mp`));
 
   const templateWithEmbeddedGsc = `<!doctype html>

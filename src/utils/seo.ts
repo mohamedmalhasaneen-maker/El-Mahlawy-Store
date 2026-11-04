@@ -27,7 +27,7 @@ export const ALTERNATE_SITE_NAMES: readonly string[] = [
   'Elmahlawy Store Egypt',
 ];
 
-export const DEFAULT_HOME_SEO_TITLE = 'المحلاوي ستور | Elmahlawy Store - تسوق منتجاتنا';
+export const DEFAULT_HOME_SEO_TITLE = 'المحلاوي ستور | Elmahlawy Store - المتجر الرسمي';
 
 export const DEFAULT_HOME_SEO_DESCRIPTION =
   'المحلاوي ستور (Elmahlawy Store) في مصر — تسوق كاميرات المراقبة، الستالايت والرسيفرات، أنظمة الصوتيات، السمارت هوم، والإنذار المبكر مع شحن لجميع المحافظات.';
@@ -36,6 +36,7 @@ const LEGACY_DEFAULT_TITLES = new Set([
   'المحلاوي ستور | El Mahlawy Store',
   'المحلاوي ستور',
   'El Mahlawy Store',
+  'المحلاوي ستور | Elmahlawy Store - تسوق منتجاتنا',
 ]);
 
 const LEGACY_DEFAULT_DESCRIPTIONS = new Set([
