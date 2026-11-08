@@ -29,6 +29,7 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.uid == 'eGi5P37ztLe5Nn77sEFvmFFcZWp1' ||
         request.auth.uid == 'ILSbnyLsRWXvV9n2viqoMgFyDpr2' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
         (
           'email_verified' in request.auth.token &&
           request.auth.token.email_verified == true &&
@@ -175,6 +176,18 @@ service cloud.firestore {
         );
     }
 
+    function isValidSiteConfigHero(data) {
+      return (!('heroBgType' in data) || (data.heroBgType is string && data.heroBgType in ['color', 'gradient', 'image'])) &&
+        (!('heroBgColor' in data) || (data.heroBgColor is string && data.heroBgColor.size() <= 30)) &&
+        (!('heroBgColor2' in data) || (data.heroBgColor2 is string && data.heroBgColor2.size() <= 30)) &&
+        (!('heroBgGradientDirection' in data) || (data.heroBgGradientDirection is string && data.heroBgGradientDirection.size() <= 30)) &&
+        (!('heroBgImage' in data) || (data.heroBgImage is string && data.heroBgImage.size() <= 600)) &&
+        (!('heroBgFit' in data) || (data.heroBgFit is string && data.heroBgFit in ['cover', 'contain'])) &&
+        (!('heroBgPosition' in data) || (data.heroBgPosition is string && data.heroBgPosition in ['center', 'top', 'bottom', 'left', 'right'])) &&
+        (!('heroOverlayColor' in data) || (data.heroOverlayColor is string && data.heroOverlayColor.size() <= 30)) &&
+        (!('heroOverlayOpacity' in data) || ((data.heroOverlayOpacity is int || data.heroOverlayOpacity is float) && data.heroOverlayOpacity >= 0 && data.heroOverlayOpacity <= 1));
+    }
+
     function isValidSiteConfig(data) {
       return data.keys().hasAll([
           'id', 'storeName', 'primaryPhone', 'primaryWhatsApp', 'updatedBy', 'updatedAt'
@@ -193,10 +206,14 @@ service cloud.firestore {
           'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
           'essentialCategories', 'showHeroSpotlight', 'showValueStrip', 'showOffersSection',
           'showShippingSection', 'showPartnerCard', 'showAboutBanner', 'showRatingsSection',
+          'heroBgType', 'heroBgColor', 'heroBgColor2', 'heroBgGradientDirection',
+          'heroBgImage', 'heroBgFit', 'heroBgPosition', 'heroOverlayColor',
+          'heroOverlayOpacity',
           'updatedBy', 'updatedAt'
         ]) &&
         isValidSiteConfigGroup1(data) &&
         isValidSiteConfigGroup2(data) &&
+        isValidSiteConfigHero(data) &&
         isValidSiteConfigLists(data);
     }
 
@@ -280,6 +297,9 @@ service cloud.firestore {
             'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
             'essentialCategories', 'showHeroSpotlight', 'showValueStrip', 'showOffersSection',
             'showShippingSection', 'showPartnerCard', 'showAboutBanner', 'showRatingsSection',
+            'heroBgType', 'heroBgColor', 'heroBgColor2', 'heroBgGradientDirection',
+            'heroBgImage', 'heroBgFit', 'heroBgPosition', 'heroOverlayColor',
+            'heroOverlayOpacity',
             'updatedBy', 'updatedAt'
           ])
         );
@@ -287,11 +307,26 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Locked Admin Membership Collection (client-side creation/mutation strictly forbidden)
+    // Locked Admin Membership Collection (bootstrap creation strictly restricted to verified owner accounts)
     match /admins/{adminUid} {
-      allow get: if isSignedIn() && isValidId(adminUid) && isAuthorizedDeveloper();
+      allow get: if isSignedIn() && isValidId(adminUid) && (adminUid == request.auth.uid || isAuthorizedDeveloper());
       allow list: if false;
-      allow create: if false;
+      allow create: if isSignedIn() &&
+        isValidId(adminUid) &&
+        adminUid == request.auth.uid &&
+        'email_verified' in request.auth.token &&
+        request.auth.token.email_verified == true &&
+        'email' in request.auth.token &&
+        (
+          request.auth.token.email == 'abdulazizriadvip@gmail.com' ||
+          request.auth.token.email == 'companycamerasinfinitycorp@gmail.com' ||
+          request.auth.token.email == 'mohamed.m.alhasaneen@gmail.com'
+        ) &&
+        incoming().keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+        incoming().keys().hasOnly(['uid', 'email', 'role', 'createdAt']) &&
+        incoming().uid == request.auth.uid &&
+        incoming().role == 'developer' &&
+        incoming().createdAt == request.time;
       allow update: if false;
       allow delete: if false;
     }

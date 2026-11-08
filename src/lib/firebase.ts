@@ -29,6 +29,7 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -279,6 +280,25 @@ async function prepareVerifiedDeveloperCloudWrite(
   if (Number.isFinite(expirationMs) && expirationMs - Date.now() < 5 * 60 * 1000) {
     await user.getIdToken(true);
   }
+
+  // Ensure the developer is registered in /admins/{uid} collection in Firestore
+  if (user && user.uid && isAuthorizedDeveloperUser(user)) {
+    try {
+      const adminDocRef = doc(db, 'admins', user.uid);
+      const adminSnap = await getDoc(adminDocRef);
+      if (!adminSnap.exists()) {
+        await setDoc(adminDocRef, {
+          uid: user.uid,
+          email: user.email || '',
+          role: 'developer',
+          createdAt: serverTimestamp(),
+        });
+      }
+    } catch {
+      // Non-blocking bootstrap check
+    }
+  }
+
   return user;
 }
 
@@ -652,9 +672,19 @@ export async function saveCloudSiteConfig(
     fieldCount = Object.keys(firestoreRecord).length;
 
     currentStage = 'firestore_write';
-    await executeWriteWithAuthRebindRetry(verifiedUser, () =>
-      setDoc(configRef, firestoreRecord)
-    );
+    if (existedOnServerBeforeWrite) {
+      await executeWriteWithAuthRebindRetry(verifiedUser, async () => {
+        try {
+          await updateDoc(configRef, firestoreRecord as Record<string, unknown>);
+        } catch {
+          await setDoc(configRef, firestoreRecord);
+        }
+      });
+    } else {
+      await executeWriteWithAuthRebindRetry(verifiedUser, () =>
+        setDoc(configRef, firestoreRecord)
+      );
+    }
 
     currentStage = 'server_readback_confirm';
     const serverSnap = await getDocFromServer(configRef);
