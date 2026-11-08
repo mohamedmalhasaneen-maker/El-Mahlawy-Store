@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import {
   Check,
   ChevronLeft,
@@ -40,7 +42,10 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
   const [selectedOption, setSelectedOption] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [downloadedSheet, setDownloadedSheet] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfImageSrc, setPdfImageSrc] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const pdfRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (product) {
@@ -49,6 +54,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
       setQuantity(1);
       setDownloadedSheet(false);
       setCopied(false);
+      setPdfImageSrc('');
     }
   }, [product]);
 
@@ -115,7 +121,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
     }
   };
 
-  const handleDownloadSpecs = () => {
+  const fallbackTextDownload = () => {
     const content = [
       `${siteConfig.storeName}${siteConfig.storeSubtitle ? ` | ${siteConfig.storeSubtitle}` : ''}`,
       '====================================',
@@ -144,13 +150,83 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${product.id}-specs.txt`;
+    link.download = `مواصفات_${product.name.replace(/[/\\?%*:|"<>]/g, '_')}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    setDownloadedSheet(true);
-    setTimeout(() => setDownloadedSheet(false), 2500);
+  };
+
+  const handleDownloadSpecs = async () => {
+    if (!pdfRef.current || isGeneratingPdf) return;
+    setIsGeneratingPdf(true);
+    try {
+      const rawImgUrl = normalizeImageSrc(images[activeImageIndex]);
+      let base64Url = rawImgUrl;
+      if (rawImgUrl && rawImgUrl.startsWith('http')) {
+        try {
+          const res = await fetch(rawImgUrl, { mode: 'cors' });
+          const blob = await res.blob();
+          base64Url = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        } catch (imgErr) {
+          console.warn('Could not fetch image as base64, using URL:', imgErr);
+        }
+      }
+      setPdfImageSrc(base64Url);
+      await new Promise((r) => setTimeout(r, 200));
+
+      const element = pdfRef.current;
+      element.style.display = 'block';
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      element.style.display = 'none';
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = pdfHeight;
+      let position = 0;
+      const pageHeight = 295;
+
+      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const safeName = (product.name || 'product').replace(/[/\\?%*:|"<>]/g, '_');
+      pdf.save(`مواصفات_${safeName}.pdf`);
+
+      setDownloadedSheet(true);
+      setTimeout(() => setDownloadedSheet(false), 2500);
+    } catch (err) {
+      console.error('PDF generation error, falling back to text:', err);
+      fallbackTextDownload();
+      setDownloadedSheet(true);
+      setTimeout(() => setDownloadedSheet(false), 2500);
+    } finally {
+      setIsGeneratingPdf(false);
+      if (pdfRef.current) {
+        pdfRef.current.style.display = 'none';
+      }
+    }
   };
 
   const showCategory = Boolean(product.category && product.category.trim() !== 'عام');
@@ -485,6 +561,123 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
             <MessageCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
             <span>اطلب الآن عبر واتساب</span>
           </a>
+        </div>
+
+        {/* Hidden PDF Container for html2canvas */}
+        <div
+          ref={pdfRef}
+          style={{
+            display: 'none',
+            width: '794px',
+            direction: 'rtl',
+            fontFamily: 'system-ui, sans-serif',
+            backgroundColor: '#ffffff',
+            color: '#0f172a',
+            padding: '32px',
+            boxSizing: 'border-box',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #1d4ed8', paddingBottom: '16px', marginBottom: '24px' }}>
+            <div>
+              <h1 style={{ fontSize: '24px', fontWeight: 900, color: '#1d4ed8', margin: 0 }}>{siteConfig.storeName}</h1>
+              {siteConfig.storeSubtitle && (
+                <p style={{ fontSize: '14px', fontWeight: 600, color: '#475569', margin: '4px 0 0 0' }}>{siteConfig.storeSubtitle}</p>
+              )}
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, backgroundColor: '#dbeafe', color: '#1e40af', padding: '4px 12px', borderRadius: '9999px' }}>
+                كتالوج المواصفات الرسمية
+              </span>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>تاريخ الإصدار: {new Date().toLocaleDateString('ar-EG')}</p>
+            </div>
+          </div>
+
+          {/* Product Hero Section */}
+          <div style={{ display: 'flex', gap: '24px', marginBottom: '24px', alignItems: 'center', backgroundColor: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+            <div style={{ width: '192px', height: '192px', flexShrink: 0, backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <img
+                src={pdfImageSrc || normalizeImageSrc(images[activeImageIndex])}
+                alt={product.name}
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                {product.brand && (
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#1d4ed8', backgroundColor: '#eff6ff', padding: '2px 10px', borderRadius: '4px' }}>
+                    {product.brand}
+                  </span>
+                )}
+                {showCategory && (
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569', backgroundColor: '#f1f5f9', padding: '2px 10px', borderRadius: '4px' }}>
+                    {getCategoryName(product.category)}
+                  </span>
+                )}
+                <span style={{ fontSize: '12px', fontWeight: 700, padding: '2px 10px', borderRadius: '4px', backgroundColor: product.inStock ? '#d1fae5' : '#fef3c7', color: product.inStock ? '#065f46' : '#92400e' }}>
+                  {product.inStock ? 'متوفر حالياً' : 'غير متوفر'}
+                </span>
+              </div>
+
+              <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', lineHeight: 1.4 }}>{product.name}</h2>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '24px', fontWeight: 900, color: '#1d4ed8' }}>{formatPriceEgp(effectivePrice)} ج.م</span>
+                {hasDiscount && (
+                  <span style={{ fontSize: '14px', color: '#94a3b8', textDecoration: 'line-through' }}>{formatPriceEgp(product.originalPrice)} ج.م</span>
+                )}
+                {hasDiscount && (
+                  <span style={{ fontSize: '12px', fontWeight: 700, backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: '4px' }}>
+                    خصم {discountPct}% (توفير {formatPriceEgp(savings)} ج.م)
+                  </span>
+                )}
+              </div>
+
+              {product.options.length > 0 && (
+                <p style={{ fontSize: '12px', color: '#475569', fontWeight: 600, margin: 0 }}>
+                  الموديل / الخيارات المتاحة: {product.options.join('، ')}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Short & Full Description */}
+          {(product.description || product.shortDescription) && (
+            <div style={{ marginBottom: '24px', backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1e3a8a', margin: '0 0 8px 0', borderBottom: '1px solid #f1f5f9', paddingBottom: '4px' }}>الوصف التفصيلي</h3>
+              <p style={{ fontSize: '14px', color: '#334155', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-line' }}>
+                {product.description || product.shortDescription}
+              </p>
+            </div>
+          )}
+
+          {/* Technical Specifications */}
+          {product.specs.length > 0 && (
+            <div style={{ marginBottom: '24px', backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1e3a8a', margin: '0 0 12px 0', borderBottom: '1px solid #f1f5f9', paddingBottom: '4px' }}>المواصفات الفنية والمميزات</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+                {product.specs.map((spec, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '14px', backgroundColor: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                    <span style={{ fontWeight: 700, color: '#1d4ed8', minWidth: '24px' }}>{String(idx + 1).padStart(2, '0')}.</span>
+                    <span style={{ color: '#1e293b' }}>{spec}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div style={{ marginTop: '32px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#64748b' }}>
+            <div>
+              <p style={{ fontWeight: 700, color: '#334155', margin: 0 }}>{siteConfig.storeName} - جميع الحقوق محفوظة</p>
+              {siteConfig.whatsappUrl && <p style={{ margin: '2px 0 0 0' }}>للتواصل والطلب عبر واتساب: {siteConfig.whatsappUrl}</p>}
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <p style={{ margin: 0 }}>موقع المحلاوي ستور الرسمي</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
