@@ -18,6 +18,7 @@ import {
   SiteReviewDoc,
   calculateRatingStatsFromReviews,
   subscribeToApprovedSiteReviews,
+  subscribeToRatingStats,
   submitSiteReview,
 } from '../utils/ratingSystem';
 
@@ -34,6 +35,7 @@ export function RatingStatsDisplay({
   isDark = false,
 }: RatingStatsDisplayProps) {
   const [reviews, setReviews] = useState<SiteReviewDoc[]>([]);
+  const [cloudStats, setCloudStats] = useState<RatingStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Active slide index for slider (0 .. total-1)
@@ -67,15 +69,20 @@ export function RatingStatsDisplay({
   const [reviewSuccessMessage, setReviewSuccessMessage] = useState<string | null>(null);
   const [reviewErrorMessage, setReviewErrorMessage] = useState<string | null>(null);
 
-  // Subscribe strictly to approved user reviews in Firestore
+  // Subscribe to approved user reviews and aggregate rating stats in Firestore
   useEffect(() => {
     const unsubReviews = subscribeToApprovedSiteReviews((list) => {
       setReviews(list);
       setLoading(false);
     });
 
+    const unsubStats = subscribeToRatingStats((st) => {
+      setCloudStats(st);
+    });
+
     return () => {
       unsubReviews();
+      unsubStats();
     };
   }, []);
 
@@ -93,10 +100,13 @@ export function RatingStatsDisplay({
   const displayReviews = reviews;
   const totalReviews = displayReviews.length;
 
-  // Compute live statistics solely from approved user reviews
+  // Compute live statistics: prioritize cloudStats from /meta/ratings, falling back to calculation from reviews
   const realStats: RatingStats = useMemo(() => {
+    if (cloudStats && cloudStats.totalCount > 0) {
+      return cloudStats;
+    }
     return calculateRatingStatsFromReviews(displayReviews);
-  }, [displayReviews]);
+  }, [cloudStats, displayReviews]);
 
   // Keep currentIndex bounded if reviews count changes
   useEffect(() => {
