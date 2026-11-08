@@ -677,7 +677,7 @@ export async function saveCloudSiteConfig(
         try {
           await updateDoc(configRef, firestoreRecord as Record<string, unknown>);
         } catch {
-          await setDoc(configRef, firestoreRecord);
+          await setDoc(configRef, firestoreRecord, { merge: true });
         }
       });
     } else {
@@ -713,6 +713,81 @@ export async function saveCloudSiteConfig(
     });
     handleFirestoreError(error, resolvedOpType, path, {
       operationName: 'saveCloudSiteConfig',
+      failedStage: currentStage,
+    });
+  }
+}
+
+export interface HeroBannerUpdateInput {
+  heroBgType: 'default' | 'solid' | 'color' | 'gradient' | 'image';
+  heroBgColor: string;
+  heroBgColor2: string;
+  heroBgGradientDirection: string;
+  heroBgImage: string;
+  heroBgFit: 'cover' | 'contain' | 'auto';
+  heroBgPosition: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  heroOverlayColor: string;
+  heroOverlayOpacity: number;
+}
+
+export async function saveCloudHeroBannerSettings(
+  heroInput: Partial<HeroBannerUpdateInput>,
+  authorUid?: string
+): Promise<void> {
+  const path = 'siteConfig/main';
+  let currentStage: CloudWriteStage = 'config_validation';
+
+  try {
+    const verifiedUser = await prepareVerifiedDeveloperCloudWrite((stage) => {
+      currentStage = stage;
+    });
+    const effectiveUid = verifiedUser.uid || authorUid || AUTHORIZED_DEVELOPER_UID;
+    const configRef = doc(db, 'siteConfig', 'main');
+
+    currentStage = 'payload_validation';
+    const heroPayload: Record<string, unknown> = {
+      heroBgType: ['color', 'gradient', 'image', 'solid', 'default'].includes(heroInput.heroBgType as string)
+        ? heroInput.heroBgType
+        : 'gradient',
+      heroBgColor: (heroInput.heroBgColor || '#0B2354').slice(0, 40),
+      heroBgColor2: (heroInput.heroBgColor2 || '#0EA5E9').slice(0, 40),
+      heroBgGradientDirection: (heroInput.heroBgGradientDirection || 'to-bl').slice(0, 50),
+      heroBgImage: (heroInput.heroBgImage || '').slice(0, 2000),
+      heroBgFit: ['cover', 'contain', 'auto'].includes(heroInput.heroBgFit as string)
+        ? heroInput.heroBgFit
+        : 'cover',
+      heroBgPosition: ['center', 'top', 'bottom', 'left', 'right'].includes(heroInput.heroBgPosition as string)
+        ? heroInput.heroBgPosition
+        : 'center',
+      heroOverlayColor: (heroInput.heroOverlayColor || '#000000').slice(0, 40),
+      heroOverlayOpacity:
+        typeof heroInput.heroOverlayOpacity === 'number' && Number.isFinite(heroInput.heroOverlayOpacity)
+          ? Math.min(100, Math.max(0, heroInput.heroOverlayOpacity))
+          : 0.2,
+      updatedBy: effectiveUid,
+      updatedAt: serverTimestamp(),
+    };
+
+    currentStage = 'firestore_write';
+    await executeWriteWithAuthRebindRetry(verifiedUser, () =>
+      updateDoc(configRef, heroPayload)
+    );
+
+    currentStage = 'server_readback_confirm';
+    const serverSnap = await getDocFromServer(configRef);
+    if (!serverSnap.exists()) {
+      throw new Error('لم يتم تأكيد حفظ إعدادات البانر على الخادم.');
+    }
+  } catch (error) {
+    logSafeCloudWriteDiagnostic({
+      operationName: 'saveCloudHeroBannerSettings',
+      operationType: OperationType.UPDATE,
+      targetPath: path,
+      failedStage: currentStage,
+      error,
+    });
+    handleFirestoreError(error, OperationType.UPDATE, path, {
+      operationName: 'saveCloudHeroBannerSettings',
       failedStage: currentStage,
     });
   }

@@ -101,91 +101,124 @@ service cloud.firestore {
       return (data.id is string && data.id.size() <= 32 && data.id == 'main') &&
         (data.storeName is string && data.storeName.size() >= 2 && data.storeName.size() <= 100) &&
         (data.primaryPhone is string && data.primaryPhone.size() >= 7 && data.primaryPhone.size() <= 30) &&
-        (data.secondaryPhone is string && data.secondaryPhone.size() <= 30) &&
         (data.primaryWhatsApp is string && data.primaryWhatsApp.size() >= 7 && data.primaryWhatsApp.size() <= 25) &&
-        ((data.whatsappUrl + data.afterSalesWhatsAppUrl + data.facebookUrl + data.instagramUrl + data.googleMapsUrl + data.partnerFacebookUrl).size() <= 3600) &&
-        ((data.storeSubtitle + data.tagline + data.heroDescription + data.announcementText + data.closingPhrase).size() <= 3100) &&
-        ((data.seoTitle + data.seoDescription + data.copyrightText + data.contactSectionTitle + data.contactSectionSubtitle).size() <= 1940) &&
-        ((data.address + data.workingHours + data.shippingSummary + data.afterSalesPolicy).size() <= 5300);
+        (!('secondaryPhone' in data) || (data.secondaryPhone is string && data.secondaryPhone.size() <= 30)) &&
+        (!('storeSubtitle' in data) || (data.storeSubtitle is string && data.storeSubtitle.size() <= 100)) &&
+        (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 300)) &&
+        (!('heroDescription' in data) || (data.heroDescription is string && data.heroDescription.size() <= 2000)) &&
+        (!('announcementText' in data) || (data.announcementText is string && data.announcementText.size() <= 400)) &&
+        (!('seoTitle' in data) || (data.seoTitle is string && data.seoTitle.size() <= 240)) &&
+        (!('seoDescription' in data) || (data.seoDescription is string && data.seoDescription.size() <= 800)) &&
+        (!('copyrightText' in data) || (data.copyrightText is string && data.copyrightText.size() <= 300)) &&
+        (!('address' in data) || (data.address is string && data.address.size() <= 1000)) &&
+        (!('googleMapsUrl' in data) || (data.googleMapsUrl is string && data.googleMapsUrl.size() <= 600)) &&
+        (!('workingHours' in data) || (data.workingHours is string && data.workingHours.size() <= 300)) &&
+        (!('shippingSummary' in data) || (data.shippingSummary is string && data.shippingSummary.size() <= 1500)) &&
+        (!('afterSalesPolicy' in data) || (data.afterSalesPolicy is string && data.afterSalesPolicy.size() <= 2500)) &&
+        (!('closingPhrase' in data) || (data.closingPhrase is string && data.closingPhrase.size() <= 300)) &&
+        (!('contactSectionTitle' in data) || (data.contactSectionTitle is string && data.contactSectionTitle.size() <= 200)) &&
+        (!('contactSectionSubtitle' in data) || (data.contactSectionSubtitle is string && data.contactSectionSubtitle.size() <= 400)) &&
+        (!('whatsappUrl' in data) || (data.whatsappUrl is string && data.whatsappUrl.size() <= 600)) &&
+        (!('afterSalesWhatsAppUrl' in data) || (data.afterSalesWhatsAppUrl is string && data.afterSalesWhatsAppUrl.size() <= 600)) &&
+        (!('facebookUrl' in data) || (data.facebookUrl is string && data.facebookUrl.size() <= 600)) &&
+        (!('instagramUrl' in data) || (data.instagramUrl is string && data.instagramUrl.size() <= 600));
     }
 
     function isValidSiteConfigGroup2(data) {
-      return ((data.aboutStoreIntro + data.aboutPartnerIntro).size() <= 10000) &&
-        ((data.partnerName + data.partnerSubtitle + data.partnerRoleTitle + data.partnerServiceScopeText).size() <= 1360) &&
-        ((data.partnerOrderPhone1 + data.partnerOrderPhone2 + data.partnerMaintenancePhone + data.partnerAfterSalesPhone).size() <= 120) &&
-        ((data.aboutHeroTitle + data.aboutHeroSubtitle + data.visionTitle + data.visionDescription).size() <= 4600) &&
-        (data.showHeroSpotlight is bool && data.showValueStrip is bool) &&
-        (data.showOffersSection is bool && data.showShippingSection is bool) &&
-        (data.showPartnerCard is bool && data.showAboutBanner is bool) &&
+      return (!('partnerName' in data) || (data.partnerName is string && data.partnerName.size() <= 160)) &&
+        (!('partnerSubtitle' in data) || (data.partnerSubtitle is string && data.partnerSubtitle.size() <= 200)) &&
+        (!('partnerRoleTitle' in data) || (data.partnerRoleTitle is string && data.partnerRoleTitle.size() <= 200)) &&
+        (!('partnerServiceScopeText' in data) || (data.partnerServiceScopeText is string && data.partnerServiceScopeText.size() <= 800)) &&
+        (!('partnerOrderPhone1' in data) || (data.partnerOrderPhone1 is string && data.partnerOrderPhone1.size() <= 30)) &&
+        (!('partnerOrderPhone2' in data) || (data.partnerOrderPhone2 is string && data.partnerOrderPhone2.size() <= 30)) &&
+        (!('partnerMaintenancePhone' in data) || (data.partnerMaintenancePhone is string && data.partnerMaintenancePhone.size() <= 30)) &&
+        (!('partnerAfterSalesPhone' in data) || (data.partnerAfterSalesPhone is string && data.partnerAfterSalesPhone.size() <= 30)) &&
+        (!('partnerFacebookUrl' in data) || (data.partnerFacebookUrl is string && data.partnerFacebookUrl.size() <= 600)) &&
+        (!('aboutHeroTitle' in data) || (data.aboutHeroTitle is string && data.aboutHeroTitle.size() <= 300)) &&
+        (!('aboutHeroSubtitle' in data) || (data.aboutHeroSubtitle is string && data.aboutHeroSubtitle.size() <= 1500)) &&
+        (!('aboutStoreIntro' in data) || (data.aboutStoreIntro is string && data.aboutStoreIntro.size() <= 5000)) &&
+        (!('aboutPartnerIntro' in data) || (data.aboutPartnerIntro is string && data.aboutPartnerIntro.size() <= 5000)) &&
+        (!('visionTitle' in data) || (data.visionTitle is string && data.visionTitle.size() <= 300)) &&
+        (!('visionDescription' in data) || (data.visionDescription is string && data.visionDescription.size() <= 2500)) &&
+        (!('showHeroSpotlight' in data) || data.showHeroSpotlight is bool) &&
+        (!('showValueStrip' in data) || data.showValueStrip is bool) &&
+        (!('showOffersSection' in data) || data.showOffersSection is bool) &&
+        (!('showShippingSection' in data) || data.showShippingSection is bool) &&
+        (!('showPartnerCard' in data) || data.showPartnerCard is bool) &&
+        (!('showAboutBanner' in data) || data.showAboutBanner is bool) &&
         (!('showRatingsSection' in data) || data.showRatingsSection is bool) &&
         (data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$')) &&
         (data.updatedAt is timestamp);
     }
 
     function isValidSiteConfigLists(data) {
-      return (data.contactChannels is list && data.contactChannels.size() <= 20) &&
-        (
-          data.contactChannels.size() == 0 ||
+      return (!('contactChannels' in data) || (
+          data.contactChannels is list && data.contactChannels.size() <= 20 &&
           (
-            data.contactChannels[0] is map &&
-            data.contactChannels[0].keys().hasOnly(['id', 'label', 'role', 'owner', 'phone', 'whatsappUrl']) &&
-            data.contactChannels[0].phone is string && data.contactChannels[0].phone.size() >= 7 && data.contactChannels[0].phone.size() <= 30
-          )
-        ) &&
-        (data.socialLinks is list && data.socialLinks.size() <= 15) &&
-        (
-          data.socialLinks.size() == 0 ||
-          (
-            data.socialLinks[0] is map &&
-            data.socialLinks[0].keys().hasOnly(['id', 'platform', 'label', 'owner', 'url']) &&
-            data.socialLinks[0].url is string && data.socialLinks[0].url.size() >= 1 && data.socialLinks[0].url.size() <= 600
-          )
-        ) &&
-        (data.branches is list && data.branches.size() <= 10) &&
-        (
-          data.branches.size() == 0 ||
-          (
-            data.branches[0] is map &&
-            data.branches[0].keys().hasOnly(['id', 'name', 'address', 'mapUrl', 'workingHours', 'phone']) &&
-            data.branches[0].name is string && data.branches[0].name.size() >= 1 && data.branches[0].name.size() <= 120
-          )
-        ) &&
-        (data.categories is list && data.categories.size() >= 1 && data.categories.size() <= 20) &&
-        (
-          data.categories[0] is map &&
-          data.categories[0].keys().hasOnly(['id', 'name', 'order']) &&
-          data.categories[0].id is string && data.categories[0].id.size() >= 1 && data.categories[0].id.size() <= 60 &&
-          data.categories[0].name is string && data.categories[0].name.size() >= 2 && data.categories[0].name.size() <= 80 &&
-          (data.categories[0].order is int || data.categories[0].order is float) &&
-          data.categories[0].order >= 1 && data.categories[0].order <= 100
-        ) &&
-        (
-          !('essentialCategories' in data) ||
-          (
-            data.essentialCategories is list &&
-            data.essentialCategories.size() <= 20 &&
+            data.contactChannels.size() == 0 ||
             (
-              data.essentialCategories.size() == 0 ||
-              (
-                data.essentialCategories[0] is map &&
-                data.essentialCategories[0].keys().hasOnly(['id', 'name', 'imageUrl', 'order']) &&
-                data.essentialCategories[0].name is string && data.essentialCategories[0].name.size() >= 2 && data.essentialCategories[0].name.size() <= 80
-              )
+              data.contactChannels[0] is map &&
+              data.contactChannels[0].keys().hasOnly(['id', 'label', 'role', 'owner', 'phone', 'whatsappUrl']) &&
+              data.contactChannels[0].phone is string && data.contactChannels[0].phone.size() >= 7 && data.contactChannels[0].phone.size() <= 30
             )
           )
-        );
+        )) &&
+        (!('socialLinks' in data) || (
+          data.socialLinks is list && data.socialLinks.size() <= 15 &&
+          (
+            data.socialLinks.size() == 0 ||
+            (
+              data.socialLinks[0] is map &&
+              data.socialLinks[0].keys().hasOnly(['id', 'platform', 'label', 'owner', 'url']) &&
+              data.socialLinks[0].url is string && data.socialLinks[0].url.size() >= 1 && data.socialLinks[0].url.size() <= 600
+            )
+          )
+        )) &&
+        (!('branches' in data) || (
+          data.branches is list && data.branches.size() <= 10 &&
+          (
+            data.branches.size() == 0 ||
+            (
+              data.branches[0] is map &&
+              data.branches[0].keys().hasOnly(['id', 'name', 'address', 'mapUrl', 'workingHours', 'phone']) &&
+              data.branches[0].name is string && data.branches[0].name.size() >= 1 && data.branches[0].name.size() <= 120
+            )
+          )
+        )) &&
+        (!('categories' in data) || (
+          data.categories is list && data.categories.size() >= 1 && data.categories.size() <= 20 &&
+          (
+            data.categories[0] is map &&
+            data.categories[0].keys().hasOnly(['id', 'name', 'order']) &&
+            data.categories[0].id is string && data.categories[0].id.size() >= 1 && data.categories[0].id.size() <= 60 &&
+            data.categories[0].name is string && data.categories[0].name.size() >= 2 && data.categories[0].name.size() <= 80 &&
+            (data.categories[0].order is int || data.categories[0].order is float) &&
+            data.categories[0].order >= 1 && data.categories[0].order <= 100
+          )
+        )) &&
+        (!('essentialCategories' in data) || (
+          data.essentialCategories is list && data.essentialCategories.size() <= 20 &&
+          (
+            data.essentialCategories.size() == 0 ||
+            (
+              data.essentialCategories[0] is map &&
+              data.essentialCategories[0].keys().hasOnly(['id', 'name', 'imageUrl', 'order']) &&
+              data.essentialCategories[0].name is string && data.essentialCategories[0].name.size() >= 2 && data.essentialCategories[0].name.size() <= 80
+            )
+          )
+        ));
     }
 
     function isValidSiteConfigHero(data) {
-      return (!('heroBgType' in data) || (data.heroBgType is string && data.heroBgType in ['color', 'gradient', 'image'])) &&
-        (!('heroBgColor' in data) || (data.heroBgColor is string && data.heroBgColor.size() <= 30)) &&
-        (!('heroBgColor2' in data) || (data.heroBgColor2 is string && data.heroBgColor2.size() <= 30)) &&
-        (!('heroBgGradientDirection' in data) || (data.heroBgGradientDirection is string && data.heroBgGradientDirection.size() <= 30)) &&
-        (!('heroBgImage' in data) || (data.heroBgImage is string && data.heroBgImage.size() <= 600)) &&
-        (!('heroBgFit' in data) || (data.heroBgFit is string && data.heroBgFit in ['cover', 'contain'])) &&
+      return (!('heroBgType' in data) || (data.heroBgType is string && data.heroBgType in ['default', 'solid', 'color', 'gradient', 'image'])) &&
+        (!('heroBgColor' in data) || (data.heroBgColor is string && data.heroBgColor.size() <= 40)) &&
+        (!('heroBgColor2' in data) || (data.heroBgColor2 is string && data.heroBgColor2.size() <= 40)) &&
+        (!('heroBgGradientDirection' in data) || (data.heroBgGradientDirection is string && data.heroBgGradientDirection.size() <= 50)) &&
+        (!('heroBgImage' in data) || (data.heroBgImage is string && data.heroBgImage.size() <= 2000)) &&
+        (!('heroBgFit' in data) || (data.heroBgFit is string && data.heroBgFit in ['cover', 'contain', 'auto'])) &&
         (!('heroBgPosition' in data) || (data.heroBgPosition is string && data.heroBgPosition in ['center', 'top', 'bottom', 'left', 'right'])) &&
-        (!('heroOverlayColor' in data) || (data.heroOverlayColor is string && data.heroOverlayColor.size() <= 30)) &&
-        (!('heroOverlayOpacity' in data) || ((data.heroOverlayOpacity is int || data.heroOverlayOpacity is float) && data.heroOverlayOpacity >= 0 && data.heroOverlayOpacity <= 1));
+        (!('heroOverlayColor' in data) || (data.heroOverlayColor is string && data.heroOverlayColor.size() <= 40)) &&
+        (!('heroOverlayOpacity' in data) || ((data.heroOverlayOpacity is int || data.heroOverlayOpacity is float) && data.heroOverlayOpacity >= 0 && data.heroOverlayOpacity <= 100));
     }
 
     function isValidSiteConfig(data) {
@@ -276,32 +309,46 @@ service cloud.firestore {
       allow update: if isSignedIn() &&
         isValidId(configId) &&
         configId == 'main' &&
-        isValidSiteConfig(request.resource.data) &&
         (!('id' in resource.data) || request.resource.data.id == resource.data.id) &&
         request.resource.data.updatedBy == request.auth.uid &&
         request.resource.data.updatedAt == request.time &&
         isAdmin() &&
         (
-          isAuthorizedDeveloper() ||
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'storeName', 'storeSubtitle', 'tagline', 'heroDescription',
-            'announcementText', 'seoTitle', 'seoDescription', 'copyrightText',
-            'primaryPhone', 'secondaryPhone', 'primaryWhatsApp', 'whatsappUrl',
-            'afterSalesWhatsAppUrl', 'facebookUrl', 'instagramUrl', 'address',
-            'googleMapsUrl', 'workingHours', 'shippingSummary', 'afterSalesPolicy',
-            'closingPhrase', 'contactSectionTitle', 'contactSectionSubtitle',
-            'partnerName', 'partnerSubtitle', 'partnerRoleTitle', 'partnerServiceScopeText',
-            'partnerOrderPhone1', 'partnerOrderPhone2', 'partnerMaintenancePhone',
-            'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
-            'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
-            'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
-            'essentialCategories', 'showHeroSpotlight', 'showValueStrip', 'showOffersSection',
-            'showShippingSection', 'showPartnerCard', 'showAboutBanner', 'showRatingsSection',
-            'heroBgType', 'heroBgColor', 'heroBgColor2', 'heroBgGradientDirection',
-            'heroBgImage', 'heroBgFit', 'heroBgPosition', 'heroOverlayColor',
-            'heroOverlayOpacity',
-            'updatedBy', 'updatedAt'
-          ])
+          // Action A: Targeted Hero Banner Update (allows updating ONLY banner fields without touching any other field)
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'heroBgType', 'heroBgColor', 'heroBgColor2', 'heroBgGradientDirection',
+              'heroBgImage', 'heroBgFit', 'heroBgPosition', 'heroOverlayColor',
+              'heroOverlayOpacity', 'updatedBy', 'updatedAt'
+            ]) &&
+            isValidSiteConfigHero(request.resource.data)
+          ) ||
+          // Action B: Full SiteConfig Update
+          (
+            isValidSiteConfig(request.resource.data) &&
+            (
+              isAuthorizedDeveloper() ||
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'storeName', 'storeSubtitle', 'tagline', 'heroDescription',
+                'announcementText', 'seoTitle', 'seoDescription', 'copyrightText',
+                'primaryPhone', 'secondaryPhone', 'primaryWhatsApp', 'whatsappUrl',
+                'afterSalesWhatsAppUrl', 'facebookUrl', 'instagramUrl', 'address',
+                'googleMapsUrl', 'workingHours', 'shippingSummary', 'afterSalesPolicy',
+                'closingPhrase', 'contactSectionTitle', 'contactSectionSubtitle',
+                'partnerName', 'partnerSubtitle', 'partnerRoleTitle', 'partnerServiceScopeText',
+                'partnerOrderPhone1', 'partnerOrderPhone2', 'partnerMaintenancePhone',
+                'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
+                'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
+                'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
+                'essentialCategories', 'showHeroSpotlight', 'showValueStrip', 'showOffersSection',
+                'showShippingSection', 'showPartnerCard', 'showAboutBanner', 'showRatingsSection',
+                'heroBgType', 'heroBgColor', 'heroBgColor2', 'heroBgGradientDirection',
+                'heroBgImage', 'heroBgFit', 'heroBgPosition', 'heroOverlayColor',
+                'heroOverlayOpacity',
+                'updatedBy', 'updatedAt'
+              ])
+            )
+          )
         );
 
       allow delete: if false;
