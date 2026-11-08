@@ -68,13 +68,19 @@ import {
   roundCurrency,
   sanitizeProductPayload,
 } from '../utils/catalogLogic';
-import { SiteConfig, sanitizeSiteConfig, validateSiteConfigInput } from '../utils/siteConfig';
+import {
+  DEFAULT_SITE_CONFIG,
+  SiteConfig,
+  sanitizeSiteConfig,
+  validateSiteConfigInput,
+} from '../utils/siteConfig';
 import { DiscountModal } from './DiscountModal';
 import { ProductImage } from './ProductImage';
 import { AccountSettingsSection } from './developer/AccountSettingsSection';
 import { BranchesMapsSection } from './developer/BranchesMapsSection';
 import { ContentSectionsSettings } from './developer/ContentSectionsSettings';
 import { DeveloperSectionId, OverviewSection } from './developer/OverviewSection';
+import { HeroBannerSettingsSection } from './developer/HeroBannerSettingsSection';
 import { PhonesWhatsAppSection } from './developer/PhonesWhatsAppSection';
 import { RatingsSection } from './developer/RatingsSection';
 import { SiteAndAboutSection } from './developer/SiteAndAboutSection';
@@ -3291,6 +3297,35 @@ export function DeveloperSettingsPage({
                     currentUser?.email || 'developer'
                   )
                 );
+              }}
+            />
+          )}
+
+          {/* ================================================================ */}
+          {/* SECTION 8.5: HERO BANNER SETTINGS                                */}
+          {/* ================================================================ */}
+          {activeTab === 'hero_banner' && (
+            <HeroBannerSettingsSection
+              configDraft={configDraft}
+              isSiteConfigDirty={isSiteConfigDirty}
+              savingSiteConfig={savingSiteConfig}
+              onUpdateField={updateConfigField}
+              onSaveSubmit={handleSaveConfigSubmit}
+              onCancelChanges={handleCancelConfigChanges}
+              onResetToDefaults={() => {
+                setConfigDraft((prev) => ({
+                  ...prev,
+                  heroBgType: DEFAULT_SITE_CONFIG.heroBgType,
+                  heroBgColor: DEFAULT_SITE_CONFIG.heroBgColor,
+                  heroBgColor2: DEFAULT_SITE_CONFIG.heroBgColor2,
+                  heroBgGradientDirection: DEFAULT_SITE_CONFIG.heroBgGradientDirection,
+                  heroBgImage: DEFAULT_SITE_CONFIG.heroBgImage,
+                  heroBgFit: DEFAULT_SITE_CONFIG.heroBgFit,
+                  heroBgPosition: DEFAULT_SITE_CONFIG.heroBgPosition,
+                  heroOverlayColor: DEFAULT_SITE_CONFIG.heroOverlayColor,
+                  heroOverlayOpacity: DEFAULT_SITE_CONFIG.heroOverlayOpacity,
+                }));
+                setIsSiteConfigDirty(true);
               }}
             />
           )}

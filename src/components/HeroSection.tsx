@@ -38,6 +38,7 @@ export function HeroSection({
         backgroundImage: `url(${siteConfig.heroBgImage})`,
         backgroundSize: siteConfig.heroBgFit || 'cover',
         backgroundPosition: siteConfig.heroBgPosition || 'center',
+        backgroundRepeat: 'no-repeat',
       };
     }
     if (siteConfig.heroBgType === 'color') {
@@ -48,8 +49,18 @@ export function HeroSection({
     const c1 = siteConfig.heroBgColor || '#0B2354';
     const c2 = siteConfig.heroBgColor2 || '#0EA5E9';
     const dir = siteConfig.heroBgGradientDirection || 'to-bl';
-    const cssDir = dir === 'to-bl' ? 'to bottom left' : dir === 'to-br' ? 'to bottom right' : dir;
-    if (c1.toLowerCase() === '#0b2354' && c2.toLowerCase() === '#0ea5e9') {
+    const directionMap: Record<string, string> = {
+      'to-bl': 'to bottom left',
+      'to-br': 'to bottom right',
+      'to-tl': 'to top left',
+      'to-tr': 'to top right',
+      'to-r': 'to right',
+      'to-l': 'to left',
+      'to-t': 'to top',
+      'to-b': 'to bottom',
+    };
+    const cssDir = directionMap[dir] || dir || 'to bottom left';
+    if (c1.toLowerCase() === '#0b2354' && c2.toLowerCase() === '#0ea5e9' && (dir === 'to-bl' || !dir)) {
       return {
         backgroundImage: `linear-gradient(${cssDir}, #0B2354, #164BB0, #0EA5E9)`,
       };
