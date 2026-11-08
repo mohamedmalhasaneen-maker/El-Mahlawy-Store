@@ -250,8 +250,8 @@ export function RatingStatsDisplay({
           : 'bg-[#0B2354]/85 text-white border-white/20'
       } border shadow-[0_16px_48px_0_rgba(0,0,0,0.45)] p-6 sm:p-10 space-y-10 transition-colors ${className}`}
     >
-      {/* 1. Header Banner (Straight Horizontal Bar without waves) */}
-      <div className="rounded-none bg-gradient-to-l from-[#081830] via-[#0F3057] to-[#081830] border-y border-white/25 px-5 sm:px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-inner">
+      {/* 1. Header Banner (Curved design matching adjacent cards) */}
+      <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-l from-[#081830] via-[#0F3057] to-[#081830] border border-white/20 px-5 sm:px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-2xl backdrop-blur-xl transition-all duration-300">
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1 text-xs font-extrabold text-[#7DD3FC] border border-white/15">
             <MessageSquareHeart className="h-4 w-4 text-[#38BDF8]" aria-hidden="true" />

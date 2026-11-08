@@ -135,6 +135,44 @@ export function MobileStorefront({
   const effectiveSortValue =
     !isShowingFeatured && sortBy === SortOption.FEATURED ? SortOption.NEWEST : sortBy;
 
+  const getBannerStyle = (): React.CSSProperties => {
+    if (siteConfig.heroBgType === 'image' && siteConfig.heroBgImage) {
+      return {
+        backgroundImage: `url(${siteConfig.heroBgImage})`,
+        backgroundSize: siteConfig.heroBgFit || 'cover',
+        backgroundPosition: siteConfig.heroBgPosition || 'center',
+        backgroundRepeat: 'no-repeat',
+      };
+    }
+    if (siteConfig.heroBgType === 'color') {
+      return {
+        backgroundColor: siteConfig.heroBgColor || '#0B2354',
+      };
+    }
+    const c1 = siteConfig.heroBgColor || '#0B2354';
+    const c2 = siteConfig.heroBgColor2 || '#0EA5E9';
+    const dir = siteConfig.heroBgGradientDirection || 'to-bl';
+    const directionMap: Record<string, string> = {
+      'to-bl': 'to bottom left',
+      'to-br': 'to bottom right',
+      'to-tl': 'to top left',
+      'to-tr': 'to top right',
+      'to-r': 'to right',
+      'to-l': 'to left',
+      'to-t': 'to top',
+      'to-b': 'to bottom',
+    };
+    const cssDir = directionMap[dir] || dir || 'to bottom left';
+    if (c1.toLowerCase() === '#0b2354' && c2.toLowerCase() === '#0ea5e9' && (dir === 'to-bl' || !dir)) {
+      return {
+        backgroundImage: `linear-gradient(${cssDir}, #0B2354, #164BB0, #0EA5E9)`,
+      };
+    }
+    return {
+      backgroundImage: `linear-gradient(${cssDir}, ${c1}, ${c2})`,
+    };
+  };
+
   return (
     <div
       id="mobile-top"
@@ -285,63 +323,99 @@ export function MobileStorefront({
           </div>
         </div>
 
-        {/* 3. Compact Royal-to-Sky Blue Welcome Banner */}
+        {/* 3. Compact Welcome Banner (Inherits exact Firestore SiteConfig banner settings) */}
         {!isSearching && (
           <section aria-label={`ترحيب ${siteConfig.storeName}`} className="px-3.5 pb-4">
-            <div className="rounded-2xl bg-gradient-to-br from-[#0B2354] via-[#1D4ED8] to-[#0284C7] p-4 text-white shadow-[0_8px_22px_rgba(29,78,216,0.16)]">
-              <p className="text-[11px] font-bold text-[#BAE6FD]">
-                {siteConfig.storeName}
-                {siteConfig.storeSubtitle ? (
-                  <>
-                    {' '}
-                    · <bdi>{siteConfig.storeSubtitle}</bdi>
-                  </>
-                ) : null}
-              </p>
+            <div
+              className="relative overflow-hidden rounded-2xl p-4 sm:p-5 text-white shadow-[0_8px_22px_rgba(8,26,51,0.2)] transition-all duration-300"
+              style={getBannerStyle()}
+            >
+              {/* Custom Overlay Layer */}
+              <div
+                className="absolute inset-0 pointer-events-none z-0 transition-opacity duration-300"
+                style={{
+                  backgroundColor: siteConfig.heroOverlayColor || '#000000',
+                  opacity:
+                    typeof siteConfig.heroOverlayOpacity === 'number'
+                      ? siteConfig.heroOverlayOpacity
+                      : 0.2,
+                }}
+              />
 
-              <p className="mt-1 text-lg min-[380px]:text-xl font-extrabold leading-snug text-white text-balance">
-                {siteConfig.tagline}
-              </p>
-
-              {siteConfig.shippingSummary && (
-                <p className="mt-1.5 text-xs text-[#E0F2FE]/95 leading-relaxed">
-                  {siteConfig.shippingSummary}
-                </p>
+              {/* Geometric Contour Vectors (visible in color and gradient modes) */}
+              {siteConfig.heroBgType !== 'image' && (
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 1440 560"
+                  fill="none"
+                  preserveAspectRatio="none"
+                  className="pointer-events-none absolute inset-0 h-full w-full opacity-20 z-0"
+                >
+                  <circle cx="180" cy="90" r="240" stroke="#BAE6FD" strokeWidth="1.5" />
+                  <circle cx="180" cy="90" r="340" stroke="#7DD3FC" strokeWidth="1" />
+                  <path
+                    d="M-100 430 C 320 310, 680 540, 1120 390 C 1300 330, 1420 380, 1540 350"
+                    stroke="#E0F2FE"
+                    strokeWidth="1.5"
+                  />
+                </svg>
               )}
 
-              <div className="mt-3.5 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => scrollToSection('mobile-products-section')}
-                  className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl bg-white px-3.5 py-2 text-xs font-extrabold text-[#0B2354] active:scale-[0.98] transition-transform whitespace-nowrap cursor-pointer"
-                >
-                  تصفح المنتجات
-                </button>
+              <div className="relative z-10">
+                <p className="text-[11px] font-bold text-[#BAE6FD]">
+                  {siteConfig.storeName}
+                  {siteConfig.storeSubtitle ? (
+                    <>
+                      {' '}
+                      · <bdi>{siteConfig.storeSubtitle}</bdi>
+                    </>
+                  ) : null}
+                </p>
 
-                <a
-                  href={siteConfig.whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-white/15 border border-white/25 px-3.5 py-2 text-xs font-bold text-white whitespace-nowrap"
-                >
-                  <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span>واتساب الأعمال</span>
-                </a>
-              </div>
+                <p className="mt-1 text-lg min-[380px]:text-xl font-extrabold leading-snug text-white text-balance">
+                  {siteConfig.tagline}
+                </p>
 
-              {siteConfig.showHeroSpotlight &&
-                (featuredProducts.length > 0 || heroSpotlightProduct) && (
-                  <div className="mt-4">
-                    <FeaturedSpotlightCarousel
-                      featuredProducts={featuredProducts}
-                      fallbackProduct={heroSpotlightProduct}
-                      onSelectProduct={handleOpenDetails}
-                      onOrderProduct={handleStartOrder}
-                      publicOrigin={publicOrigin}
-                      variant="mobile"
-                    />
-                  </div>
+                {siteConfig.shippingSummary && (
+                  <p className="mt-1.5 text-xs text-[#E0F2FE]/95 leading-relaxed">
+                    {siteConfig.shippingSummary}
+                  </p>
                 )}
+
+                <div className="mt-3.5 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('mobile-products-section')}
+                    className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl bg-white px-3.5 py-2 text-xs font-extrabold text-[#0B2354] active:scale-[0.98] transition-transform whitespace-nowrap cursor-pointer shadow-sm"
+                  >
+                    تصفح المنتجات
+                  </button>
+
+                  <a
+                    href={siteConfig.whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 px-3.5 py-2 text-xs font-bold text-white whitespace-nowrap"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>واتساب الأعمال</span>
+                  </a>
+                </div>
+
+                {siteConfig.showHeroSpotlight &&
+                  (featuredProducts.length > 0 || heroSpotlightProduct) && (
+                    <div className="mt-4">
+                      <FeaturedSpotlightCarousel
+                        featuredProducts={featuredProducts}
+                        fallbackProduct={heroSpotlightProduct}
+                        onSelectProduct={handleOpenDetails}
+                        onOrderProduct={handleStartOrder}
+                        publicOrigin={publicOrigin}
+                        variant="mobile"
+                      />
+                    </div>
+                  )}
+              </div>
             </div>
           </section>
         )}
