@@ -37,7 +37,6 @@ export type DeveloperSectionId =
   | 'social'
   | 'branches'
   | 'site-info'
-  | 'essential-products'
   | 'sections'
   | 'ratings'
   | 'hero_banner'
