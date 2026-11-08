@@ -221,6 +221,18 @@ service cloud.firestore {
         (!('heroOverlayOpacity' in data) || ((data.heroOverlayOpacity is int || data.heroOverlayOpacity is float) && data.heroOverlayOpacity >= 0 && data.heroOverlayOpacity <= 100));
     }
 
+    function isValidSiteConfigAboutBanner(data) {
+      return (!('aboutBgType' in data) || (data.aboutBgType is string && data.aboutBgType in ['default', 'solid', 'color', 'gradient', 'image'])) &&
+        (!('aboutBgColor' in data) || (data.aboutBgColor is string && data.aboutBgColor.size() <= 40)) &&
+        (!('aboutBgColor2' in data) || (data.aboutBgColor2 is string && data.aboutBgColor2.size() <= 40)) &&
+        (!('aboutBgGradientDirection' in data) || (data.aboutBgGradientDirection is string && data.aboutBgGradientDirection.size() <= 50)) &&
+        (!('aboutBgImage' in data) || (data.aboutBgImage is string && data.aboutBgImage.size() <= 2000)) &&
+        (!('aboutBgFit' in data) || (data.aboutBgFit is string && data.aboutBgFit in ['cover', 'contain', 'auto'])) &&
+        (!('aboutBgPosition' in data) || (data.aboutBgPosition is string && data.aboutBgPosition in ['center', 'top', 'bottom', 'left', 'right'])) &&
+        (!('aboutOverlayColor' in data) || (data.aboutOverlayColor is string && data.aboutOverlayColor.size() <= 40)) &&
+        (!('aboutOverlayOpacity' in data) || ((data.aboutOverlayOpacity is int || data.aboutOverlayOpacity is float) && data.aboutOverlayOpacity >= 0 && data.aboutOverlayOpacity <= 100));
+    }
+
     function isValidSiteConfig(data) {
       return data.keys().hasAll([
           'id', 'storeName', 'primaryPhone', 'primaryWhatsApp', 'updatedBy', 'updatedAt'
@@ -242,11 +254,15 @@ service cloud.firestore {
           'heroBgType', 'heroBgColor', 'heroBgColor2', 'heroBgGradientDirection',
           'heroBgImage', 'heroBgFit', 'heroBgPosition', 'heroOverlayColor',
           'heroOverlayOpacity',
+          'aboutBgType', 'aboutBgColor', 'aboutBgColor2', 'aboutBgGradientDirection',
+          'aboutBgImage', 'aboutBgFit', 'aboutBgPosition', 'aboutOverlayColor',
+          'aboutOverlayOpacity',
           'updatedBy', 'updatedAt'
         ]) &&
         isValidSiteConfigGroup1(data) &&
         isValidSiteConfigGroup2(data) &&
         isValidSiteConfigHero(data) &&
+        isValidSiteConfigAboutBanner(data) &&
         isValidSiteConfigLists(data);
     }
 
@@ -323,6 +339,15 @@ service cloud.firestore {
             ]) &&
             isValidSiteConfigHero(request.resource.data)
           ) ||
+          // Action A2: Targeted About Us Banner Update
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'aboutBgType', 'aboutBgColor', 'aboutBgColor2', 'aboutBgGradientDirection',
+              'aboutBgImage', 'aboutBgFit', 'aboutBgPosition', 'aboutOverlayColor',
+              'aboutOverlayOpacity', 'updatedBy', 'updatedAt'
+            ]) &&
+            isValidSiteConfigAboutBanner(request.resource.data)
+          ) ||
           // Action B: Full SiteConfig Update
           (
             isValidSiteConfig(request.resource.data) &&
@@ -345,6 +370,9 @@ service cloud.firestore {
                 'heroBgType', 'heroBgColor', 'heroBgColor2', 'heroBgGradientDirection',
                 'heroBgImage', 'heroBgFit', 'heroBgPosition', 'heroOverlayColor',
                 'heroOverlayOpacity',
+                'aboutBgType', 'aboutBgColor', 'aboutBgColor2', 'aboutBgGradientDirection',
+                'aboutBgImage', 'aboutBgFit', 'aboutBgPosition', 'aboutOverlayColor',
+                'aboutOverlayOpacity',
                 'updatedBy', 'updatedAt'
               ])
             )

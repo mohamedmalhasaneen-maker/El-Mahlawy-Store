@@ -583,9 +583,10 @@ export function Footer({
       )}
 
       {/* 3. التذييل النهائي للموقع (Footer) */}
-      <div className={`border-t ${isDark ? 'border-[#D4AF37]/30' : 'border-[#163663]'}`}>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className={`border-t ${isDark ? 'border-[#D4AF37]/30' : 'border-[#163663]'} py-4 sm:py-6`}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className={`rounded-3xl ${isDark ? 'bg-[#0B0B0B]' : 'bg-[#0E264A]/80'} border ${isDark ? 'border-[#D4AF37]/25' : 'border-[#1E3F73]'} p-6 sm:p-7 shadow-sm space-y-4`}>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5 max-w-3xl">
               <p className="text-base font-extrabold text-white">
                 {siteConfig.storeName} × <bdi>{siteConfig.partnerName}</bdi>
@@ -649,6 +650,7 @@ export function Footer({
           </div>
         </div>
       </div>
+    </div>
     </footer>
   );
 }

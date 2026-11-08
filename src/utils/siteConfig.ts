@@ -140,6 +140,17 @@ export interface SiteConfig {
   heroOverlayColor: string;
   heroOverlayOpacity: number;
 
+  // 7b. About Us Banner Customization Settings
+  aboutBgType: 'color' | 'gradient' | 'image';
+  aboutBgColor: string;
+  aboutBgColor2: string;
+  aboutBgGradientDirection: string;
+  aboutBgImage: string;
+  aboutBgFit: 'cover' | 'contain';
+  aboutBgPosition: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  aboutOverlayColor: string;
+  aboutOverlayOpacity: number;
+
   // 8. Audit Metadata
   updatedBy: string;
   updatedAt: string;
@@ -356,6 +367,16 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   heroBgPosition: 'center',
   heroOverlayColor: '#000000',
   heroOverlayOpacity: 0.2,
+
+  aboutBgType: 'gradient',
+  aboutBgColor: '#0B0B0B',
+  aboutBgColor2: '#082E38',
+  aboutBgGradientDirection: 'to-r',
+  aboutBgImage: '',
+  aboutBgFit: 'cover',
+  aboutBgPosition: 'center',
+  aboutOverlayColor: '#000000',
+  aboutOverlayOpacity: 0.2,
 
   updatedBy: 'system',
   updatedAt: new Date(0).toISOString(),
@@ -971,6 +992,37 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
         ? Math.min(1, Math.max(0, merged.heroOverlayOpacity))
         : 0.2,
 
+    aboutBgType:
+      merged.aboutBgType && ['color', 'gradient', 'image', 'solid', 'default'].includes(merged.aboutBgType)
+        ? merged.aboutBgType
+        : 'gradient',
+    aboutBgColor: cleanStr(merged.aboutBgColor, DEFAULT_SITE_CONFIG.aboutBgColor, 30, 3),
+    aboutBgColor2: cleanStr(merged.aboutBgColor2, DEFAULT_SITE_CONFIG.aboutBgColor2, 30, 3),
+    aboutBgGradientDirection: cleanStr(
+      merged.aboutBgGradientDirection,
+      DEFAULT_SITE_CONFIG.aboutBgGradientDirection,
+      40,
+      2
+    ),
+    aboutBgImage: isValidOptionalHttpUrl(cleanStr(merged.aboutBgImage, '', 600, 0))
+      ? cleanStr(merged.aboutBgImage, '', 600, 0)
+      : '',
+    aboutBgFit: merged.aboutBgFit === 'contain' ? 'contain' : 'cover',
+    aboutBgPosition: [
+      'center',
+      'top',
+      'bottom',
+      'left',
+      'right',
+    ].includes(merged.aboutBgPosition as string)
+      ? (merged.aboutBgPosition as any)
+      : 'center',
+    aboutOverlayColor: cleanStr(merged.aboutOverlayColor, DEFAULT_SITE_CONFIG.aboutOverlayColor, 30, 3),
+    aboutOverlayOpacity:
+      typeof merged.aboutOverlayOpacity === 'number' && Number.isFinite(merged.aboutOverlayOpacity)
+        ? Math.min(1, Math.max(0, merged.aboutOverlayOpacity))
+        : 0.2,
+
     updatedBy: safeUpdatedBy,
     updatedAt: typeof merged.updatedAt === 'string' ? merged.updatedAt : new Date().toISOString(),
   };
@@ -1195,6 +1247,15 @@ export function buildFirestoreSiteConfigPayload(
     heroBgPosition: clean.heroBgPosition,
     heroOverlayColor: clean.heroOverlayColor,
     heroOverlayOpacity: clean.heroOverlayOpacity,
+    aboutBgType: clean.aboutBgType,
+    aboutBgColor: clean.aboutBgColor,
+    aboutBgColor2: clean.aboutBgColor2,
+    aboutBgGradientDirection: clean.aboutBgGradientDirection,
+    aboutBgImage: clean.aboutBgImage,
+    aboutBgFit: clean.aboutBgFit,
+    aboutBgPosition: clean.aboutBgPosition,
+    aboutOverlayColor: clean.aboutOverlayColor,
+    aboutOverlayOpacity: clean.aboutOverlayOpacity,
     updatedBy: clean.updatedBy,
     updatedAt: updatedAtValue,
   };

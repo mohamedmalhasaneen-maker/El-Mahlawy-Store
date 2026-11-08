@@ -4,6 +4,7 @@ import {
   Check,
   CheckCircle2,
   Eye,
+  Home,
   ImagePlus,
   Info,
   Layers,
@@ -17,12 +18,17 @@ import {
   Search,
   Sliders,
   Smartphone,
+  Sparkles,
   Trash2,
   Upload,
   X,
 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import { DEFAULT_SITE_CONFIG, SiteConfig } from '../../utils/siteConfig';
+import {
+  saveCloudAboutBannerSettings,
+  saveCloudHeroBannerSettings,
+} from '../../lib/firebase';
 
 interface HeroBannerSettingsSectionProps {
   configDraft: SiteConfig;
@@ -75,6 +81,12 @@ const BRAND_GRADIENT_PRESETS = [
     c2: '#1C2541',
     dir: 'to-b',
   },
+  {
+    name: 'تدرج صفحة من نحن الذهبي الداكن',
+    c1: '#0B0B0B',
+    c2: '#082E38',
+    dir: 'to-r',
+  },
 ];
 
 // Gradient directions
@@ -94,16 +106,17 @@ export function HeroBannerSettingsSection({
   isSiteConfigDirty,
   savingSiteConfig,
   onUpdateField,
-  onSaveSubmit,
   onCancelChanges,
   onResetToDefaults,
 }: HeroBannerSettingsSectionProps) {
+  const [activeTab, setActiveTab] = useState<'hero' | 'about'>('hero');
   const [uploadingImage, setUploadingImage] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [showFullPreviewModal, setShowFullPreviewModal] = useState<boolean>(false);
   const [previewDeviceMode, setPreviewDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
   const [resetConfirmOpen, setResetConfirmOpen] = useState<boolean>(false);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
+  const [savingCurrentBanner, setSavingCurrentBanner] = useState<boolean>(false);
   const [saveStatus, setSaveStatus] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -111,30 +124,65 @@ export function HeroBannerSettingsSection({
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const isHeroTab = activeTab === 'hero';
+
+  // Compute active banner field values based on current sub-tab
+  const bgType = isHeroTab ? configDraft.heroBgType : configDraft.aboutBgType;
+  const bgColor = isHeroTab ? configDraft.heroBgColor : configDraft.aboutBgColor;
+  const bgColor2 = isHeroTab ? configDraft.heroBgColor2 : configDraft.aboutBgColor2;
+  const bgGradientDir = isHeroTab
+    ? configDraft.heroBgGradientDirection
+    : configDraft.aboutBgGradientDirection;
+  const bgImage = isHeroTab ? configDraft.heroBgImage : configDraft.aboutBgImage;
+  const bgFit = isHeroTab ? configDraft.heroBgFit : configDraft.aboutBgFit;
+  const bgPosition = isHeroTab ? configDraft.heroBgPosition : configDraft.aboutBgPosition;
+  const overlayColor = isHeroTab ? configDraft.heroOverlayColor : configDraft.aboutOverlayColor;
+  const overlayOpacity = isHeroTab
+    ? configDraft.heroOverlayOpacity
+    : configDraft.aboutOverlayOpacity;
+
+  // Helper to update field for active tab
+  const updateActiveBannerField = <T extends string | number>(
+    heroField: keyof SiteConfig,
+    aboutField: keyof SiteConfig,
+    val: T
+  ) => {
+    if (isHeroTab) {
+      onUpdateField(heroField, val as any);
+    } else {
+      onUpdateField(aboutField, val as any);
+    }
+  };
+
   // Helper to compute banner style dynamically
   const computeBannerPreviewStyle = (): React.CSSProperties => {
-    if (configDraft.heroBgType === 'image' && configDraft.heroBgImage) {
+    if (bgType === 'image' && bgImage) {
       return {
-        backgroundImage: `url(${configDraft.heroBgImage})`,
-        backgroundSize: configDraft.heroBgFit || 'cover',
-        backgroundPosition: configDraft.heroBgPosition || 'center',
+        backgroundImage: `url(${bgImage})`,
+        backgroundSize: bgFit || 'cover',
+        backgroundPosition: bgPosition || 'center',
         backgroundRepeat: 'no-repeat',
       };
     }
 
-    if (configDraft.heroBgType === 'color') {
+    if (bgType === 'color') {
       return {
-        backgroundColor: configDraft.heroBgColor || '#0B2354',
+        backgroundColor: bgColor || (isHeroTab ? '#0B2354' : '#0B0B0B'),
       };
     }
 
-    const c1 = configDraft.heroBgColor || '#0B2354';
-    const c2 = configDraft.heroBgColor2 || '#0EA5E9';
-    const dir = configDraft.heroBgGradientDirection || 'to-bl';
+    const c1 = bgColor || (isHeroTab ? '#0B2354' : '#0B0B0B');
+    const c2 = bgColor2 || (isHeroTab ? '#0EA5E9' : '#082E38');
+    const dir = bgGradientDir || (isHeroTab ? 'to-bl' : 'to-r');
     const dirObj = GRADIENT_DIRECTIONS.find((d) => d.id === dir);
-    const cssDir = dirObj ? dirObj.css : 'to bottom left';
+    const cssDir = dirObj ? dirObj.css : isHeroTab ? 'to bottom left' : 'to right';
 
-    if (c1.toLowerCase() === '#0b2354' && c2.toLowerCase() === '#0ea5e9' && (dir === 'to-bl' || !dir)) {
+    if (
+      isHeroTab &&
+      c1.toLowerCase() === '#0b2354' &&
+      c2.toLowerCase() === '#0ea5e9' &&
+      (dir === 'to-bl' || !dir)
+    ) {
       return {
         backgroundImage: `linear-gradient(${cssDir}, #0B2354, #164BB0, #0EA5E9)`,
       };
@@ -183,8 +231,14 @@ export function HeroBannerSettingsSection({
       }
 
       if (typeof data.secure_url === 'string' && data.secure_url.startsWith('https://')) {
-        onUpdateField('heroBgImage', data.secure_url);
-        onUpdateField('heroBgType', 'image');
+        const cacheBustedUrl = `${data.secure_url}?v=${Date.now()}`;
+        if (isHeroTab) {
+          onUpdateField('heroBgImage', cacheBustedUrl);
+          onUpdateField('heroBgType', 'image');
+        } else {
+          onUpdateField('aboutBgImage', cacheBustedUrl);
+          onUpdateField('aboutBgType', 'image');
+        }
       } else {
         throw new Error('لم تُرجع خدمة Cloudinary رابط صورة سحابي آمن.');
       }
@@ -196,11 +250,9 @@ export function HeroBannerSettingsSection({
     }
   };
 
-  // Restore official default settings
+  // Restore official default settings for current tab
   const handleExecuteResetToDefaults = () => {
-    if (onResetToDefaults) {
-      onResetToDefaults();
-    } else {
+    if (isHeroTab) {
       onUpdateField('heroBgType', DEFAULT_SITE_CONFIG.heroBgType);
       onUpdateField('heroBgColor', DEFAULT_SITE_CONFIG.heroBgColor);
       onUpdateField('heroBgColor2', DEFAULT_SITE_CONFIG.heroBgColor2);
@@ -210,34 +262,77 @@ export function HeroBannerSettingsSection({
       onUpdateField('heroBgPosition', DEFAULT_SITE_CONFIG.heroBgPosition);
       onUpdateField('heroOverlayColor', DEFAULT_SITE_CONFIG.heroOverlayColor);
       onUpdateField('heroOverlayOpacity', DEFAULT_SITE_CONFIG.heroOverlayOpacity);
+    } else {
+      onUpdateField('aboutBgType', DEFAULT_SITE_CONFIG.aboutBgType);
+      onUpdateField('aboutBgColor', DEFAULT_SITE_CONFIG.aboutBgColor);
+      onUpdateField('aboutBgColor2', DEFAULT_SITE_CONFIG.aboutBgColor2);
+      onUpdateField('aboutBgGradientDirection', DEFAULT_SITE_CONFIG.aboutBgGradientDirection);
+      onUpdateField('aboutBgImage', DEFAULT_SITE_CONFIG.aboutBgImage);
+      onUpdateField('aboutBgFit', DEFAULT_SITE_CONFIG.aboutBgFit);
+      onUpdateField('aboutBgPosition', DEFAULT_SITE_CONFIG.aboutBgPosition);
+      onUpdateField('aboutOverlayColor', DEFAULT_SITE_CONFIG.aboutOverlayColor);
+      onUpdateField('aboutOverlayOpacity', DEFAULT_SITE_CONFIG.aboutOverlayOpacity);
     }
     setResetConfirmOpen(false);
     setSaveStatus({
       type: 'success',
-      message: 'تم استعادة إعدادات وتنسيق البانر الافتراضي الأصلي للمتجر. اضغط «حفظ التغييرات» لتثبيته سحابيًا.',
+      message: `تم استعادة إعدادات ${isHeroTab ? 'البانر الرئيسي' : 'بانر صفحة من نحن'} الافتراضية بنجاح. اضغط «حفظ التغييرات» لتثبيته سحابيًا.`,
     });
   };
 
-  const handleFormSubmitInternal = async (e: React.FormEvent) => {
+  // Save current active banner to Firestore
+  const handleSaveCurrentBanner = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveStatus(null);
+    setSavingCurrentBanner(true);
+
     try {
-      await onSaveSubmit(e, 'إعدادات البانر الرئيسي (Hero Banner)');
-      setSaveStatus({
-        type: 'success',
-        message: 'تم حفظ إعدادات البانر الرئيسي وتأكيد كتابتها في Firestore بنجاح.',
-      });
+      if (isHeroTab) {
+        await saveCloudHeroBannerSettings({
+          heroBgType: configDraft.heroBgType,
+          heroBgColor: configDraft.heroBgColor,
+          heroBgColor2: configDraft.heroBgColor2,
+          heroBgGradientDirection: configDraft.heroBgGradientDirection,
+          heroBgImage: configDraft.heroBgImage,
+          heroBgFit: configDraft.heroBgFit,
+          heroBgPosition: configDraft.heroBgPosition,
+          heroOverlayColor: configDraft.heroOverlayColor,
+          heroOverlayOpacity: configDraft.heroOverlayOpacity,
+        });
+        setSaveStatus({
+          type: 'success',
+          message: 'تم حفظ إعدادات البانر الرئيسي وتأكيد كتابتها في Firestore بنجاح.',
+        });
+      } else {
+        await saveCloudAboutBannerSettings({
+          aboutBgType: configDraft.aboutBgType,
+          aboutBgColor: configDraft.aboutBgColor,
+          aboutBgColor2: configDraft.aboutBgColor2,
+          aboutBgGradientDirection: configDraft.aboutBgGradientDirection,
+          aboutBgImage: configDraft.aboutBgImage,
+          aboutBgFit: configDraft.aboutBgFit,
+          aboutBgPosition: configDraft.aboutBgPosition,
+          aboutOverlayColor: configDraft.aboutOverlayColor,
+          aboutOverlayOpacity: configDraft.aboutOverlayOpacity,
+        });
+        setSaveStatus({
+          type: 'success',
+          message: 'تم حفظ إعدادات بانر صفحة «من نحن» وتأكيد كتابتها في Firestore بنجاح.',
+        });
+      }
     } catch (err) {
       setSaveStatus({
         type: 'error',
         message: err instanceof Error ? err.message : 'فشل حفظ إعدادات البانر في Firestore.',
       });
+    } finally {
+      setSavingCurrentBanner(false);
     }
   };
 
   return (
-    <form onSubmit={handleFormSubmitInternal} className="space-y-6">
-      {/* Header Banner */}
+    <form onSubmit={handleSaveCurrentBanner} className="space-y-6">
+      {/* Top Header Banner */}
       <div className="rounded-2xl bg-[#141414]/90 backdrop-blur-xl border border-[#D4AF37]/30 p-5 sm:p-6 shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0F4C5C]/30 border border-[#D4AF37]/50 text-[#D4AF37] shadow-inner">
@@ -245,10 +340,10 @@ export function HeroBannerSettingsSection({
           </span>
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-white">
-              إعدادات وتخصيص البانر الرئيسي
+              إعدادات وتخصيص البانرات
             </h2>
             <p className="text-xs sm:text-sm text-gray-300 mt-0.5">
-              تحكم كامل في مظهر وخلفية البانر الرئيسي المحتوي على شريط البحث (لون ثابت، تدرج لوني، أو صورة سحابية مع طبقة التعتيم).
+              تحكم كامل ومستقل في خلفية البانر الرئيسي وبانر صفحة «من نحن» مع معاينة حية ومزامنة سحابية فورية.
             </p>
           </div>
         </div>
@@ -263,6 +358,41 @@ export function HeroBannerSettingsSection({
             <span>معاينة واقعية</span>
           </button>
         </div>
+      </div>
+
+      {/* Prominent Banner Selector Tabs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1.5 rounded-2xl bg-[#141414]/90 border border-[#D4AF37]/30 shadow-xl">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('hero');
+            setSaveStatus(null);
+          }}
+          className={`flex items-center justify-center gap-3 p-4 rounded-xl font-extrabold text-sm sm:text-base transition-all cursor-pointer ${
+            activeTab === 'hero'
+              ? 'bg-gradient-to-r from-[#0F4C5C] to-[#1D4ED8] text-white border border-[#D4AF37] shadow-lg'
+              : 'bg-[#0B0B0B] text-gray-300 hover:text-white border border-transparent'
+          }`}
+        >
+          <ImagePlus className="h-5 w-5 text-[#D4AF37]" aria-hidden="true" />
+          <span>1. البانر الرئيسي (Hero Banner)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('about');
+            setSaveStatus(null);
+          }}
+          className={`flex items-center justify-center gap-3 p-4 rounded-xl font-extrabold text-sm sm:text-base transition-all cursor-pointer ${
+            activeTab === 'about'
+              ? 'bg-gradient-to-r from-[#0F4C5C] to-[#1D4ED8] text-white border border-[#D4AF37] shadow-lg'
+              : 'bg-[#0B0B0B] text-gray-300 hover:text-white border border-transparent'
+          }`}
+        >
+          <Sparkles className="h-5 w-5 text-[#D4AF37]" aria-hidden="true" />
+          <span>2. بانر صفحة «من نحن» (About Banner)</span>
+        </button>
       </div>
 
       {/* Global Status Banner if present */}
@@ -298,7 +428,9 @@ export function HeroBannerSettingsSection({
             </span>
             <h3 className="text-base font-extrabold text-[#D4AF37] flex items-center gap-2">
               <Eye className="h-4 w-4" aria-hidden="true" />
-              <span>بطاقة معاينة البانر المباشرة</span>
+              <span>
+                معاينة حية مباشرة: {isHeroTab ? 'البانر الرئيسي' : 'بانر صفحة «من نحن»'}
+              </span>
             </h3>
           </div>
 
@@ -345,29 +477,31 @@ export function HeroBannerSettingsSection({
         >
           {/* Simulated Browser Bar */}
           <div className="bg-[#0B1528] px-3.5 py-2 text-[11px] text-gray-400 border-b border-white/10 flex items-center justify-between">
-            <span className="truncate font-mono">https://elmahlawy-store.vercel.app/</span>
+            <span className="truncate font-mono">
+              https://elmahlawy-store.vercel.app/{isHeroTab ? '' : 'about'}
+            </span>
             <span className="flex items-center gap-1.5 text-[#38BDF8] text-[10px] font-bold">
               <span className="h-2 w-2 rounded-full bg-[#38BDF8] animate-pulse" />
               معاينة حية فورية
             </span>
           </div>
 
-          {/* Rendered Live Hero Banner */}
+          {/* Rendered Banner Preview */}
           <div
-            className="relative p-6 sm:p-10 text-white min-h-[300px] flex flex-col justify-center overflow-hidden transition-all duration-300"
+            className="relative p-6 sm:p-10 text-white min-h-[260px] flex flex-col justify-center overflow-hidden transition-all duration-300"
             style={computeBannerPreviewStyle()}
           >
             {/* Dynamic Dark Overlay */}
             <div
               className="absolute inset-0 pointer-events-none z-0 transition-all duration-200"
               style={{
-                backgroundColor: configDraft.heroOverlayColor || '#000000',
-                opacity: typeof configDraft.heroOverlayOpacity === 'number' ? configDraft.heroOverlayOpacity : 0.2,
+                backgroundColor: overlayColor || '#000000',
+                opacity: typeof overlayOpacity === 'number' ? overlayOpacity : 0.2,
               }}
             />
 
             {/* Geometric Contour Vectors (visible in color and gradient modes) */}
-            {configDraft.heroBgType !== 'image' && (
+            {bgType !== 'image' && (
               <svg
                 aria-hidden="true"
                 viewBox="0 0 1440 560"
@@ -385,57 +519,85 @@ export function HeroBannerSettingsSection({
               </svg>
             )}
 
-            {/* Interactive Mock Content */}
-            <div className="relative z-10 max-w-xl space-y-3.5">
-              <p className="text-xs font-bold text-[#BAE6FD] tracking-wide">
-                {configDraft.storeName || 'المحلاوي ستور'} | <bdi>{configDraft.storeSubtitle || 'Elmahlawy Store'}</bdi>
-              </p>
+            {/* Interactive Mock Content depending on tab */}
+            {isHeroTab ? (
+              <div className="relative z-10 max-w-xl space-y-3.5">
+                <p className="text-xs font-bold text-[#BAE6FD] tracking-wide">
+                  {configDraft.storeName || 'المحلاوي ستور'} | <bdi>{configDraft.storeSubtitle || 'Elmahlawy Store'}</bdi>
+                </p>
 
-              <h3 className="text-xl sm:text-2xl font-black text-white leading-snug drop-shadow-md">
-                {configDraft.tagline || 'متجرك الموثوق للأجهزة وأنظمة التكييف والحلول الهندسية'}
-              </h3>
+                <h3 className="text-xl sm:text-2xl font-black text-white leading-snug drop-shadow-md">
+                  {configDraft.tagline || 'متجرك الموثوق للأجهزة وأنظمة التكييف والحلول الهندسية'}
+                </h3>
 
-              {/* Realistic Search Bar Mockup */}
-              <div className="relative flex items-center rounded-2xl bg-white p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.25)] max-w-lg">
-                <Search className="mr-2.5 ml-2 h-4 w-4 text-[#1D4ED8] shrink-0" aria-hidden="true" />
-                <input
-                  type="text"
-                  readOnly
-                  placeholder="ابحث في المنتجات والأجهزة والموديلات المتاحة..."
-                  className="w-full bg-transparent text-xs sm:text-sm text-[#0B1F3A] placeholder:text-slate-400 focus:outline-none"
-                />
-                <span className="min-h-[36px] rounded-xl bg-[#1D4ED8] px-4 py-1.5 text-xs font-bold text-white flex items-center justify-center shrink-0">
-                  بحث
-                </span>
+                {/* Realistic Search Bar Mockup */}
+                <div className="relative flex items-center rounded-2xl bg-white p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.25)] max-w-lg">
+                  <Search className="mr-2.5 ml-2 h-4 w-4 text-[#1D4ED8] shrink-0" aria-hidden="true" />
+                  <input
+                    type="text"
+                    readOnly
+                    placeholder="ابحث في المنتجات والأجهزة والموديلات المتاحة..."
+                    className="w-full bg-transparent text-xs sm:text-sm text-[#0B1F3A] placeholder:text-slate-400 focus:outline-none"
+                  />
+                  <span className="min-h-[36px] rounded-xl bg-[#1D4ED8] px-4 py-1.5 text-xs font-bold text-white flex items-center justify-center shrink-0">
+                    بحث
+                  </span>
+                </div>
+
+                {/* Action Buttons Mockup */}
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  <span className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-white px-4 py-1.5 text-xs font-black text-[#0F294A] shadow-md">
+                    <span>تصفح المنتجات</span>
+                    <ArrowDownLeft className="h-3.5 w-3.5 text-[#1D4ED8]" aria-hidden="true" />
+                  </span>
+                  <span className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-white/20 border border-white/30 px-3.5 py-1.5 text-xs font-bold text-white">
+                    <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>واتساب الأعمال</span>
+                  </span>
+                </div>
               </div>
+            ) : (
+              <div className="relative z-10 max-w-xl space-y-3.5 text-center mx-auto">
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#0F4C5C]/20 px-4 py-1.5 text-xs font-extrabold text-[#D4AF37] border border-[#D4AF37]/50">
+                  <Sparkles className="h-4 w-4 text-[#D4AF37]" />
+                  <span>من نحن | About Us</span>
+                </div>
 
-              {/* Action Buttons Mockup */}
-              <div className="flex flex-wrap items-center gap-2.5 pt-1">
-                <span className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-white px-4 py-1.5 text-xs font-black text-[#0F294A] shadow-md">
-                  <span>تصفح المنتجات</span>
-                  <ArrowDownLeft className="h-3.5 w-3.5 text-[#1D4ED8]" aria-hidden="true" />
-                </span>
-                <span className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-white/20 border border-white/30 px-3.5 py-1.5 text-xs font-bold text-white">
-                  <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>واتساب الأعمال</span>
-                </span>
+                <h3 className="text-xl sm:text-3xl font-extrabold text-white leading-tight drop-shadow-md">
+                  {configDraft.aboutHeroTitle || `${configDraft.storeName} × ${configDraft.partnerName}`}
+                </h3>
+
+                <p className="text-xs sm:text-sm text-gray-300 max-w-lg mx-auto leading-relaxed">
+                  {configDraft.aboutHeroSubtitle}
+                </p>
+
+                <div className="pt-1">
+                  <span className="inline-flex min-h-[38px] items-center gap-2 rounded-xl bg-[#0F4C5C] text-white px-4 py-1.5 text-xs font-extrabold border border-[#D4AF37]">
+                    <Home className="h-3.5 w-3.5" />
+                    <span>الرئيسية</span>
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Status info bar */}
           <div className="bg-[#141414] px-4 py-2 border-t border-white/10 flex items-center justify-between text-[11px] text-gray-400">
             <span>
-              النوع:{' '}
+              البانر النشط:{' '}
+              <strong className="text-white">
+                {isHeroTab ? 'البانر الرئيسي' : 'بانر صفحة من نحن'}
+              </strong>{' '}
+              · النوع:{' '}
               <strong className="text-[#D4AF37]">
-                {configDraft.heroBgType === 'gradient'
+                {bgType === 'gradient'
                   ? 'تدرج لوني'
-                  : configDraft.heroBgType === 'color'
+                  : bgType === 'color'
                   ? 'لون ثابت'
                   : 'صورة سحابية'}
               </strong>
             </span>
-            <span>تعتيم التظليل: {Math.round((configDraft.heroOverlayOpacity ?? 0.2) * 100)}%</span>
+            <span>تعتيم التظليل: {Math.round((overlayOpacity ?? 0.2) * 100)}%</span>
           </div>
         </div>
       </div>
@@ -451,10 +613,12 @@ export function HeroBannerSettingsSection({
           <div>
             <h3 className="text-base font-extrabold text-[#D4AF37] flex items-center gap-2">
               <Palette className="h-4 w-4" aria-hidden="true" />
-              <span>بطاقة اختيار الخلفية (لون ثابت / تدرج لوني / صورة سحابية)</span>
+              <span>
+                اختيار نمط وخلفية {isHeroTab ? 'البانر الرئيسي' : 'بانر صفحة «من نحن»'}
+              </span>
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              حدد مصدر ونمط الخلفية التي ترغب في تطبيقها على البانر الرئيسي.
+              حدد مصدر ونمط الخلفية (لون ثابت، تدرج لوني، أو صورة سحابية).
             </p>
           </div>
         </div>
@@ -481,12 +645,14 @@ export function HeroBannerSettingsSection({
               desc: 'صورة سحابية عالية الدقة والوضوح',
             },
           ].map((type) => {
-            const active = configDraft.heroBgType === type.id;
+            const active = bgType === type.id;
             return (
               <button
                 key={type.id}
                 type="button"
-                onClick={() => onUpdateField('heroBgType', type.id as any)}
+                onClick={() =>
+                  updateActiveBannerField('heroBgType', 'aboutBgType', type.id)
+                }
                 className={`p-4 rounded-xl border text-right transition-all cursor-pointer relative ${
                   active
                     ? 'bg-[#0F4C5C]/30 border-[#D4AF37] text-white shadow-[0_0_20px_rgba(212,175,55,0.2)]'
@@ -507,26 +673,30 @@ export function HeroBannerSettingsSection({
         </div>
 
         {/* Option A: Solid Color Mode */}
-        {configDraft.heroBgType === 'color' && (
+        {bgType === 'color' && (
           <div className="rounded-xl bg-[#0B0B0B] border border-white/10 p-4 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="cfg-hero-color-picker" className="block text-xs font-bold text-gray-300 mb-1.5">
+                <label htmlFor="cfg-color-picker" className="block text-xs font-bold text-gray-300 mb-1.5">
                   اختر اللون المخصص (Color Picker)
                 </label>
                 <div className="flex items-center gap-2">
                   <input
-                    id="cfg-hero-color-picker"
+                    id="cfg-color-picker"
                     type="color"
-                    value={configDraft.heroBgColor || '#0B2354'}
-                    onChange={(e) => onUpdateField('heroBgColor', e.target.value)}
+                    value={bgColor || (isHeroTab ? '#0B2354' : '#0B0B0B')}
+                    onChange={(e) =>
+                      updateActiveBannerField('heroBgColor', 'aboutBgColor', e.target.value)
+                    }
                     className="h-11 w-14 rounded-xl bg-[#141414] border border-white/20 cursor-pointer p-1 shrink-0"
                   />
                   <input
                     type="text"
                     dir="ltr"
-                    value={configDraft.heroBgColor || '#0B2354'}
-                    onChange={(e) => onUpdateField('heroBgColor', e.target.value)}
+                    value={bgColor || (isHeroTab ? '#0B2354' : '#0B0B0B')}
+                    onChange={(e) =>
+                      updateActiveBannerField('heroBgColor', 'aboutBgColor', e.target.value)
+                    }
                     placeholder="#0B2354"
                     className="flex-1 min-h-[44px] rounded-xl bg-[#141414] border border-white/15 px-3.5 py-2 text-sm text-white font-mono focus:outline-none focus:border-[#D4AF37]"
                   />
@@ -540,25 +710,27 @@ export function HeroBannerSettingsSection({
                 <div className="flex items-center gap-3 min-h-[44px] rounded-xl bg-[#141414] border border-white/15 px-3.5 py-2">
                   <span
                     className="h-7 w-7 rounded-lg border border-white/20 shrink-0 shadow-inner"
-                    style={{ backgroundColor: configDraft.heroBgColor || '#0B2354' }}
+                    style={{ backgroundColor: bgColor || (isHeroTab ? '#0B2354' : '#0B0B0B') }}
                   />
                   <span className="text-xs text-gray-300 font-mono">
-                    {configDraft.heroBgColor || '#0B2354'}
+                    {bgColor || (isHeroTab ? '#0B2354' : '#0B0B0B')}
                   </span>
                 </div>
               </div>
             </div>
 
             <div>
-              <p className="text-xs font-bold text-gray-400 mb-2">ألوان مقترحة متوافقة مع هوية المحلاوي ستور:</p>
+              <p className="text-xs font-bold text-gray-400 mb-2">ألوان مقترحة متوافقة مع هوية المتجر:</p>
               <div className="flex flex-wrap gap-2">
                 {BRAND_SOLID_PALETTE.map((pal) => (
                   <button
                     key={pal.hex}
                     type="button"
-                    onClick={() => onUpdateField('heroBgColor', pal.hex)}
+                    onClick={() =>
+                      updateActiveBannerField('heroBgColor', 'aboutBgColor', pal.hex)
+                    }
                     className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs text-white transition-all cursor-pointer ${
-                      (configDraft.heroBgColor || '').toLowerCase() === pal.hex.toLowerCase()
+                      (bgColor || '').toLowerCase() === pal.hex.toLowerCase()
                         ? 'border-[#D4AF37] bg-white/15 shadow-sm'
                         : 'border-white/10 bg-[#141414] hover:border-white/30'
                     }`}
@@ -576,7 +748,7 @@ export function HeroBannerSettingsSection({
         )}
 
         {/* Option B: Gradient Mode */}
-        {configDraft.heroBgType === 'gradient' && (
+        {bgType === 'gradient' && (
           <div className="rounded-xl bg-[#0B0B0B] border border-white/10 p-4 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Color 1 */}
@@ -588,15 +760,19 @@ export function HeroBannerSettingsSection({
                   <input
                     id="cfg-grad-c1"
                     type="color"
-                    value={configDraft.heroBgColor || '#0B2354'}
-                    onChange={(e) => onUpdateField('heroBgColor', e.target.value)}
+                    value={bgColor || (isHeroTab ? '#0B2354' : '#0B0B0B')}
+                    onChange={(e) =>
+                      updateActiveBannerField('heroBgColor', 'aboutBgColor', e.target.value)
+                    }
                     className="h-11 w-14 rounded-xl bg-[#141414] border border-white/20 cursor-pointer p-1 shrink-0"
                   />
                   <input
                     type="text"
                     dir="ltr"
-                    value={configDraft.heroBgColor || '#0B2354'}
-                    onChange={(e) => onUpdateField('heroBgColor', e.target.value)}
+                    value={bgColor || (isHeroTab ? '#0B2354' : '#0B0B0B')}
+                    onChange={(e) =>
+                      updateActiveBannerField('heroBgColor', 'aboutBgColor', e.target.value)
+                    }
                     className="flex-1 min-h-[44px] rounded-xl bg-[#141414] border border-white/15 px-3.5 py-2 text-sm text-white font-mono focus:outline-none focus:border-[#D4AF37]"
                   />
                 </div>
@@ -611,15 +787,19 @@ export function HeroBannerSettingsSection({
                   <input
                     id="cfg-grad-c2"
                     type="color"
-                    value={configDraft.heroBgColor2 || '#0EA5E9'}
-                    onChange={(e) => onUpdateField('heroBgColor2', e.target.value)}
+                    value={bgColor2 || (isHeroTab ? '#0EA5E9' : '#082E38')}
+                    onChange={(e) =>
+                      updateActiveBannerField('heroBgColor2', 'aboutBgColor2', e.target.value)
+                    }
                     className="h-11 w-14 rounded-xl bg-[#141414] border border-white/20 cursor-pointer p-1 shrink-0"
                   />
                   <input
                     type="text"
                     dir="ltr"
-                    value={configDraft.heroBgColor2 || '#0EA5E9'}
-                    onChange={(e) => onUpdateField('heroBgColor2', e.target.value)}
+                    value={bgColor2 || (isHeroTab ? '#0EA5E9' : '#082E38')}
+                    onChange={(e) =>
+                      updateActiveBannerField('heroBgColor2', 'aboutBgColor2', e.target.value)
+                    }
                     className="flex-1 min-h-[44px] rounded-xl bg-[#141414] border border-white/15 px-3.5 py-2 text-sm text-white font-mono focus:outline-none focus:border-[#D4AF37]"
                   />
                 </div>
@@ -633,8 +813,14 @@ export function HeroBannerSettingsSection({
               </label>
               <select
                 id="cfg-grad-direction"
-                value={configDraft.heroBgGradientDirection || 'to-bl'}
-                onChange={(e) => onUpdateField('heroBgGradientDirection', e.target.value)}
+                value={bgGradientDir || (isHeroTab ? 'to-bl' : 'to-r')}
+                onChange={(e) =>
+                  updateActiveBannerField(
+                    'heroBgGradientDirection',
+                    'aboutBgGradientDirection',
+                    e.target.value
+                  )
+                }
                 className="w-full min-h-[44px] rounded-xl bg-[#141414] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
               >
                 {GRADIENT_DIRECTIONS.map((dir) => (
@@ -651,18 +837,22 @@ export function HeroBannerSettingsSection({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {BRAND_GRADIENT_PRESETS.map((p) => {
                   const isSelected =
-                    (configDraft.heroBgColor || '').toLowerCase() === p.c1.toLowerCase() &&
-                    (configDraft.heroBgColor2 || '').toLowerCase() === p.c2.toLowerCase() &&
-                    (configDraft.heroBgGradientDirection || 'to-bl') === p.dir;
+                    (bgColor || '').toLowerCase() === p.c1.toLowerCase() &&
+                    (bgColor2 || '').toLowerCase() === p.c2.toLowerCase() &&
+                    (bgGradientDir || (isHeroTab ? 'to-bl' : 'to-r')) === p.dir;
 
                   return (
                     <button
                       key={p.name}
                       type="button"
                       onClick={() => {
-                        onUpdateField('heroBgColor', p.c1);
-                        onUpdateField('heroBgColor2', p.c2);
-                        onUpdateField('heroBgGradientDirection', p.dir);
+                        updateActiveBannerField('heroBgColor', 'aboutBgColor', p.c1);
+                        updateActiveBannerField('heroBgColor2', 'aboutBgColor2', p.c2);
+                        updateActiveBannerField(
+                          'heroBgGradientDirection',
+                          'aboutBgGradientDirection',
+                          p.dir
+                        );
                       }}
                       className={`p-2.5 rounded-xl border text-right transition-all flex items-center gap-3 cursor-pointer ${
                         isSelected
@@ -684,7 +874,7 @@ export function HeroBannerSettingsSection({
         )}
 
         {/* Option C: Image Mode */}
-        {configDraft.heroBgType === 'image' && (
+        {bgType === 'image' && (
           <div className="rounded-xl bg-[#0B0B0B] border border-white/10 p-4 space-y-4">
             {/* Drag & Drop Upload Zone */}
             <div
@@ -754,33 +944,35 @@ export function HeroBannerSettingsSection({
 
             {/* Direct Image URL input */}
             <div>
-              <label htmlFor="cfg-hero-img-direct-url" className="block text-xs font-bold text-gray-300 mb-1.5">
+              <label htmlFor="cfg-img-direct-url" className="block text-xs font-bold text-gray-300 mb-1.5">
                 رابط الصورة السحابي المباشر (HTTPS)
               </label>
               <input
-                id="cfg-hero-img-direct-url"
+                id="cfg-img-direct-url"
                 type="url"
                 dir="ltr"
-                value={configDraft.heroBgImage || ''}
-                onChange={(e) => onUpdateField('heroBgImage', e.target.value)}
+                value={bgImage || ''}
+                onChange={(e) =>
+                  updateActiveBannerField('heroBgImage', 'aboutBgImage', e.target.value)
+                }
                 placeholder="https://res.cloudinary.com/obvb7rtp/image/upload/..."
                 className="w-full min-h-[44px] rounded-xl bg-[#141414] border border-white/15 px-3.5 py-2 text-sm text-white placeholder:text-gray-500 font-mono focus:outline-none focus:border-[#D4AF37]"
               />
             </div>
 
             {/* Active Image Card with thumbnail, replace and delete */}
-            {configDraft.heroBgImage && (
+            {bgImage && (
               <div className="rounded-xl bg-[#141414] border border-white/15 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <img
-                    src={configDraft.heroBgImage}
+                    src={bgImage}
                     alt="خلفية البانر المحددة"
                     className="h-14 w-24 rounded-lg object-cover border border-white/20 bg-black shrink-0"
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-white truncate">تم تحديد الصورة السحابية بنجاح</p>
                     <p className="text-[11px] text-gray-400 font-mono truncate dir-ltr mt-0.5">
-                      {configDraft.heroBgImage}
+                      {bgImage}
                     </p>
                   </div>
                 </div>
@@ -797,8 +989,13 @@ export function HeroBannerSettingsSection({
                   <button
                     type="button"
                     onClick={() => {
-                      onUpdateField('heroBgImage', '');
-                      onUpdateField('heroBgType', 'gradient');
+                      if (isHeroTab) {
+                        onUpdateField('heroBgImage', '');
+                        onUpdateField('heroBgType', 'gradient');
+                      } else {
+                        onUpdateField('aboutBgImage', '');
+                        onUpdateField('aboutBgType', 'gradient');
+                      }
                     }}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-red-950/60 hover:bg-red-900/70 border border-red-500/40 px-3 py-1.5 text-xs font-bold text-red-200 cursor-pointer"
                   >
@@ -823,25 +1020,27 @@ export function HeroBannerSettingsSection({
           <div>
             <h3 className="text-base font-extrabold text-[#D4AF37] flex items-center gap-2">
               <Sliders className="h-4 w-4" aria-hidden="true" />
-              <span>بطاقة ضبط الصورة وطبقة التعتيم لضمان وضوح شريط البحث</span>
+              <span>ضبط خصائص الصورة وطبقة التعتيم والتظليل</span>
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              تحكم في طريقة احتواء الصورة، موضعها، وشفافية التظليل لحماية مقروئية النصوص والأزرار.
+              تحكم في طريقة احتواء الصورة، موضعها، وشفافية التظليل لحماية وضوح النصوص.
             </p>
           </div>
         </div>
 
         {/* If Image: Fit & Position */}
-        {configDraft.heroBgType === 'image' && (
+        {bgType === 'image' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="cfg-hero-image-fit" className="block text-xs font-bold text-gray-300 mb-1.5">
+              <label htmlFor="cfg-image-fit" className="block text-xs font-bold text-gray-300 mb-1.5">
                 طريقة احتواء الصورة (Background Fit)
               </label>
               <select
-                id="cfg-hero-image-fit"
-                value={configDraft.heroBgFit || 'cover'}
-                onChange={(e) => onUpdateField('heroBgFit', e.target.value as any)}
+                id="cfg-image-fit"
+                value={bgFit || 'cover'}
+                onChange={(e) =>
+                  updateActiveBannerField('heroBgFit', 'aboutBgFit', e.target.value)
+                }
                 className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
               >
                 <option value="cover">تغطية كاملة (Cover - الموصى بها)</option>
@@ -850,13 +1049,15 @@ export function HeroBannerSettingsSection({
             </div>
 
             <div>
-              <label htmlFor="cfg-hero-image-position" className="block text-xs font-bold text-gray-300 mb-1.5">
+              <label htmlFor="cfg-image-position" className="block text-xs font-bold text-gray-300 mb-1.5">
                 موضع تركيز الصورة (Position)
               </label>
               <select
-                id="cfg-hero-image-position"
-                value={configDraft.heroBgPosition || 'center'}
-                onChange={(e) => onUpdateField('heroBgPosition', e.target.value as any)}
+                id="cfg-image-position"
+                value={bgPosition || 'center'}
+                onChange={(e) =>
+                  updateActiveBannerField('heroBgPosition', 'aboutBgPosition', e.target.value)
+                }
                 className="w-full min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
               >
                 <option value="center">الوسط (Center - الموصى بها)</option>
@@ -872,22 +1073,26 @@ export function HeroBannerSettingsSection({
         {/* Overlay Color & Opacity */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="cfg-hero-overlay-picker" className="block text-xs font-bold text-gray-300 mb-1.5">
+            <label htmlFor="cfg-overlay-picker" className="block text-xs font-bold text-gray-300 mb-1.5">
               لون طبقة التعتيم والتظليل
             </label>
             <div className="flex items-center gap-2">
               <input
-                id="cfg-hero-overlay-picker"
+                id="cfg-overlay-picker"
                 type="color"
-                value={configDraft.heroOverlayColor || '#000000'}
-                onChange={(e) => onUpdateField('heroOverlayColor', e.target.value)}
+                value={overlayColor || '#000000'}
+                onChange={(e) =>
+                  updateActiveBannerField('heroOverlayColor', 'aboutOverlayColor', e.target.value)
+                }
                 className="h-11 w-14 rounded-xl bg-[#0B0B0B] border border-white/20 cursor-pointer p-1 shrink-0"
               />
               <input
                 type="text"
                 dir="ltr"
-                value={configDraft.heroOverlayColor || '#000000'}
-                onChange={(e) => onUpdateField('heroOverlayColor', e.target.value)}
+                value={overlayColor || '#000000'}
+                onChange={(e) =>
+                  updateActiveBannerField('heroOverlayColor', 'aboutOverlayColor', e.target.value)
+                }
                 className="flex-1 min-h-[44px] rounded-xl bg-[#0B0B0B] border border-white/15 px-3.5 py-2 text-sm text-white font-mono focus:outline-none focus:border-[#D4AF37]"
               />
             </div>
@@ -895,21 +1100,23 @@ export function HeroBannerSettingsSection({
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="cfg-hero-opacity-range" className="text-xs font-bold text-gray-300">
+              <label htmlFor="cfg-opacity-range" className="text-xs font-bold text-gray-300">
                 درجة التعتيم (Opacity)
               </label>
               <span className="text-xs font-extrabold text-[#D4AF37] tabular-nums">
-                {Math.round((configDraft.heroOverlayOpacity ?? 0.2) * 100)}%
+                {Math.round((overlayOpacity ?? 0.2) * 100)}%
               </span>
             </div>
             <input
-              id="cfg-hero-opacity-range"
+              id="cfg-opacity-range"
               type="range"
               min={0}
               max={1}
               step={0.05}
-              value={configDraft.heroOverlayOpacity ?? 0.2}
-              onChange={(e) => onUpdateField('heroOverlayOpacity', parseFloat(e.target.value))}
+              value={overlayOpacity ?? 0.2}
+              onChange={(e) =>
+                updateActiveBannerField('heroOverlayOpacity', 'aboutOverlayOpacity', parseFloat(e.target.value))
+              }
               className="w-full accent-[#D4AF37] cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-gray-500 mt-1">
@@ -923,7 +1130,7 @@ export function HeroBannerSettingsSection({
         <div className="p-3.5 rounded-xl bg-[#0B0B0B] border border-white/10 flex items-start gap-2.5 text-xs text-gray-300">
           <Info className="h-4 w-4 text-[#38BDF8] shrink-0 mt-0.5" aria-hidden="true" />
           <span>
-            توضع طبقة التعتيم والتظليل لحماية تباين شريط البحث الأبيض والعناوين المضيئة. القيمة الموصى بها هي <strong>20% إلى 40%</strong>.
+            توضع طبقة التعتيم والتظليل لحماية تباين النصوص والعناوين المضيئة. القيمة الموصى بها هي <strong>20% إلى 40%</strong>.
           </span>
         </div>
       </div>
@@ -939,7 +1146,9 @@ export function HeroBannerSettingsSection({
             </span>
             <h3 className="text-base font-extrabold text-[#D4AF37] flex items-center gap-2">
               <Layers className="h-4 w-4" aria-hidden="true" />
-              <span>بطاقة إدارة التغييرات وحفظ الإعدادات</span>
+              <span>
+                حفظ وإدارة تغييرات {isHeroTab ? 'البانر الرئيسي' : 'بانر صفحة «من نحن»'}
+              </span>
             </h3>
           </div>
           <span className="text-xs text-gray-400">
@@ -952,15 +1161,19 @@ export function HeroBannerSettingsSection({
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="submit"
-              disabled={savingSiteConfig}
+              disabled={savingCurrentBanner || savingSiteConfig}
               className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] disabled:opacity-55 border border-[#D4AF37] px-6 py-2.5 text-sm font-black text-white transition-all shadow-[0_0_20px_rgba(212,175,55,0.25)] cursor-pointer"
             >
-              {savingSiteConfig ? (
+              {savingCurrentBanner ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : (
                 <Check className="h-4 w-4 text-[#D4AF37]" aria-hidden="true" />
               )}
-              <span>{savingSiteConfig ? 'جاري الحفظ في Firestore...' : 'حفظ التغييرات سحابيًا'}</span>
+              <span>
+                {savingCurrentBanner
+                  ? 'جاري الحفظ في Firestore...'
+                  : `حفظ إعدادات ${isHeroTab ? 'البانر الرئيسي' : 'بانر من نحن'} سحابيًا`}
+              </span>
             </button>
 
             {/* Preview button */}
@@ -978,7 +1191,7 @@ export function HeroBannerSettingsSection({
             {/* Cancel Changes */}
             <button
               type="button"
-              disabled={savingSiteConfig || !isSiteConfigDirty}
+              disabled={savingCurrentBanner || savingSiteConfig || !isSiteConfigDirty}
               onClick={() => {
                 onCancelChanges();
                 setSaveStatus({
@@ -997,7 +1210,7 @@ export function HeroBannerSettingsSection({
               type="button"
               onClick={() => setResetConfirmOpen(true)}
               className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#0B2354]/40 hover:bg-[#0B2354]/70 border border-[#0EA5E9]/50 px-4 py-2.5 text-xs sm:text-sm font-bold text-[#E0F2FE] transition-all cursor-pointer"
-              title="الرجوع إلى خلفية وألوان المحلاوي ستور الأصلية"
+              title="الرجوع إلى الخلفية والألوان الأصلية المعتمدة"
             >
               <RefreshCw className="h-4 w-4 text-[#38BDF8]" aria-hidden="true" />
               <span>استعادة المظهر الأصلي</span>
@@ -1012,14 +1225,17 @@ export function HeroBannerSettingsSection({
           <div className="w-full max-w-md rounded-2xl bg-[#141414] border border-[#D4AF37]/40 p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3 text-[#D4AF37]">
               <RefreshCw className="h-6 w-6" aria-hidden="true" />
-              <h4 className="text-lg font-bold text-white">استعادة المظهر والتنسيق الأصلي للبانر؟</h4>
+              <h4 className="text-lg font-bold text-white">
+                استعادة المظهر والتنسيق الأصلي لـ {isHeroTab ? 'البانر الرئيسي' : 'بانر صفحة من نحن'}؟
+              </h4>
             </div>
             <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
-              سيتم إعادة إعدادات البانر الرئيسي فورًا إلى التصميم الأصلي المعتمد للمتجر:
+              سيتم إعادة إعدادات {isHeroTab ? 'البانر الرئيسي' : 'بانر صفحة من نحن'} فورًا إلى التصميم الأصلي المعتمد:
               <br />
-              • التدرج اللوني الرسمي للمحلاوي ستور (كحلي <strong>#0B2354</strong> إلى أزرق <strong>#0EA5E9</strong>).
+              • التدرج اللوني الرسمي (
+              <strong>{isHeroTab ? '#0B2354 إلى #0EA5E9' : '#0B0B0B إلى #082E38'}</strong>).
               <br />
-              • اتجاه التدرج القطري الرسمي <strong>to-bl</strong>.
+              • اتجاه التدرج الرسمي <strong>{isHeroTab ? 'to-bl' : 'to-r'}</strong>.
               <br />
               • إزالة أي صورة مخصصة وإعادة التعتيم إلى <strong>20%</strong>.
             </p>
@@ -1053,7 +1269,9 @@ export function HeroBannerSettingsSection({
                 <span className="h-3 w-3 rounded-full bg-red-500/80" />
                 <span className="h-3 w-3 rounded-full bg-yellow-500/80" />
                 <span className="h-3 w-3 rounded-full bg-green-500/80" />
-                <span className="text-xs font-bold text-white mr-3">معاينة البانر الرئيسي بالحجم الكامل كما يظهر للزوار</span>
+                <span className="text-xs font-bold text-white mr-3">
+                  معاينة {isHeroTab ? 'البانر الرئيسي' : 'بانر صفحة من نحن'} بالحجم الكامل كما يظهر للزوار
+                </span>
               </div>
               <button
                 type="button"
@@ -1073,13 +1291,13 @@ export function HeroBannerSettingsSection({
               <div
                 className="absolute inset-0 pointer-events-none z-0"
                 style={{
-                  backgroundColor: configDraft.heroOverlayColor || '#000000',
-                  opacity: typeof configDraft.heroOverlayOpacity === 'number' ? configDraft.heroOverlayOpacity : 0.2,
+                  backgroundColor: overlayColor || '#000000',
+                  opacity: typeof overlayOpacity === 'number' ? overlayOpacity : 0.2,
                 }}
               />
 
               {/* Water Curves if not image */}
-              {configDraft.heroBgType !== 'image' && (
+              {bgType !== 'image' && (
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 1440 560"
@@ -1097,46 +1315,70 @@ export function HeroBannerSettingsSection({
                 </svg>
               )}
 
-              <div className="relative z-10 max-w-2xl space-y-4">
-                <p className="text-xs sm:text-sm font-bold text-[#BAE6FD] tracking-wide">
-                  {configDraft.storeName || 'المحلاوي ستور'} | <bdi>{configDraft.storeSubtitle || 'Elmahlawy Store'}</bdi>
-                </p>
+              {isHeroTab ? (
+                <div className="relative z-10 max-w-2xl space-y-4">
+                  <p className="text-xs sm:text-sm font-bold text-[#BAE6FD] tracking-wide">
+                    {configDraft.storeName || 'المحلاوي ستور'} | <bdi>{configDraft.storeSubtitle || 'Elmahlawy Store'}</bdi>
+                  </p>
 
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white leading-tight drop-shadow-md">
-                  {configDraft.tagline || 'متجرك الموثوق للأجهزة وأنظمة التكييف والحلول الهندسية'}
-                </h2>
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white leading-tight drop-shadow-md">
+                    {configDraft.tagline || 'متجرك الموثوق للأجهزة وأنظمة التكييف والحلول الهندسية'}
+                  </h2>
 
-                <p className="text-xs sm:text-sm text-[#E0F2FE] max-w-xl leading-relaxed">
-                  {configDraft.heroDescription ||
-                    'نقدم لك تشكيلة متميزة من الأجهزة الكهربائية وأنظمة التكييف مع ضمان موثوق وخدمة عملاء على مدار الساعة.'}
-                </p>
+                  <p className="text-xs sm:text-sm text-[#E0F2FE] max-w-xl leading-relaxed">
+                    {configDraft.heroDescription ||
+                      'نقدم لك تشكيلة متميزة من الأجهزة الكهربائية وأنظمة التكييف مع ضمان موثوق وخدمة عملاء على مدار الساعة.'}
+                  </p>
 
-                {/* Search Bar Simulation */}
-                <div className="relative flex items-center rounded-2xl bg-white p-2 shadow-2xl max-w-xl">
-                  <Search className="mr-3 ml-2 h-5 w-5 text-[#1D4ED8] shrink-0" aria-hidden="true" />
-                  <input
-                    type="text"
-                    readOnly
-                    placeholder="ابحث في المنتجات والأجهزة والموديلات المتاحة..."
-                    className="w-full bg-transparent text-sm text-[#0B1F3A] placeholder:text-slate-400 focus:outline-none"
-                  />
-                  <span className="rounded-xl bg-[#1D4ED8] px-5 py-2 text-xs font-bold text-white shrink-0">
-                    بحث
-                  </span>
+                  {/* Search Bar Simulation */}
+                  <div className="relative flex items-center rounded-2xl bg-white p-2 shadow-2xl max-w-xl">
+                    <Search className="mr-3 ml-2 h-5 w-5 text-[#1D4ED8] shrink-0" aria-hidden="true" />
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="ابحث في المنتجات والأجهزة والموديلات المتاحة..."
+                      className="w-full bg-transparent text-sm text-[#0B1F3A] placeholder:text-slate-400 focus:outline-none"
+                    />
+                    <span className="rounded-xl bg-[#1D4ED8] px-5 py-2 text-xs font-bold text-white shrink-0">
+                      بحث
+                    </span>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-3 pt-2">
+                    <span className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs sm:text-sm font-extrabold text-[#0F294A] shadow-md">
+                      <span>تصفح المنتجات</span>
+                      <ArrowDownLeft className="h-4 w-4 text-[#1D4ED8]" aria-hidden="true" />
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-xl bg-white/18 border border-white/35 px-4 py-2.5 text-xs sm:text-sm font-bold text-white">
+                      <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                      <span>واتساب الأعمال</span>
+                    </span>
+                  </div>
                 </div>
+              ) : (
+                <div className="relative z-10 max-w-2xl space-y-4 text-center mx-auto">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[#0F4C5C]/20 px-4 py-1.5 text-xs font-extrabold text-[#D4AF37] border border-[#D4AF37]/50">
+                    <Sparkles className="h-4 w-4 text-[#D4AF37]" />
+                    <span>من نحن | About Us</span>
+                  </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-3 pt-2">
-                  <span className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs sm:text-sm font-extrabold text-[#0F294A] shadow-md">
-                    <span>تصفح المنتجات</span>
-                    <ArrowDownLeft className="h-4 w-4 text-[#1D4ED8]" aria-hidden="true" />
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-xl bg-white/18 border border-white/35 px-4 py-2.5 text-xs sm:text-sm font-bold text-white">
-                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                    <span>واتساب الأعمال</span>
-                  </span>
+                  <h2 className="text-2xl sm:text-4xl font-extrabold text-white leading-tight drop-shadow-md">
+                    {configDraft.aboutHeroTitle || `${configDraft.storeName} × ${configDraft.partnerName}`}
+                  </h2>
+
+                  <p className="text-xs sm:text-base text-gray-300 max-w-xl mx-auto font-medium leading-relaxed">
+                    {configDraft.aboutHeroSubtitle}
+                  </p>
+
+                  <div className="pt-2">
+                    <span className="inline-flex items-center gap-2 rounded-xl bg-[#0F4C5C] text-white px-5 py-2.5 text-xs sm:text-sm font-extrabold shadow-lg border border-[#D4AF37]">
+                      <Home className="h-4 w-4" />
+                      <span>الرئيسية</span>
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Modal Footer */}

@@ -793,6 +793,81 @@ export async function saveCloudHeroBannerSettings(
   }
 }
 
+export interface AboutBannerUpdateInput {
+  aboutBgType: 'default' | 'solid' | 'color' | 'gradient' | 'image';
+  aboutBgColor: string;
+  aboutBgColor2: string;
+  aboutBgGradientDirection: string;
+  aboutBgImage: string;
+  aboutBgFit: 'cover' | 'contain' | 'auto';
+  aboutBgPosition: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  aboutOverlayColor: string;
+  aboutOverlayOpacity: number;
+}
+
+export async function saveCloudAboutBannerSettings(
+  aboutInput: Partial<AboutBannerUpdateInput>,
+  authorUid?: string
+): Promise<void> {
+  const path = 'siteConfig/main';
+  let currentStage: CloudWriteStage = 'config_validation';
+
+  try {
+    const verifiedUser = await prepareVerifiedDeveloperCloudWrite((stage) => {
+      currentStage = stage;
+    });
+    const effectiveUid = verifiedUser.uid || authorUid || AUTHORIZED_DEVELOPER_UID;
+    const configRef = doc(db, 'siteConfig', 'main');
+
+    currentStage = 'payload_validation';
+    const aboutPayload: Record<string, unknown> = {
+      aboutBgType: ['color', 'gradient', 'image', 'solid', 'default'].includes(aboutInput.aboutBgType as string)
+        ? aboutInput.aboutBgType
+        : 'gradient',
+      aboutBgColor: (aboutInput.aboutBgColor || '#0B0B0B').slice(0, 40),
+      aboutBgColor2: (aboutInput.aboutBgColor2 || '#082E38').slice(0, 40),
+      aboutBgGradientDirection: (aboutInput.aboutBgGradientDirection || 'to-r').slice(0, 50),
+      aboutBgImage: (aboutInput.aboutBgImage || '').slice(0, 2000),
+      aboutBgFit: ['cover', 'contain', 'auto'].includes(aboutInput.aboutBgFit as string)
+        ? aboutInput.aboutBgFit
+        : 'cover',
+      aboutBgPosition: ['center', 'top', 'bottom', 'left', 'right'].includes(aboutInput.aboutBgPosition as string)
+        ? aboutInput.aboutBgPosition
+        : 'center',
+      aboutOverlayColor: (aboutInput.aboutOverlayColor || '#000000').slice(0, 40),
+      aboutOverlayOpacity:
+        typeof aboutInput.aboutOverlayOpacity === 'number' && Number.isFinite(aboutInput.aboutOverlayOpacity)
+          ? Math.min(100, Math.max(0, aboutInput.aboutOverlayOpacity))
+          : 0.2,
+      updatedBy: effectiveUid,
+      updatedAt: serverTimestamp(),
+    };
+
+    currentStage = 'firestore_write';
+    await executeWriteWithAuthRebindRetry(verifiedUser, () =>
+      updateDoc(configRef, aboutPayload)
+    );
+
+    currentStage = 'server_readback_confirm';
+    const serverSnap = await getDocFromServer(configRef);
+    if (!serverSnap.exists()) {
+      throw new Error('لم يتم تأكيد حفظ إعدادات بانر صفحة من نحن على الخادم.');
+    }
+  } catch (error) {
+    logSafeCloudWriteDiagnostic({
+      operationName: 'saveCloudAboutBannerSettings',
+      operationType: OperationType.UPDATE,
+      targetPath: path,
+      failedStage: currentStage,
+      error,
+    });
+    handleFirestoreError(error, OperationType.UPDATE, path, {
+      operationName: 'saveCloudAboutBannerSettings',
+      failedStage: currentStage,
+    });
+  }
+}
+
 let hasAttemptedLegacyMapsMigration = false;
 
 export async function migrateLegacySiteConfigMapsInCloud(): Promise<SiteConfig | null> {

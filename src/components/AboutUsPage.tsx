@@ -175,38 +175,90 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false,
 
       <main className="flex-1 space-y-0">
         {/* HERO BANNER */}
-        <section className="bg-gradient-to-r from-[#0B0B0B] via-[#082E38] to-[#0B0B0B] text-white py-12 sm:py-16 px-4 border-b border-[#D4AF37]">
-          <div className="mx-auto max-w-5xl text-center space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[#0F4C5C]/20 px-4 py-1.5 text-xs font-extrabold text-[#D4AF37] border border-[#D4AF37]/50">
-              <Sparkles className="h-4 w-4 text-[#D4AF37]" />
-              <span>من نحن | About Us</span>
-            </div>
+        {(() => {
+          const getAboutBannerStyle = (): React.CSSProperties => {
+            if (siteConfig.aboutBgType === 'image' && siteConfig.aboutBgImage) {
+              return {
+                backgroundImage: `url(${siteConfig.aboutBgImage})`,
+                backgroundSize: siteConfig.aboutBgFit || 'cover',
+                backgroundPosition: siteConfig.aboutBgPosition || 'center',
+                backgroundRepeat: 'no-repeat',
+              };
+            }
+            if (siteConfig.aboutBgType === 'color') {
+              return {
+                backgroundColor: siteConfig.aboutBgColor || '#0B0B0B',
+              };
+            }
+            const c1 = siteConfig.aboutBgColor || '#0B0B0B';
+            const c2 = siteConfig.aboutBgColor2 || '#082E38';
+            const dir = siteConfig.aboutBgGradientDirection || 'to-r';
+            const directionMap: Record<string, string> = {
+              'to-bl': 'to bottom left',
+              'to-br': 'to bottom right',
+              'to-tl': 'to top left',
+              'to-tr': 'to top right',
+              'to-r': 'to right',
+              'to-l': 'to left',
+              'to-t': 'to top',
+              'to-b': 'to bottom',
+            };
+            const cssDir = directionMap[dir] || dir || 'to right';
+            return {
+              backgroundImage: `linear-gradient(${cssDir}, ${c1}, ${c2})`,
+            };
+          };
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
-              {siteConfig.aboutHeroTitle || `${siteConfig.storeName} × ${siteConfig.partnerName}`}
-              <span className="sr-only"> — من نحن | Elmahlawy Store</span>
-            </h1>
+          return (
+            <section
+              className="relative overflow-hidden text-white py-12 sm:py-16 px-4 border-b border-[#D4AF37]"
+              style={getAboutBannerStyle()}
+            >
+              {/* Custom Overlay Layer */}
+              {(siteConfig.aboutOverlayOpacity ?? 0.2) > 0 && (
+                <div
+                  className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+                  style={{
+                    backgroundColor: siteConfig.aboutOverlayColor || '#000000',
+                    opacity: siteConfig.aboutOverlayOpacity,
+                  }}
+                  aria-hidden="true"
+                />
+              )}
 
-            <p className="text-sm sm:text-lg text-gray-300 max-w-3xl mx-auto font-medium leading-relaxed">
-              {siteConfig.aboutHeroSubtitle}
-            </p>
+              <div className="relative z-10 mx-auto max-w-5xl text-center space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#0F4C5C]/20 px-4 py-1.5 text-xs font-extrabold text-[#D4AF37] border border-[#D4AF37]/50">
+                  <Sparkles className="h-4 w-4 text-[#D4AF37]" />
+                  <span>من نحن | About Us</span>
+                </div>
 
-            <div className="pt-2">
-              <a
-                href="/"
-                onClick={(e) => {
-                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-                  e.preventDefault();
-                  onBackToStore();
-                }}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] text-white px-5 py-2.5 text-xs sm:text-sm font-extrabold shadow-lg border border-[#D4AF37] transition-colors cursor-pointer"
-              >
-                <Home className="h-4 w-4" />
-                <span>الرئيسية</span>
-              </a>
-            </div>
-          </div>
-        </section>
+                <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
+                  {siteConfig.aboutHeroTitle || `${siteConfig.storeName} × ${siteConfig.partnerName}`}
+                  <span className="sr-only"> — من نحن | Elmahlawy Store</span>
+                </h1>
+
+                <p className="text-sm sm:text-lg text-gray-300 max-w-3xl mx-auto font-medium leading-relaxed">
+                  {siteConfig.aboutHeroSubtitle}
+                </p>
+
+                <div className="pt-2">
+                  <a
+                    href="/"
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                      e.preventDefault();
+                      onBackToStore();
+                    }}
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#0F4C5C] hover:bg-[#0A3D4A] text-white px-5 py-2.5 text-xs sm:text-sm font-extrabold shadow-lg border border-[#D4AF37] transition-colors cursor-pointer"
+                  >
+                    <Home className="h-4 w-4" />
+                    <span>الرئيسية</span>
+                  </a>
+                </div>
+              </div>
+            </section>
+          );
+        })()}
 
         {/* 1. EL MAHLAWY STORE SECTION */}
         <section className="bg-[#0B0B0B] py-12 sm:py-16 border-b border-[#D4AF37]/30">
