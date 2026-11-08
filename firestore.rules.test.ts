@@ -415,7 +415,7 @@ test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 (with emailVerified:
     AUTHORIZED_UID,
     REQUEST_TIME
   );
-  assert.equal(Object.keys(fullAboutPayload).length, 53);
+  assert.equal(Object.keys(fullAboutPayload).length, 62);
   assert.equal(
     evaluateSiteConfigWrite('main', fullAboutPayload, authorizedDeveloperUidAuth),
     'ALLOWED'
@@ -505,7 +505,7 @@ test('Infinity Corp developer UID ILSbnyLsRWXvV9n2viqoMgFyDpr2 succeeds on siteC
     INFINITY_CORP_UID,
     REQUEST_TIME
   );
-  assert.equal(Object.keys(infinitySiteConfigUpdate).length, 53);
+  assert.equal(Object.keys(infinitySiteConfigUpdate).length, 62);
   assert.equal(
     evaluateSiteConfigWrite('main', infinitySiteConfigUpdate, infinityCorpDeveloperAuth),
     'ALLOWED'

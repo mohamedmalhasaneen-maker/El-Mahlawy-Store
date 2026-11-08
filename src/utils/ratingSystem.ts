@@ -103,6 +103,72 @@ export function calculateRatingStats(rawDoc: any): RatingStats {
   };
 }
 
+/**
+ * Computes live rating statistics strictly from approved user reviews in Firestore,
+ * ensuring no fake, dummy, or hardcoded numbers appear anywhere in the UI.
+ */
+export function calculateRatingStatsFromReviews(approvedReviews: SiteReviewDoc[]): RatingStats {
+  if (!approvedReviews || approvedReviews.length === 0) {
+    return EMPTY_RATING_STATS;
+  }
+
+  const totalCount = approvedReviews.length;
+  let totalStars = 0;
+  let star1 = 0;
+  let star2 = 0;
+  let star3 = 0;
+  let star4 = 0;
+  let star5 = 0;
+  let recommendYes = 0;
+  let recommendNo = 0;
+
+  for (const rev of approvedReviews) {
+    const s = Math.round(Number(rev.stars) || 5);
+    const clampedStars = Math.max(1, Math.min(5, s));
+    totalStars += clampedStars;
+
+    if (clampedStars === 1) star1 += 1;
+    else if (clampedStars === 2) star2 += 1;
+    else if (clampedStars === 3) star3 += 1;
+    else if (clampedStars === 4) star4 += 1;
+    else if (clampedStars === 5) star5 += 1;
+
+    if (rev.recommend !== false) {
+      recommendYes += 1;
+    } else {
+      recommendNo += 1;
+    }
+  }
+
+  const averageRating = totalCount > 0 ? Number((totalStars / totalCount).toFixed(1)) : 0;
+  const recommendTotal = recommendYes + recommendNo;
+  const recommendYesPercent =
+    recommendTotal > 0 ? Math.round((recommendYes / recommendTotal) * 100) : 0;
+  const recommendNoPercent =
+    recommendTotal > 0 ? 100 - recommendYesPercent : 0;
+
+  const calcStarPct = (count: number) =>
+    totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+
+  return {
+    totalCount,
+    totalStars,
+    averageRating,
+    recommendYes,
+    recommendNo,
+    recommendYesPercent,
+    recommendNoPercent,
+    starCounts: { 1: star1, 2: star2, 3: star3, 4: star4, 5: star5 },
+    starPercentages: {
+      1: calcStarPct(star1),
+      2: calcStarPct(star2),
+      3: calcStarPct(star3),
+      4: calcStarPct(star4),
+      5: calcStarPct(star5),
+    },
+  };
+}
+
 export function isLocalRatingSubmitted(): boolean {
   if (typeof window === 'undefined') return false;
   try {

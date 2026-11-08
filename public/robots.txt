@@ -1,0 +1,15 @@
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /developer
+Disallow: /developer-settings
+Disallow: /admin
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /developer
+Disallow: /developer-settings
+Disallow: /admin
+
+Sitemap: https://elmahlawy-store.vercel.app/sitemap.xml
