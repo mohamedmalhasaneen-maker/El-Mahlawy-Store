@@ -3284,6 +3284,7 @@ export function DeveloperSettingsPage({
               onUpdateField={updateConfigField}
               onSaveSubmit={handleSaveConfigSubmit}
               onCancelChanges={handleCancelConfigChanges}
+              products={products}
             />
           )}
 
