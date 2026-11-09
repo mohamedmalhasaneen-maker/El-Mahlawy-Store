@@ -24,6 +24,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isVerifiedUser() {
+      return isSignedIn() &&
+        'email_verified' in request.auth.token &&
+        request.auth.token.email_verified == true;
+    }
+
     // Pure token/UID check for authorized developers & bootstrapped project owner (zero DB lookups)
     function isAuthorizedDeveloper() {
       return isSignedIn() && (
@@ -308,17 +314,15 @@ service cloud.firestore {
       allow get: if isValidId(configId) && configId == 'main';
       allow list: if false;
 
-      allow create: if isSignedIn() &&
+      allow create: if isVerifiedUser() &&
         isValidId(configId) &&
         configId == 'main' &&
-        isValidSiteConfig(request.resource.data) &&
-        isAdmin();
+        isValidSiteConfig(request.resource.data);
 
-      allow update: if isSignedIn() &&
+      allow update: if isVerifiedUser() &&
         isValidId(configId) &&
         configId == 'main' &&
         (!('id' in resource.data) || request.resource.data.id == resource.data.id) &&
-        isAdmin() &&
         (
           // Action A: Targeted Hero Banner Update (allows updating ONLY banner fields without touching any other field)
           (
