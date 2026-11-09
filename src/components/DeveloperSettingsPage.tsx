@@ -78,7 +78,6 @@ import { DiscountModal } from './DiscountModal';
 import { ProductImage } from './ProductImage';
 import { AccountSettingsSection } from './developer/AccountSettingsSection';
 import { BranchesMapsSection } from './developer/BranchesMapsSection';
-import { ContentSectionsSettings } from './developer/ContentSectionsSettings';
 import { DeveloperSectionId, OverviewSection } from './developer/OverviewSection';
 import { HeroBannerSettingsSection } from './developer/HeroBannerSettingsSection';
 import { PhonesWhatsAppSection } from './developer/PhonesWhatsAppSection';
@@ -1366,12 +1365,6 @@ export function DeveloperSettingsPage({
       label: 'معلومات الموقع ومن نحن',
       subtitle: 'الهوية والنصوص والشركاء',
       Icon: FileText,
-    },
-    {
-      id: 'sections',
-      label: 'المحتوى والأقسام',
-      subtitle: 'إظهار وإخفاء عناصر الواجهة',
-      Icon: SlidersHorizontal,
     },
     {
       id: 'ratings',
@@ -3270,21 +3263,6 @@ export function DeveloperSettingsPage({
               onUpdateField={updateConfigField}
               onSaveSubmit={handleSaveConfigSubmit}
               onCancelChanges={handleCancelConfigChanges}
-            />
-          )}
-
-          {/* ================================================================ */}
-          {/* SECTION 8: CONTENT & SECTION VISIBILITY SETTINGS                 */}
-          {/* ================================================================ */}
-          {activeTab === 'sections' && (
-            <ContentSectionsSettings
-              configDraft={configDraft}
-              isSiteConfigDirty={isSiteConfigDirty}
-              savingSiteConfig={savingSiteConfig}
-              onUpdateField={updateConfigField}
-              onSaveSubmit={handleSaveConfigSubmit}
-              onCancelChanges={handleCancelConfigChanges}
-              products={products}
             />
           )}
 

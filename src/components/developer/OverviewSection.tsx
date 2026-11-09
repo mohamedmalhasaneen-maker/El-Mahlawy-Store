@@ -37,7 +37,6 @@ export type DeveloperSectionId =
   | 'social'
   | 'branches'
   | 'site-info'
-  | 'sections'
   | 'ratings'
   | 'hero_banner'
   | 'account';
@@ -298,14 +297,6 @@ export function OverviewSection({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-extrabold text-[#D4AF37]">الوصول السريع لأقسام الإدارة</h3>
-          <button
-            type="button"
-            onClick={() => onNavigateSection('sections')}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-[#D4AF37] transition-colors cursor-pointer"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden="true" />
-            <span>إظهار أو إخفاء أقسام الواجهة</span>
-          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
