@@ -312,16 +312,12 @@ service cloud.firestore {
         isValidId(configId) &&
         configId == 'main' &&
         isValidSiteConfig(request.resource.data) &&
-        (request.resource.data.updatedBy == request.auth.uid || isAuthorizedDeveloper() || (request.resource.data.updatedBy is string && request.resource.data.updatedBy.size() >= 1 && request.resource.data.updatedBy.size() <= 128)) &&
-        request.resource.data.updatedAt == request.time &&
         isAdmin();
 
       allow update: if isSignedIn() &&
         isValidId(configId) &&
         configId == 'main' &&
         (!('id' in resource.data) || request.resource.data.id == resource.data.id) &&
-        (request.resource.data.updatedBy == request.auth.uid || isAuthorizedDeveloper() || (request.resource.data.updatedBy is string && request.resource.data.updatedBy.size() >= 1 && request.resource.data.updatedBy.size() <= 128)) &&
-        request.resource.data.updatedAt == request.time &&
         isAdmin() &&
         (
           // Action A: Targeted Hero Banner Update (allows updating ONLY banner fields without touching any other field)
@@ -344,32 +340,7 @@ service cloud.firestore {
           ) ||
           // Action B: Full SiteConfig Update
           (
-            isValidSiteConfig(request.resource.data) &&
-            (
-              isAuthorizedDeveloper() ||
-              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                'storeName', 'storeSubtitle', 'tagline', 'heroDescription',
-                'announcementText', 'seoTitle', 'seoDescription', 'copyrightText',
-                'primaryPhone', 'secondaryPhone', 'primaryWhatsApp', 'whatsappUrl',
-                'afterSalesWhatsAppUrl', 'facebookUrl', 'instagramUrl', 'address',
-                'googleMapsUrl', 'workingHours', 'shippingSummary', 'afterSalesPolicy',
-                'closingPhrase', 'contactSectionTitle', 'contactSectionSubtitle',
-                'partnerName', 'partnerSubtitle', 'partnerRoleTitle', 'partnerServiceScopeText',
-                'partnerOrderPhone1', 'partnerOrderPhone2', 'partnerMaintenancePhone',
-                'partnerAfterSalesPhone', 'partnerFacebookUrl', 'aboutHeroTitle',
-                'aboutHeroSubtitle', 'aboutStoreIntro', 'aboutPartnerIntro', 'visionTitle',
-                'visionDescription', 'contactChannels', 'socialLinks', 'branches', 'categories',
-                'essentialCategories', 'showHeroSpotlight', 'showValueStrip', 'showOffersSection',
-                'showShippingSection', 'showPartnerCard', 'showAboutBanner', 'showRatingsSection',
-                'heroBgType', 'heroBgColor', 'heroBgColor2', 'heroBgGradientDirection',
-                'heroBgImage', 'heroBgFit', 'heroBgPosition', 'heroOverlayColor',
-                'heroOverlayOpacity',
-                'aboutBgType', 'aboutBgColor', 'aboutBgColor2', 'aboutBgGradientDirection',
-                'aboutBgImage', 'aboutBgFit', 'aboutBgPosition', 'aboutOverlayColor',
-                'aboutOverlayOpacity',
-                'updatedBy', 'updatedAt'
-              ])
-            )
+            isValidSiteConfig(request.resource.data)
           )
         );
 
