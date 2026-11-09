@@ -12,6 +12,7 @@ import {
 } from '../utils/catalogLogic';
 import { buildProductImageAlt } from '../utils/seo';
 import { ProductImage } from './ProductImage';
+import { DiscountCountdownBadge } from './DiscountCountdownBadge';
 
 interface ProductCardProps {
   product: Product;
@@ -78,9 +79,11 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
             className="relative cursor-pointer overflow-hidden rounded-xl bg-[#F2FAFF] dark:bg-[#081830]"
           >
             {hasDiscount && (
-              <span className="absolute top-3 right-3 z-20 rounded-lg bg-[#1D4ED8] px-2.5 py-1 text-xs font-bold text-white">
-                خصم <bdi className="font-num">{discountPct}%</bdi>
-              </span>
+              <DiscountCountdownBadge
+                product={product}
+                variant="card"
+                className="absolute top-3 right-3 z-20 max-w-[90%]"
+              />
             )}
 
             {!product.inStock && (

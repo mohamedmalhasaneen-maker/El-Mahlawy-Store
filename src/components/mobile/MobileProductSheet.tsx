@@ -25,6 +25,7 @@ import { getCategoryName } from '../../constants/categories';
 import { buildProductImageAlt } from '../../utils/seo';
 import { useMobileOverlay } from '../../utils/useMobileOverlay';
 import { ProductImage } from '../ProductImage';
+import { DiscountCountdownBadge } from '../DiscountCountdownBadge';
 
 interface MobileProductSheetProps {
   product: Product | null;
@@ -220,9 +221,11 @@ export function MobileProductSheet({
               className="relative aspect-square max-h-[250px] w-full mx-auto rounded-2xl bg-[#F2FAFF] border border-[#D8EEFB] p-3 flex items-center justify-center overflow-hidden"
             >
               {hasDiscount && (
-                <span className="font-num absolute top-2.5 right-2.5 z-20 rounded-md bg-[#0B2354] px-2 py-0.5 text-xs font-extrabold text-white">
-                  خصم {discountPct}%
-                </span>
+                <DiscountCountdownBadge
+                  product={product}
+                  variant="compact"
+                  className="absolute top-2.5 right-2.5 z-20 max-w-[85%]"
+                />
               )}
 
               <ProductImage
@@ -308,6 +311,10 @@ export function MobileProductSheet({
                 </span>
               )}
             </div>
+
+            {hasDiscount && (
+              <DiscountCountdownBadge product={product} variant="detail" className="mt-3" />
+            )}
           </div>
 
           {/* Full Description */}

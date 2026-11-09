@@ -337,6 +337,29 @@ export type DiscountSelectableProduct = Pick<
   'discountEnabled' | 'originalPrice' | 'price' | 'discountStartDate' | 'discountEndDate'
 >;
 
+export function parseDiscountDateToMs(
+  dateStr: string | undefined | null,
+  boundary: 'start' | 'end' = 'end'
+): number | null {
+  const trimmed = (dateStr || '').trim();
+  if (!trimmed) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const [y, m, d] = trimmed.split('-').map(Number);
+    if (boundary === 'end') {
+      return new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+    }
+    return new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+  }
+
+  const parsed = Date.parse(trimmed);
+  if (!Number.isNaN(parsed)) {
+    return parsed;
+  }
+
+  return null;
+}
+
 export function getDiscountScheduleStatus(
   product: DiscountSelectableProduct,
   referenceDate: Date = new Date()
@@ -351,14 +374,14 @@ export function getDiscountScheduleStatus(
     return 'disabled';
   }
 
-  const today = formatLocalIsoDate(referenceDate);
-  const start = (product.discountStartDate || '').trim().slice(0, 10);
-  const end = (product.discountEndDate || '').trim().slice(0, 10);
+  const nowMs = referenceDate.getTime();
+  const startMs = parseDiscountDateToMs(product.discountStartDate, 'start');
+  const endMs = parseDiscountDateToMs(product.discountEndDate, 'end');
 
-  if (start && /^\d{4}-\d{2}-\d{2}$/.test(start) && today < start) {
+  if (startMs !== null && nowMs < startMs) {
     return 'scheduled';
   }
-  if (end && /^\d{4}-\d{2}-\d{2}$/.test(end) && today > end) {
+  if (endMs !== null && nowMs > endMs) {
     return 'expired';
   }
   return 'active';

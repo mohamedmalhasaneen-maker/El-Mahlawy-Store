@@ -11,6 +11,7 @@ import {
 } from '../utils/catalogLogic';
 import { buildProductImageAlt } from '../utils/seo';
 import { ProductImage } from './ProductImage';
+import { DiscountCountdownBadge } from './DiscountCountdownBadge';
 
 interface OffersSectionProps {
   products: Product[];
@@ -80,11 +81,11 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
                   role="presentation"
                   className="relative sm:w-52 shrink-0 cursor-pointer bg-[#F7FCFF] dark:bg-[#081830] border-b sm:border-b-0 sm:border-l border-[#E4F3FC] dark:border-[#1E3F73]"
                 >
-                  <span className="absolute top-3 right-3 z-20 inline-flex items-center gap-1 rounded-lg bg-[#0284C7] dark:bg-[#1D4ED8] px-2.5 py-1 text-xs font-extrabold text-white">
-                    <span>
-                      خصم <bdi className="font-num">{discountPct}%</bdi>
-                    </span>
-                  </span>
+                  <DiscountCountdownBadge
+                    product={product}
+                    variant="card"
+                    className="absolute top-3 right-3 z-20 max-w-[90%]"
+                  />
 
                   <ProductImage
                     src={product.images[0]}
@@ -115,9 +116,11 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
                         {product.name}
                       </a>
                     </h3>
-                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-4">
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-3">
                       {product.shortDescription}
                     </p>
+
+                    <DiscountCountdownBadge product={product} variant="banner" className="mb-3" />
                   </div>
 
                   <div>

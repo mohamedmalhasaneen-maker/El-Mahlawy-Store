@@ -10,6 +10,7 @@ import {
 } from '../../utils/catalogLogic';
 import { buildProductImageAlt } from '../../utils/seo';
 import { ProductImage } from '../ProductImage';
+import { DiscountCountdownBadge } from '../DiscountCountdownBadge';
 
 interface MobileProductCardProps {
   product: Product;
@@ -72,9 +73,11 @@ export function MobileProductCard({
             className="block h-full w-full p-2 text-right focus-visible:outline-2 focus-visible:outline-[#1D4ED8] cursor-pointer"
           >
             {hasDiscount && (
-              <span className="font-num absolute top-2 right-2 z-20 rounded-md bg-[#0B2354] dark:bg-[#1D4ED8] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
-                -{discountPct}%
-              </span>
+              <DiscountCountdownBadge
+                product={product}
+                variant="compact"
+                className="absolute top-2 right-2 z-20 max-w-[85%]"
+              />
             )}
 
             <ProductImage

@@ -29,6 +29,7 @@ import {
 import { getCategoryName } from '../constants/categories';
 import { buildProductImageAlt } from '../utils/seo';
 import { ProductImage } from './ProductImage';
+import { DiscountCountdownBadge } from './DiscountCountdownBadge';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -265,9 +266,11 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
             <div className="lg:col-span-6">
               <div className="relative overflow-hidden rounded-2xl bg-[#F2FAFF] dark:bg-[#081830] border border-[#D8EEFB] dark:border-[#1E3F73]">
                 {hasDiscount && (
-                  <span className="absolute top-4 right-4 z-20 rounded-lg bg-[#1D4ED8] px-3 py-1 text-xs font-extrabold text-white">
-                    خصم <bdi className="font-num">{discountPct}%</bdi>
-                  </span>
+                  <DiscountCountdownBadge
+                    product={product}
+                    variant="card"
+                    className="absolute top-4 right-4 z-20 max-w-[90%]"
+                  />
                 )}
 
                 <ProductImage
@@ -387,6 +390,11 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                   )}
                 </div>
               </div>
+
+              {/* Live Discount Countdown Banner */}
+              {hasDiscount && (
+                <DiscountCountdownBadge product={product} variant="detail" className="mb-5" />
+              )}
 
               {/* Selectable Options / Variants */}
               {product.options.length > 0 && (
