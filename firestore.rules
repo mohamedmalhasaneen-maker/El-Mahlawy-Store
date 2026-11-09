@@ -158,52 +158,46 @@ service cloud.firestore {
             data.contactChannels.size() == 0 ||
             (
               data.contactChannels[0] is map &&
-              data.contactChannels[0].keys().hasOnly(['id', 'label', 'role', 'owner', 'phone', 'whatsappUrl']) &&
               data.contactChannels[0].phone is string && data.contactChannels[0].phone.size() >= 7 && data.contactChannels[0].phone.size() <= 30
             )
           )
         )) &&
         (!('socialLinks' in data) || (
-          data.socialLinks is list && data.socialLinks.size() <= 15 &&
+          data.socialLinks is list && data.socialLinks.size() <= 20 &&
           (
             data.socialLinks.size() == 0 ||
             (
               data.socialLinks[0] is map &&
-              data.socialLinks[0].keys().hasOnly(['id', 'platform', 'label', 'owner', 'url']) &&
               data.socialLinks[0].url is string && data.socialLinks[0].url.size() >= 1 && data.socialLinks[0].url.size() <= 600
             )
           )
         )) &&
         (!('branches' in data) || (
-          data.branches is list && data.branches.size() <= 10 &&
+          data.branches is list && data.branches.size() <= 15 &&
           (
             data.branches.size() == 0 ||
             (
               data.branches[0] is map &&
-              data.branches[0].keys().hasOnly(['id', 'name', 'address', 'mapUrl', 'workingHours', 'phone']) &&
               data.branches[0].name is string && data.branches[0].name.size() >= 1 && data.branches[0].name.size() <= 120
             )
           )
         )) &&
         (!('categories' in data) || (
-          data.categories is list && data.categories.size() >= 1 && data.categories.size() <= 20 &&
+          data.categories is list && data.categories.size() >= 1 && data.categories.size() <= 30 &&
           (
             data.categories[0] is map &&
-            data.categories[0].keys().hasOnly(['id', 'name', 'order']) &&
-            data.categories[0].id is string && data.categories[0].id.size() >= 1 && data.categories[0].id.size() <= 60 &&
-            data.categories[0].name is string && data.categories[0].name.size() >= 2 && data.categories[0].name.size() <= 80 &&
-            (data.categories[0].order is int || data.categories[0].order is float) &&
-            data.categories[0].order >= 1 && data.categories[0].order <= 100
+            data.categories[0].id is string && data.categories[0].id.size() >= 1 && data.categories[0].id.size() <= 100 &&
+            data.categories[0].name is string && data.categories[0].name.size() >= 1 && data.categories[0].name.size() <= 120 &&
+            (data.categories[0].order is int || data.categories[0].order is float)
           )
         )) &&
         (!('essentialCategories' in data) || (
-          data.essentialCategories is list && data.essentialCategories.size() <= 20 &&
+          data.essentialCategories is list && data.essentialCategories.size() <= 30 &&
           (
             data.essentialCategories.size() == 0 ||
             (
               data.essentialCategories[0] is map &&
-              data.essentialCategories[0].keys().hasOnly(['id', 'name', 'imageUrl', 'order']) &&
-              data.essentialCategories[0].name is string && data.essentialCategories[0].name.size() >= 2 && data.essentialCategories[0].name.size() <= 80
+              data.essentialCategories[0].name is string && data.essentialCategories[0].name.size() >= 1 && data.essentialCategories[0].name.size() <= 120
             )
           )
         ));
@@ -318,7 +312,7 @@ service cloud.firestore {
         isValidId(configId) &&
         configId == 'main' &&
         isValidSiteConfig(request.resource.data) &&
-        request.resource.data.updatedBy == request.auth.uid &&
+        (request.resource.data.updatedBy == request.auth.uid || isAuthorizedDeveloper() || (request.resource.data.updatedBy is string && request.resource.data.updatedBy.size() >= 1 && request.resource.data.updatedBy.size() <= 128)) &&
         request.resource.data.updatedAt == request.time &&
         isAdmin();
 
@@ -326,7 +320,7 @@ service cloud.firestore {
         isValidId(configId) &&
         configId == 'main' &&
         (!('id' in resource.data) || request.resource.data.id == resource.data.id) &&
-        request.resource.data.updatedBy == request.auth.uid &&
+        (request.resource.data.updatedBy == request.auth.uid || isAuthorizedDeveloper() || (request.resource.data.updatedBy is string && request.resource.data.updatedBy.size() >= 1 && request.resource.data.updatedBy.size() <= 128)) &&
         request.resource.data.updatedAt == request.time &&
         isAdmin() &&
         (

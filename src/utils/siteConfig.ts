@@ -582,8 +582,8 @@ export function validateSiteConfigInput(config: SiteConfig): ValidationResult {
         break;
       }
       seenIds.add(catId);
-      if (catName.length < 2 || catName.length > 80) {
-        errors.push('اسم كل قسم يجب أن يكون بين حرفين و80 حرفًا.');
+      if (catName.length < 1 || catName.length > 80) {
+        errors.push('اسم كل قسم يجب أن يكون بين حرف و80 حرفًا.');
         break;
       }
     }
@@ -750,7 +750,7 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
 
     const defaultMatch = PRODUCT_CATEGORIES.find((d) => d.id === safeId);
     const fallbackName = defaultMatch?.name || `قسم ${idx + 1}`;
-    const safeName = cleanStr(cat?.name, fallbackName, 80, 2);
+    const safeName = cleanStr(cat?.name, fallbackName, 80, 1);
     const rawOrder =
       typeof cat?.order === 'number' && Number.isFinite(cat.order)
         ? Math.round(cat.order)
