@@ -23,6 +23,9 @@ const DEFAULT_CATEGORIES = [
   { id: 'electrical-tools', order: 4 },
   { id: 'early-warning', order: 5 },
   { id: 'smart-home', order: 6 },
+  { id: 'computer-accessories', order: 7 },
+  { id: 'internet', order: 8 },
+  { id: 'memory-cards-flash', order: 9 },
 ];
 
 function escapeXml(value) {
@@ -220,12 +223,20 @@ async function fetchLiveCatalogFromFirestore() {
     if (siteJson?.fields) {
       const decodedSite = decodeFirestoreFields(siteJson.fields);
       if (Array.isArray(decodedSite.categories) && decodedSite.categories.length > 0) {
-        categories = decodedSite.categories
+        const fetched = decodedSite.categories
           .filter((c) => c && typeof c.id === 'string' && c.id.trim().length > 0)
           .map((c, idx) => ({
             id: c.id.trim(),
             order: Number.isFinite(Number(c.order)) ? Number(c.order) : idx + 1,
           }));
+        const seenIds = new Set(fetched.map((c) => c.id));
+        for (const def of DEFAULT_CATEGORIES) {
+          if (!seenIds.has(def.id)) {
+            fetched.push(def);
+            seenIds.add(def.id);
+          }
+        }
+        categories = fetched;
       }
     }
   }

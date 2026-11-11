@@ -764,6 +764,18 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     });
   }
 
+  // Ensure any base categories from PRODUCT_CATEGORIES not yet present in rawCategories are appended
+  for (const defaultCat of PRODUCT_CATEGORIES) {
+    if (!seenCategoryIds.has(defaultCat.id) && sanitizedCategories.length < MAX_CATEGORIES) {
+      seenCategoryIds.add(defaultCat.id);
+      sanitizedCategories.push({
+        id: defaultCat.id,
+        name: defaultCat.name,
+        order: defaultCat.order || (sanitizedCategories.length + 1),
+      });
+    }
+  }
+
   sanitizedCategories.sort((a, b) => a.order - b.order);
   const categories: StoreCategoryItem[] =
     sanitizedCategories.length > 0

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowUpDown, MessageCircle, RotateCcw, Search, Star } from 'lucide-react';
+import { ArrowUpDown, Layers, MessageCircle, RotateCcw, Search, Star } from 'lucide-react';
 import './lib/firebase';
 import { SiteConfigContext } from './contexts/SiteConfigContext';
 import { Product, ProductFormInput, SortOption } from './types/store';
@@ -50,7 +50,7 @@ import { RatingInvitationPrompt } from './components/RatingInvitationPrompt';
 import { RatingFormModal } from './components/RatingFormModal';
 import { listenForRatingPromptTrigger, recordUsefulActivity } from './utils/activityTracker';
 import { useTheme } from './utils/useTheme';
-import { getCategoryIdByName, getCategoryName, getOrderedCategories } from './constants/categories';
+import { getCategoryIcon, getCategoryIdByName, getCategoryName, getOrderedCategories } from './constants/categories';
 import {
   SeoRouteInfo,
   buildPageSeoMetadata,
@@ -924,28 +924,33 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => handleCategoryChange('all')}
-                          className={`min-h-[44px] px-6 py-2.5 rounded-2xl text-sm font-extrabold transition-all border ${
+                          className={`min-h-[44px] px-5 py-2.5 rounded-2xl text-sm font-extrabold transition-all border inline-flex items-center gap-2 ${
                             selectedCategoryId === 'all' || selectedCategoryId === 'featured'
                               ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
                               : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
                           } cursor-pointer`}
                         >
-                          الكل
+                          <Layers className="h-4 w-4 shrink-0 text-current" aria-hidden="true" />
+                          <span>الكل</span>
                         </button>
-                        {orderedStoreCategories.map((cat) => (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => handleCategoryChange(cat.id)}
-                            className={`min-h-[44px] px-6 py-2.5 rounded-2xl text-sm font-extrabold transition-all border ${
-                              selectedCategoryId === cat.id
-                                ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
-                                : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
-                            } cursor-pointer`}
-                          >
-                            {cat.name}
-                          </button>
-                        ))}
+                        {orderedStoreCategories.map((cat) => {
+                          const CatIcon = getCategoryIcon(cat.id);
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => handleCategoryChange(cat.id)}
+                              className={`min-h-[44px] px-5 py-2.5 rounded-2xl text-sm font-extrabold transition-all border inline-flex items-center gap-2 ${
+                                selectedCategoryId === cat.id
+                                  ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
+                                  : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
+                              } cursor-pointer`}
+                            >
+                              <CatIcon className="h-4 w-4 shrink-0 text-current" aria-hidden="true" />
+                              <span>{cat.name}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 

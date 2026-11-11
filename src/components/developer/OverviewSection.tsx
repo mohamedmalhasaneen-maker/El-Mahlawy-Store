@@ -186,7 +186,7 @@ export function OverviewSection({
             <div>
               <h3 className="text-base font-extrabold text-white">منتجات بحاجة لمراجعة القسم ({uncategorizedProducts.length})</h3>
               <p className="text-xs sm:text-sm text-gray-300 mt-1 leading-relaxed">
-                تم رصد منتجات لا تنتمي لأي من الأقسام الستة الرسمية المعتمدة حديثًا. يرجى تعديلها وتحديد القسم الصحيح لتظهر للزوار في الفلاتر الجديدة.
+                تم رصد منتجات لا تنتمي لأي من الأقسام الرسمية المعتمدة في المتجر. يرجى تعديلها وتحديد القسم الصحيح لتظهر للزوار في الفلاتر الجديدة.
               </p>
             </div>
           </div>

@@ -35,7 +35,7 @@ import {
 import firebaseConfig from '../../firebase-applet-config.json';
 import { DiscountType, OperationType, Product, ProductFormInput } from '../types/store';
 import { sanitizeProductPayload } from '../utils/catalogLogic';
-import { getCategoryIdByName, getCategoryName } from '../constants/categories';
+import { PRODUCT_CATEGORIES, getCategoryIdByName, getCategoryName } from '../constants/categories';
 import {
   AUTHORIZED_DEVELOPER_EMAIL,
   AUTHORIZED_DEVELOPER_UID,
@@ -281,7 +281,7 @@ async function prepareVerifiedDeveloperCloudWrite(
     await user.getIdToken(true);
   }
 
-  // Ensure the developer is registered in /admins/{uid} collection in Firestore
+    // Ensure the developer is registered in /admins/{uid} collection in Firestore
   if (user && user.uid && isAuthorizedDeveloperUser(user)) {
     try {
       const adminDocRef = doc(db, 'admins', user.uid);
@@ -296,6 +296,37 @@ async function prepareVerifiedDeveloperCloudWrite(
       }
     } catch {
       // Non-blocking bootstrap check
+    }
+
+    // Ensure /siteConfig/main contains all new default categories in Firestore
+    try {
+      const configRef = doc(db, 'siteConfig', 'main');
+      const snap = await getDoc(configRef);
+      if (snap.exists()) {
+        const rawData = snap.data();
+        const existingCats = Array.isArray(rawData?.categories) ? rawData.categories : [];
+        const missingCats = PRODUCT_CATEGORIES.filter(
+          (def) => !existingCats.some((c: { id?: string }) => c?.id === def.id)
+        );
+        if (missingCats.length > 0) {
+          const mergedCats = [...existingCats];
+          for (const m of missingCats) {
+            mergedCats.push({
+              id: m.id,
+              name: m.name,
+              order: m.order,
+            });
+          }
+          mergedCats.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+          await updateDoc(configRef, {
+            categories: mergedCats.map((c, i) => ({ ...c, order: i + 1 })),
+            updatedAt: serverTimestamp(),
+            updatedBy: user.uid,
+          });
+        }
+      }
+    } catch {
+      // Non-blocking category synchronization
     }
   }
 
