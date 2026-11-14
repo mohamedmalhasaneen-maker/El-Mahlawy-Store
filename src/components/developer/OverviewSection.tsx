@@ -39,6 +39,7 @@ export type DeveloperSectionId =
   | 'site-info'
   | 'ratings'
   | 'hero_banner'
+  | 'categories'
   | 'account';
 
 interface OverviewSectionProps {

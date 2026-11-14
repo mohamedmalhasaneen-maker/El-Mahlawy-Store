@@ -34,6 +34,7 @@ import {
   Tag,
   Trash2,
   Upload,
+  FolderTree,
   UserCheck,
   X,
 } from 'lucide-react';
@@ -78,6 +79,7 @@ import { DiscountModal } from './DiscountModal';
 import { ProductImage } from './ProductImage';
 import { AccountSettingsSection } from './developer/AccountSettingsSection';
 import { BranchesMapsSection } from './developer/BranchesMapsSection';
+import { CategoriesSettingsSection } from './developer/CategoriesSettingsSection';
 import { DeveloperSectionId, OverviewSection } from './developer/OverviewSection';
 import { HeroBannerSettingsSection } from './developer/HeroBannerSettingsSection';
 import { PhonesWhatsAppSection } from './developer/PhonesWhatsAppSection';
@@ -1377,6 +1379,12 @@ export function DeveloperSettingsPage({
       label: 'إعدادات البانر الرئيسي',
       subtitle: 'الخلفية، الألوان، الصورة والتغشية',
       Icon: ImagePlus,
+    },
+    {
+      id: 'categories',
+      label: 'إعدادات الأقسام',
+      subtitle: `${configDraft.categories?.length || 0} قسم مسجل`,
+      Icon: FolderTree,
     },
     {
       id: 'account',
@@ -3306,6 +3314,22 @@ export function DeveloperSettingsPage({
                 }));
                 setIsSiteConfigDirty(true);
               }}
+            />
+          )}
+
+          {/* ================================================================ */}
+          {/* SECTION 8.6: CATEGORIES SETTINGS                                  */}
+          {/* ================================================================ */}
+          {activeTab === 'categories' && (
+            <CategoriesSettingsSection
+              configDraft={configDraft}
+              products={products}
+              isSiteConfigDirty={isSiteConfigDirty}
+              savingSiteConfig={savingSiteConfig}
+              onUpdateField={updateConfigField}
+              onSaveSubmit={handleSaveConfigSubmit}
+              onCancelChanges={handleCancelConfigChanges}
+              onValidationError={(message) => setGlobalBanner({ type: 'error', message })}
             />
           )}
 

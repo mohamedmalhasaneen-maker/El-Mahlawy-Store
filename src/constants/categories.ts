@@ -16,6 +16,9 @@ export interface Category {
   id: string;
   name: string;
   order: number;
+  icon?: string;
+  imageUrl?: string;
+  isHidden?: boolean;
 }
 
 export const PRODUCT_CATEGORIES: Category[] = [
