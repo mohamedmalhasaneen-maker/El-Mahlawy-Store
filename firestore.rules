@@ -24,10 +24,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isVerifiedUser() {
+    function isVerifiedAuthenticatedUser() {
       return isSignedIn() &&
         'email_verified' in request.auth.token &&
         request.auth.token.email_verified == true;
+    }
+
+    function isVerifiedUser() {
+      return isVerifiedAuthenticatedUser();
     }
 
     // Pure token/UID check for authorized developers & bootstrapped project owner (zero DB lookups)
@@ -102,58 +106,17 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
-    // CEL-budget-optimized SiteConfig validator (~420 CEL expressions total vs 1,000 hard limit; <= 9 function calls vs 20 hard limit)
+    // CEL-budget-optimized SiteConfig validator (keeps total expressions safely within Firestore runtime limits)
     function isValidSiteConfigGroup1(data) {
       return (data.id is string && data.id.size() <= 32 && data.id == 'main') &&
         (data.storeName is string && data.storeName.size() >= 2 && data.storeName.size() <= 100) &&
         (data.primaryPhone is string && data.primaryPhone.size() >= 7 && data.primaryPhone.size() <= 30) &&
         (data.primaryWhatsApp is string && data.primaryWhatsApp.size() >= 7 && data.primaryWhatsApp.size() <= 25) &&
-        (!('secondaryPhone' in data) || (data.secondaryPhone is string && data.secondaryPhone.size() <= 30)) &&
-        (!('storeSubtitle' in data) || (data.storeSubtitle is string && data.storeSubtitle.size() <= 100)) &&
-        (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 300)) &&
-        (!('heroDescription' in data) || (data.heroDescription is string && data.heroDescription.size() <= 2000)) &&
-        (!('announcementText' in data) || (data.announcementText is string && data.announcementText.size() <= 400)) &&
-        (!('seoTitle' in data) || (data.seoTitle is string && data.seoTitle.size() <= 240)) &&
-        (!('seoDescription' in data) || (data.seoDescription is string && data.seoDescription.size() <= 800)) &&
-        (!('copyrightText' in data) || (data.copyrightText is string && data.copyrightText.size() <= 300)) &&
-        (!('address' in data) || (data.address is string && data.address.size() <= 1000)) &&
-        (!('googleMapsUrl' in data) || (data.googleMapsUrl is string && data.googleMapsUrl.size() <= 600)) &&
-        (!('workingHours' in data) || (data.workingHours is string && data.workingHours.size() <= 300)) &&
-        (!('shippingSummary' in data) || (data.shippingSummary is string && data.shippingSummary.size() <= 1500)) &&
-        (!('afterSalesPolicy' in data) || (data.afterSalesPolicy is string && data.afterSalesPolicy.size() <= 2500)) &&
-        (!('closingPhrase' in data) || (data.closingPhrase is string && data.closingPhrase.size() <= 300)) &&
-        (!('contactSectionTitle' in data) || (data.contactSectionTitle is string && data.contactSectionTitle.size() <= 200)) &&
-        (!('contactSectionSubtitle' in data) || (data.contactSectionSubtitle is string && data.contactSectionSubtitle.size() <= 400)) &&
-        (!('whatsappUrl' in data) || (data.whatsappUrl is string && data.whatsappUrl.size() <= 600)) &&
-        (!('afterSalesWhatsAppUrl' in data) || (data.afterSalesWhatsAppUrl is string && data.afterSalesWhatsAppUrl.size() <= 600)) &&
-        (!('facebookUrl' in data) || (data.facebookUrl is string && data.facebookUrl.size() <= 600)) &&
-        (!('instagramUrl' in data) || (data.instagramUrl is string && data.instagramUrl.size() <= 600));
+        (data.get('googleMapsUrl', '') is string && data.get('googleMapsUrl', '').size() <= 600);
     }
 
     function isValidSiteConfigGroup2(data) {
-      return (!('partnerName' in data) || (data.partnerName is string && data.partnerName.size() <= 160)) &&
-        (!('partnerSubtitle' in data) || (data.partnerSubtitle is string && data.partnerSubtitle.size() <= 200)) &&
-        (!('partnerRoleTitle' in data) || (data.partnerRoleTitle is string && data.partnerRoleTitle.size() <= 200)) &&
-        (!('partnerServiceScopeText' in data) || (data.partnerServiceScopeText is string && data.partnerServiceScopeText.size() <= 800)) &&
-        (!('partnerOrderPhone1' in data) || (data.partnerOrderPhone1 is string && data.partnerOrderPhone1.size() <= 30)) &&
-        (!('partnerOrderPhone2' in data) || (data.partnerOrderPhone2 is string && data.partnerOrderPhone2.size() <= 30)) &&
-        (!('partnerMaintenancePhone' in data) || (data.partnerMaintenancePhone is string && data.partnerMaintenancePhone.size() <= 30)) &&
-        (!('partnerAfterSalesPhone' in data) || (data.partnerAfterSalesPhone is string && data.partnerAfterSalesPhone.size() <= 30)) &&
-        (!('partnerFacebookUrl' in data) || (data.partnerFacebookUrl is string && data.partnerFacebookUrl.size() <= 600)) &&
-        (!('aboutHeroTitle' in data) || (data.aboutHeroTitle is string && data.aboutHeroTitle.size() <= 300)) &&
-        (!('aboutHeroSubtitle' in data) || (data.aboutHeroSubtitle is string && data.aboutHeroSubtitle.size() <= 1500)) &&
-        (!('aboutStoreIntro' in data) || (data.aboutStoreIntro is string && data.aboutStoreIntro.size() <= 5000)) &&
-        (!('aboutPartnerIntro' in data) || (data.aboutPartnerIntro is string && data.aboutPartnerIntro.size() <= 5000)) &&
-        (!('visionTitle' in data) || (data.visionTitle is string && data.visionTitle.size() <= 300)) &&
-        (!('visionDescription' in data) || (data.visionDescription is string && data.visionDescription.size() <= 2500)) &&
-        (!('showHeroSpotlight' in data) || data.showHeroSpotlight is bool) &&
-        (!('showValueStrip' in data) || data.showValueStrip is bool) &&
-        (!('showOffersSection' in data) || data.showOffersSection is bool) &&
-        (!('showShippingSection' in data) || data.showShippingSection is bool) &&
-        (!('showPartnerCard' in data) || data.showPartnerCard is bool) &&
-        (!('showAboutBanner' in data) || data.showAboutBanner is bool) &&
-        (!('showRatingsSection' in data) || data.showRatingsSection is bool) &&
-        (data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$')) &&
+      return (data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$')) &&
         (data.updatedAt is timestamp);
     }
 
@@ -194,7 +157,10 @@ service cloud.firestore {
             data.categories[0] is map &&
             data.categories[0].id is string && data.categories[0].id.size() >= 1 && data.categories[0].id.size() <= 100 &&
             data.categories[0].name is string && data.categories[0].name.size() >= 1 && data.categories[0].name.size() <= 120 &&
-            (data.categories[0].order is int || data.categories[0].order is float)
+            (data.categories[0].order is int || data.categories[0].order is float) &&
+            data.categories[0].get('icon', '') is string &&
+            data.categories[0].get('imageUrl', '') is string &&
+            data.categories[0].get('isHidden', false) is bool
           )
         )) &&
         (!('essentialCategories' in data) || (
@@ -210,27 +176,41 @@ service cloud.firestore {
     }
 
     function isValidSiteConfigHero(data) {
-      return (!('heroBgType' in data) || (data.heroBgType is string && data.heroBgType in ['default', 'solid', 'color', 'gradient', 'image'])) &&
-        (!('heroBgColor' in data) || (data.heroBgColor is string && data.heroBgColor.size() <= 40)) &&
-        (!('heroBgColor2' in data) || (data.heroBgColor2 is string && data.heroBgColor2.size() <= 40)) &&
-        (!('heroBgGradientDirection' in data) || (data.heroBgGradientDirection is string && data.heroBgGradientDirection.size() <= 50)) &&
-        (!('heroBgImage' in data) || (data.heroBgImage is string && data.heroBgImage.size() <= 2000)) &&
-        (!('heroBgFit' in data) || (data.heroBgFit is string && data.heroBgFit in ['cover', 'contain', 'auto'])) &&
-        (!('heroBgPosition' in data) || (data.heroBgPosition is string && data.heroBgPosition in ['center', 'top', 'bottom', 'left', 'right'])) &&
-        (!('heroOverlayColor' in data) || (data.heroOverlayColor is string && data.heroOverlayColor.size() <= 40)) &&
+      return data.get('heroBgType', 'default') in ['default', 'solid', 'color', 'gradient', 'image'] &&
+        (data.get('heroBgColor', '') is string && data.get('heroBgColor', '').size() <= 40) &&
+        (data.get('heroBgColor2', '') is string && data.get('heroBgColor2', '').size() <= 40) &&
+        (data.get('heroBgGradientDirection', '') is string && data.get('heroBgGradientDirection', '').size() <= 50) &&
+        (data.get('heroBgImage', '') is string && data.get('heroBgImage', '').size() <= 2000) &&
+        data.get('heroBgFit', 'cover') in ['cover', 'contain', 'auto'] &&
+        data.get('heroBgPosition', 'center') in ['center', 'top', 'bottom', 'left', 'right'] &&
+        (data.get('heroOverlayColor', '') is string && data.get('heroOverlayColor', '').size() <= 40) &&
         (!('heroOverlayOpacity' in data) || ((data.heroOverlayOpacity is int || data.heroOverlayOpacity is float) && data.heroOverlayOpacity >= 0 && data.heroOverlayOpacity <= 100));
     }
 
     function isValidSiteConfigAboutBanner(data) {
-      return (!('aboutBgType' in data) || (data.aboutBgType is string && data.aboutBgType in ['default', 'solid', 'color', 'gradient', 'image'])) &&
-        (!('aboutBgColor' in data) || (data.aboutBgColor is string && data.aboutBgColor.size() <= 40)) &&
-        (!('aboutBgColor2' in data) || (data.aboutBgColor2 is string && data.aboutBgColor2.size() <= 40)) &&
-        (!('aboutBgGradientDirection' in data) || (data.aboutBgGradientDirection is string && data.aboutBgGradientDirection.size() <= 50)) &&
-        (!('aboutBgImage' in data) || (data.aboutBgImage is string && data.aboutBgImage.size() <= 2000)) &&
-        (!('aboutBgFit' in data) || (data.aboutBgFit is string && data.aboutBgFit in ['cover', 'contain', 'auto'])) &&
-        (!('aboutBgPosition' in data) || (data.aboutBgPosition is string && data.aboutBgPosition in ['center', 'top', 'bottom', 'left', 'right'])) &&
-        (!('aboutOverlayColor' in data) || (data.aboutOverlayColor is string && data.aboutOverlayColor.size() <= 40)) &&
+      return data.get('aboutBgType', 'default') in ['default', 'solid', 'color', 'gradient', 'image'] &&
+        (data.get('aboutBgColor', '') is string && data.get('aboutBgColor', '').size() <= 40) &&
+        (data.get('aboutBgColor2', '') is string && data.get('aboutBgColor2', '').size() <= 40) &&
+        (data.get('aboutBgGradientDirection', '') is string && data.get('aboutBgGradientDirection', '').size() <= 50) &&
+        (data.get('aboutBgImage', '') is string && data.get('aboutBgImage', '').size() <= 2000) &&
+        data.get('aboutBgFit', 'cover') in ['cover', 'contain', 'auto'] &&
+        data.get('aboutBgPosition', 'center') in ['center', 'top', 'bottom', 'left', 'right'] &&
+        (data.get('aboutOverlayColor', '') is string && data.get('aboutOverlayColor', '').size() <= 40) &&
         (!('aboutOverlayOpacity' in data) || ((data.aboutOverlayOpacity is int || data.aboutOverlayOpacity is float) && data.aboutOverlayOpacity >= 0 && data.aboutOverlayOpacity <= 100));
+    }
+
+    function isValidSiteConfigCategories(data) {
+      return ('categories' in data) &&
+        data.categories is list && data.categories.size() >= 1 && data.categories.size() <= 30 &&
+        data.categories[0] is map &&
+        data.categories[0].id is string && data.categories[0].id.size() >= 1 && data.categories[0].id.size() <= 100 &&
+        data.categories[0].name is string && data.categories[0].name.size() >= 1 && data.categories[0].name.size() <= 120 &&
+        (data.categories[0].order is int || data.categories[0].order is float) &&
+        (!('icon' in data.categories[0]) || (data.categories[0].icon is string && data.categories[0].icon.size() <= 60)) &&
+        (!('imageUrl' in data.categories[0]) || (data.categories[0].imageUrl is string && data.categories[0].imageUrl.size() <= 600)) &&
+        (!('isHidden' in data.categories[0]) || data.categories[0].isHidden is bool) &&
+        (data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$')) &&
+        (data.updatedAt is timestamp);
     }
 
     function isValidSiteConfig(data) {
@@ -261,8 +241,6 @@ service cloud.firestore {
         ]) &&
         isValidSiteConfigGroup1(data) &&
         isValidSiteConfigGroup2(data) &&
-        isValidSiteConfigHero(data) &&
-        isValidSiteConfigAboutBanner(data) &&
         isValidSiteConfigLists(data);
     }
 
@@ -314,15 +292,17 @@ service cloud.firestore {
       allow get: if isValidId(configId) && configId == 'main';
       allow list: if false;
 
-      allow create: if isVerifiedUser() &&
+      allow create: if isVerifiedAuthenticatedUser() &&
         isValidId(configId) &&
         configId == 'main' &&
-        isValidSiteConfig(request.resource.data);
+        isValidSiteConfig(request.resource.data) &&
+        request.resource.data.updatedAt == request.time;
 
-      allow update: if isVerifiedUser() &&
+      allow update: if isVerifiedAuthenticatedUser() &&
         isValidId(configId) &&
         configId == 'main' &&
         (!('id' in resource.data) || request.resource.data.id == resource.data.id) &&
+        request.resource.data.updatedAt == request.time &&
         (
           // Action A: Targeted Hero Banner Update (allows updating ONLY banner fields without touching any other field)
           (
@@ -341,6 +321,13 @@ service cloud.firestore {
               'aboutOverlayOpacity', 'updatedBy', 'updatedAt'
             ]) &&
             isValidSiteConfigAboutBanner(request.resource.data)
+          ) ||
+          // Action A3: Targeted Categories Update
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'categories', 'updatedBy', 'updatedAt'
+            ]) &&
+            isValidSiteConfigCategories(request.resource.data)
           ) ||
           // Action B: Full SiteConfig Update
           (

@@ -3,6 +3,7 @@ import {
   Clock,
   ExternalLink,
   LayoutDashboard,
+  Lock,
   MapPin,
   MessageCircle,
   Phone,
@@ -648,6 +649,24 @@ export function Footer({
               )}
             </div>
           </div>
+
+          {onAdminButtonClick && (
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={onAdminButtonClick}
+                aria-label="إعدادات المطور"
+                title="إعدادات المطور"
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors cursor-pointer ${
+                  isDark
+                    ? 'bg-[#0B0B0B]/80 border-[#D4AF37]/25 text-slate-400 hover:text-[#D4AF37] hover:border-[#D4AF37]/60'
+                    : 'bg-[#0E264A]/70 border-[#1E3F73] text-[#BAE6FD]/60 hover:text-[#38BDF8] hover:border-[#38BDF8]/50'
+                }`}
+              >
+                <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -114,6 +114,11 @@ interface DeveloperSettingsPageProps {
   ) => Promise<void>;
   onReorderFeaturedProducts: (orderedIds: string[]) => Promise<void>;
   onSaveSiteConfig: (nextConfig: SiteConfig) => Promise<void>;
+  onReassignProductsCategory?: (
+    productsToMove: Product[],
+    newCategoryId: string,
+    newCategoryName: string
+  ) => Promise<void>;
 }
 
 const CLOUDINARY_UPLOAD_URL = 'https://api.cloudinary.com/v1_1/obvb7rtp/image/upload';
@@ -157,6 +162,7 @@ export function DeveloperSettingsPage({
   onQuickUpdateProductFlags,
   onReorderFeaturedProducts,
   onSaveSiteConfig,
+  onReassignProductsCategory,
 }: DeveloperSettingsPageProps) {
   // Auth Login State (never pre-fill or expose credentials on public screen)
   const [loginEmail, setLoginEmail] = useState<string>('');
@@ -3330,6 +3336,7 @@ export function DeveloperSettingsPage({
               onSaveSubmit={handleSaveConfigSubmit}
               onCancelChanges={handleCancelConfigChanges}
               onValidationError={(message) => setGlobalBanner({ type: 'error', message })}
+              onUpdateProductsCategoryBatch={onReassignProductsCategory}
             />
           )}
 

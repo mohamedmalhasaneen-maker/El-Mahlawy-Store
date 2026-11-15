@@ -1,15 +1,22 @@
 import {
   Camera,
+  Cpu,
+  FolderTree,
+  Globe,
   HardDrive,
   Home,
   Laptop,
   Layers,
   LucideIcon,
+  Package,
   ShieldAlert,
   Smartphone,
+  Star,
+  Tag,
   Tv,
   Wifi,
   Wrench,
+  Zap,
 } from 'lucide-react';
 
 export interface Category {
@@ -33,6 +40,26 @@ export const PRODUCT_CATEGORIES: Category[] = [
   { id: 'memory-cards-flash', name: 'كروت الميموري SD والفلاشات', order: 9 },
 ];
 
+export const NAMED_ICON_MAP: Record<string, LucideIcon> = {
+  Camera,
+  Tv,
+  Smartphone,
+  Wrench,
+  ShieldAlert,
+  Home,
+  Laptop,
+  Wifi,
+  HardDrive,
+  FolderTree,
+  Tag,
+  Package,
+  Star,
+  Zap,
+  Cpu,
+  Globe,
+  Layers,
+};
+
 export const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
   cctv: Camera,
   satellite: Tv,
@@ -45,8 +72,11 @@ export const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
   'memory-cards-flash': HardDrive,
 };
 
-export function getCategoryIcon(idOrName: string): LucideIcon {
-  const clean = (idOrName || '').trim();
+export function getCategoryIcon(idOrNameOrIcon: string): LucideIcon {
+  const clean = (idOrNameOrIcon || '').trim();
+  if (NAMED_ICON_MAP[clean]) {
+    return NAMED_ICON_MAP[clean];
+  }
   if (CATEGORY_ICON_MAP[clean]) {
     return CATEGORY_ICON_MAP[clean];
   }
@@ -69,7 +99,7 @@ function normalizeArabicCategoryLabel(raw: string): string {
 }
 
 export const getOrderedCategories = (
-  customCategories?: ReadonlyArray<{ id: string; name: string; order?: number }>
+  customCategories?: ReadonlyArray<Pick<Category, 'id' | 'name'> & Partial<Category>>
 ): Category[] => {
   const source =
     Array.isArray(customCategories) && customCategories.length > 0
@@ -87,6 +117,9 @@ export const getOrderedCategories = (
       id: item.id,
       name: item.name,
       order: typeof item.order === 'number' && Number.isFinite(item.order) ? item.order : idx + 1,
+      ...(typeof item.icon === 'string' && item.icon.trim() ? { icon: item.icon.trim() } : {}),
+      ...(typeof item.imageUrl === 'string' && item.imageUrl.trim() ? { imageUrl: item.imageUrl.trim() } : {}),
+      ...(typeof item.isHidden === 'boolean' ? { isHidden: item.isHidden } : {}),
     });
   }
 

@@ -305,27 +305,29 @@ export function MobileStorefront({
               <Layers className="h-3.5 w-3.5 shrink-0 text-current" aria-hidden="true" />
               <span>{hasFeaturedProducts ? 'كل المنتجات' : 'الكل'}</span>
             </button>
-            {orderedCategories.map((cat) => {
-              const CatIcon = getCategoryIcon(cat.id);
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => {
-                    onCategoryChange?.(cat.id);
-                    recordUsefulActivity('category_switch', cat.name);
-                  }}
-                  className={`inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
-                    selectedCategoryId === cat.id
-                      ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
-                      : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
-                  } cursor-pointer`}
-                >
-                  <CatIcon className="h-3.5 w-3.5 shrink-0 text-current" aria-hidden="true" />
-                  <span>{cat.name}</span>
-                </button>
-              );
-            })}
+            {orderedCategories
+              .filter((cat) => !cat.isHidden)
+              .map((cat) => {
+                const CatIcon = getCategoryIcon(cat.icon || cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      onCategoryChange?.(cat.id);
+                      recordUsefulActivity('category_switch', cat.name);
+                    }}
+                    className={`inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
+                      selectedCategoryId === cat.id
+                        ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
+                        : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
+                    } cursor-pointer`}
+                  >
+                    <CatIcon className="h-3.5 w-3.5 shrink-0 text-current" aria-hidden="true" />
+                    <span>{cat.name}</span>
+                  </button>
+                );
+              })}
           </div>
         </div>
 

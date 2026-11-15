@@ -24,6 +24,7 @@ import {
   isAuthorizedDeveloperUser,
   migrateLegacySiteConfigMapsInCloud,
   onAuthStateChanged,
+  reassignCloudProductsCategory,
   reorderCloudFeaturedProducts,
   saveCloudSiteConfig,
   signOutAdmin,
@@ -673,6 +674,21 @@ export default function App() {
     }
   };
 
+  const handleReassignProductsCategory = async (
+    productsToMove: Product[],
+    newCategoryId: string,
+    newCategoryName: string
+  ) => {
+    const updatedItems = await reassignCloudProductsCategory(
+      productsToMove,
+      newCategoryId,
+      newCategoryName
+    );
+    for (const saved of updatedItems) {
+      syncAuthoritativeProductIntoState(saved);
+    }
+  };
+
   const orderedStoreCategories = useMemo(
     () => getOrderedCategories(siteConfig.categories),
     [siteConfig.categories]
@@ -750,6 +766,7 @@ export default function App() {
               onQuickUpdateProductFlags={handleQuickUpdateProductFlags}
               onReorderFeaturedProducts={handleReorderFeaturedProducts}
               onSaveSiteConfig={handleSaveSiteConfig}
+              onReassignProductsCategory={handleReassignProductsCategory}
             />
           </div>
         ) : activeView === 'about' ? (
@@ -933,24 +950,26 @@ export default function App() {
                           <Layers className="h-4 w-4 shrink-0 text-current" aria-hidden="true" />
                           <span>الكل</span>
                         </button>
-                        {orderedStoreCategories.map((cat) => {
-                          const CatIcon = getCategoryIcon(cat.id);
-                          return (
-                            <button
-                              key={cat.id}
-                              type="button"
-                              onClick={() => handleCategoryChange(cat.id)}
-                              className={`min-h-[44px] px-5 py-2.5 rounded-2xl text-sm font-extrabold transition-all border inline-flex items-center gap-2 ${
-                                selectedCategoryId === cat.id
-                                  ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
-                                  : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
-                              } cursor-pointer`}
-                            >
-                              <CatIcon className="h-4 w-4 shrink-0 text-current" aria-hidden="true" />
-                              <span>{cat.name}</span>
-                            </button>
-                          );
-                        })}
+                        {orderedStoreCategories
+                          .filter((cat) => !cat.isHidden)
+                          .map((cat) => {
+                            const CatIcon = getCategoryIcon(cat.icon || cat.id);
+                            return (
+                              <button
+                                key={cat.id}
+                                type="button"
+                                onClick={() => handleCategoryChange(cat.id)}
+                                className={`min-h-[44px] px-5 py-2.5 rounded-2xl text-sm font-extrabold transition-all border inline-flex items-center gap-2 ${
+                                  selectedCategoryId === cat.id
+                                    ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-lg scale-105'
+                                    : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E0F2FE] dark:hover:bg-[#163663]'
+                                } cursor-pointer`}
+                              >
+                                <CatIcon className="h-4 w-4 shrink-0 text-current" aria-hidden="true" />
+                                <span>{cat.name}</span>
+                              </button>
+                            );
+                          })}
                       </div>
                     </div>
 

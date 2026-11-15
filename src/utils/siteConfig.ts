@@ -183,7 +183,7 @@ export const SOCIAL_PLATFORM_LABELS: Record<SocialPlatform, string> = {
 export const MAX_CONTACT_CHANNELS = 20;
 export const MAX_BRANCHES = 10;
 export const MAX_SOCIAL_LINKS = 15;
-export const MAX_CATEGORIES = 20;
+export const MAX_CATEGORIES = 30;
 export const MAX_FIRESTORE_DOC_SAFE_BYTES = 900_000;
 
 export function estimateJsonUtf8Bytes(value: unknown): number {
@@ -573,7 +573,7 @@ export function validateSiteConfigInput(config: SiteConfig): ValidationResult {
     for (const cat of rawCategories) {
       const catId = (cat.id || '').trim();
       const catName = (cat.name || '').trim();
-      if (!catId || catId.length > 60 || !SAFE_ID_REGEX.test(catId)) {
+      if (!catId || catId.length > 100 || !SAFE_ID_REGEX.test(catId)) {
         errors.push('معرّف أحد الأقسام غير صالح.');
         break;
       }
@@ -582,8 +582,16 @@ export function validateSiteConfigInput(config: SiteConfig): ValidationResult {
         break;
       }
       seenIds.add(catId);
-      if (catName.length < 1 || catName.length > 80) {
-        errors.push('اسم كل قسم يجب أن يكون بين حرف و80 حرفًا.');
+      if (catName.length < 1 || catName.length > 120) {
+        errors.push('اسم كل قسم يجب أن يكون بين حرف و120 حرفًا.');
+        break;
+      }
+      if (typeof cat.icon === 'string' && cat.icon.trim().length > 60) {
+        errors.push(`اسم أيقونة القسم "${catName}" يتجاوز الحد المسموح به.`);
+        break;
+      }
+      if (cat.imageUrl && !isValidOptionalHttpUrl(cat.imageUrl)) {
+        errors.push(`رابط صورة القسم "${catName}" غير صالح؛ يجب أن يبدأ بـ https:// أو http://.`);
         break;
       }
     }
@@ -743,24 +751,35 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     const cat = rawCategories[idx];
     const safeId =
       typeof cat?.id === 'string' && SAFE_ID_REGEX.test(cat.id.trim())
-        ? cat.id.trim().slice(0, 60)
+        ? cat.id.trim().slice(0, 100)
         : `cat-${idx + 1}`;
     if (seenCategoryIds.has(safeId)) continue;
     seenCategoryIds.add(safeId);
 
     const defaultMatch = PRODUCT_CATEGORIES.find((d) => d.id === safeId);
     const fallbackName = defaultMatch?.name || `قسم ${idx + 1}`;
-    const safeName = cleanStr(cat?.name, fallbackName, 80, 1);
+    const safeName = cleanStr(cat?.name, fallbackName, 120, 1);
     const rawOrder =
       typeof cat?.order === 'number' && Number.isFinite(cat.order)
         ? Math.round(cat.order)
         : idx + 1;
     const safeOrder = Math.min(100, Math.max(1, rawOrder));
+    const safeIcon =
+      typeof cat?.icon === 'string' && cat.icon.trim()
+        ? cat.icon.trim().slice(0, 60)
+        : undefined;
+    const rawImgUrl = cleanStr(cat?.imageUrl, '', 600, 0);
+    const safeImageUrl =
+      rawImgUrl && isValidOptionalHttpUrl(rawImgUrl) ? rawImgUrl : undefined;
+    const safeIsHidden = typeof cat?.isHidden === 'boolean' ? cat.isHidden : undefined;
 
     sanitizedCategories.push({
       id: safeId,
       name: safeName,
       order: safeOrder,
+      ...(safeIcon ? { icon: safeIcon } : {}),
+      ...(safeImageUrl ? { imageUrl: safeImageUrl } : {}),
+      ...(safeIsHidden !== undefined ? { isHidden: safeIsHidden } : {}),
     });
   }
 
@@ -974,7 +993,7 @@ export function sanitizeSiteConfig(input: Partial<SiteConfig>, updatedBy = 'admi
     showRatingsSection: merged.showRatingsSection !== false,
 
     heroBgType:
-      merged.heroBgType && ['color', 'gradient', 'image'].includes(merged.heroBgType)
+      merged.heroBgType && ['color', 'gradient', 'image', 'solid', 'default'].includes(merged.heroBgType)
         ? merged.heroBgType
         : 'gradient',
     heroBgColor: cleanStr(merged.heroBgColor, DEFAULT_SITE_CONFIG.heroBgColor, 30, 3),
@@ -1236,6 +1255,15 @@ export function buildFirestoreSiteConfigPayload(
       id: cat.id,
       name: cat.name,
       order: cat.order,
+      ...(typeof cat.icon === 'string' && cat.icon.trim()
+        ? { icon: cat.icon.trim().slice(0, 60) }
+        : {}),
+      ...(typeof cat.imageUrl === 'string' &&
+      cat.imageUrl.trim() &&
+      isValidOptionalHttpUrl(cat.imageUrl)
+        ? { imageUrl: cat.imageUrl.trim().slice(0, 600) }
+        : {}),
+      ...(typeof cat.isHidden === 'boolean' ? { isHidden: cat.isHidden } : {}),
     })),
     essentialCategories: clean.essentialCategories.map((item) => ({
       id: item.id,

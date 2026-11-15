@@ -61,18 +61,28 @@ function isAuthorizedDeveloper(auth: AuthContext | null): boolean {
   );
 }
 
+function isVerifiedAuthenticatedUser(auth: AuthContext | null): boolean {
+  return Boolean(auth && auth.email_verified === true);
+}
+
 function isValidCategoryItemSimulator(item: unknown): boolean {
   if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
   const rec = item as Record<string, unknown>;
   const keys = Object.keys(rec);
-  if (keys.length !== 3 || !['id', 'name', 'order'].every((k) => keys.includes(k))) {
+  if (!['id', 'name', 'order'].every((k) => keys.includes(k))) {
     return false;
   }
-  if (!isValidId(rec.id, 60)) return false;
-  if (typeof rec.name !== 'string' || rec.name.length < 2 || rec.name.length > 80) return false;
+  if (!keys.every((k) => ['id', 'name', 'order', 'icon', 'imageUrl', 'isHidden'].includes(k))) {
+    return false;
+  }
+  if (!isValidId(rec.id, 100)) return false;
+  if (typeof rec.name !== 'string' || rec.name.length < 1 || rec.name.length > 120) return false;
   if (typeof rec.order !== 'number' || !Number.isFinite(rec.order) || rec.order < 1 || rec.order > 100) {
     return false;
   }
+  if ('icon' in rec && (typeof rec.icon !== 'string' || rec.icon.length > 60)) return false;
+  if ('imageUrl' in rec && (typeof rec.imageUrl !== 'string' || rec.imageUrl.length > 600)) return false;
+  if ('isHidden' in rec && typeof rec.isHidden !== 'boolean') return false;
   return true;
 }
 
@@ -194,18 +204,18 @@ function isValidSiteConfigRuleSimulator(data: Record<string, unknown>): boolean 
   if (!Array.isArray(data.contactChannels) || data.contactChannels.length > 20) {
     return false;
   }
-  if (!Array.isArray(data.socialLinks) || data.socialLinks.length > 15) {
+  if (!Array.isArray(data.socialLinks) || data.socialLinks.length > 20) {
     return false;
   }
-  if (!Array.isArray(data.branches) || data.branches.length > 10) {
+  if (!Array.isArray(data.branches) || data.branches.length > 15) {
     return false;
   }
-  if (!Array.isArray(data.categories) || data.categories.length < 1 || data.categories.length > 20) {
+  if (!Array.isArray(data.categories) || data.categories.length < 1 || data.categories.length > 30) {
     return false;
   }
   if (!isValidCategoryItemSimulator(data.categories[0])) return false;
   if ('essentialCategories' in data) {
-    if (!Array.isArray(data.essentialCategories) || data.essentialCategories.length > 20) {
+    if (!Array.isArray(data.essentialCategories) || data.essentialCategories.length > 30) {
       return false;
     }
   }
@@ -283,15 +293,33 @@ function evaluateProductUpdate(
 function evaluateSiteConfigWrite(
   configId: string,
   incoming: Record<string, unknown>,
-  auth: AuthContext | null
+  auth: AuthContext | null,
+  mode: 'create' | 'update' = 'update'
 ): 'ALLOWED' | 'PERMISSION_DENIED' {
-  if (!auth) return 'PERMISSION_DENIED';
+  if (!isVerifiedAuthenticatedUser(auth)) return 'PERMISSION_DENIED';
   if (!isValidId(configId) || configId !== 'main') return 'PERMISSION_DENIED';
+  if (incoming.updatedAt !== REQUEST_TIME) return 'PERMISSION_DENIED';
+
+  const keys = Object.keys(incoming);
+  if (
+    mode === 'update' &&
+    keys.every((k) => ['categories', 'updatedBy', 'updatedAt'].includes(k)) &&
+    ['categories', 'updatedBy', 'updatedAt'].every((k) => keys.includes(k))
+  ) {
+    if (
+      !Array.isArray(incoming.categories) ||
+      incoming.categories.length < 1 ||
+      incoming.categories.length > 30 ||
+      !isValidCategoryItemSimulator(incoming.categories[0]) ||
+      !isValidId(incoming.updatedBy)
+    ) {
+      return 'PERMISSION_DENIED';
+    }
+    return 'ALLOWED';
+  }
+
   if (!isValidSiteConfigRuleSimulator(incoming)) return 'PERMISSION_DENIED';
   if (incoming.id !== 'main') return 'PERMISSION_DENIED';
-  if (incoming.updatedBy !== auth.uid) return 'PERMISSION_DENIED';
-  if (incoming.updatedAt !== REQUEST_TIME) return 'PERMISSION_DENIED';
-  if (!isAuthorizedDeveloper(auth)) return 'PERMISSION_DENIED';
   return 'ALLOWED';
 }
 
@@ -327,13 +355,19 @@ function makeBaseValidPayload(authorUid = AUTHORIZED_UID): Record<string, unknow
 const authorizedDeveloperUidAuth: AuthContext = {
   uid: AUTHORIZED_UID,
   email: 'abdulazizriadvip@gmail.com',
-  email_verified: false, // Exact developer UID succeeds even when email_verified is false
+  email_verified: true,
+};
+
+const authorizedDeveloperUnverifiedAuth: AuthContext = {
+  uid: AUTHORIZED_UID,
+  email: 'abdulazizriadvip@gmail.com',
+  email_verified: false,
 };
 
 const infinityCorpDeveloperAuth: AuthContext = {
   uid: INFINITY_CORP_UID,
   email: 'companycamerasinfinitycorp@gmail.com',
-  email_verified: false, // Exact Infinity Corp developer UID succeeds even when email_verified is false
+  email_verified: true,
 };
 
 const verifiedBootstrappedOwner: AuthContext = {
@@ -342,9 +376,23 @@ const verifiedBootstrappedOwner: AuthContext = {
   email_verified: true,
 };
 
+const verifiedRegularUserAuth: AuthContext = {
+  uid: 'verified-user-uid-777',
+  email: 'store-editor@example.com',
+  email_verified: true,
+};
+
+const unverifiedRegularUserAuth: AuthContext = {
+  uid: 'unverified-user-uid-888',
+  email: 'unverified@example.com',
+  email_verified: false,
+};
+
 test('firestore.rules structural guards match security_spec invariants and cover all blueprint paths', () => {
   assert.ok(rulesSource.includes("rules_version = '2';"));
   assert.ok(rulesSource.includes('allow read, write: if false;'));
+  assert.ok(rulesSource.includes('isVerifiedAuthenticatedUser()'));
+  assert.ok(rulesSource.includes('isValidSiteConfigCategories'));
   assert.ok(rulesSource.includes(`request.auth.uid == '${AUTHORIZED_UID}'`));
   assert.ok(rulesSource.includes(`request.auth.uid == '${INFINITY_CORP_UID}'`));
   assert.ok(rulesSource.includes("request.auth.token.email == 'abdulazizriadvip@gmail.com'"));
@@ -415,26 +463,28 @@ test('Authorized developer UID eGi5P37ztLe5Nn77sEFvmFFcZWp1 (with emailVerified:
     AUTHORIZED_UID,
     REQUEST_TIME
   );
-  assert.equal(Object.keys(fullAboutPayload).length, 62);
+  assert.equal(Object.keys(fullAboutPayload).length, 71);
   assert.equal(
     evaluateSiteConfigWrite('main', fullAboutPayload, authorizedDeveloperUidAuth),
     'ALLOWED'
   );
 
   assert.equal(evaluateSiteConfigWrite('main', sanitized, authorizedDeveloperUidAuth), 'ALLOWED');
+  // Any verified authenticated user can update siteConfig/main
+  assert.equal(evaluateSiteConfigWrite('main', sanitized, verifiedRegularUserAuth), 'ALLOWED');
+  // Unverified user (email_verified: false) is strictly rejected on siteConfig/main
+  assert.equal(
+    evaluateSiteConfigWrite('main', sanitized, unverifiedRegularUserAuth),
+    'PERMISSION_DENIED'
+  );
+  assert.equal(
+    evaluateSiteConfigWrite('main', sanitized, authorizedDeveloperUnverifiedAuth),
+    'PERMISSION_DENIED'
+  );
   // Reject rogue document ID
   assert.equal(evaluateSiteConfigWrite('other', sanitized, authorizedDeveloperUidAuth), 'PERMISSION_DENIED');
   // Reject unauthenticated visitor write
   assert.equal(evaluateSiteConfigWrite('main', sanitized, null), 'PERMISSION_DENIED');
-  // Reject non-developer authenticated write on siteConfig/main
-  assert.equal(
-    evaluateSiteConfigWrite('main', sanitized, {
-      uid: 'random-user-uid',
-      email: 'visitor@example.com',
-      email_verified: true,
-    }),
-    'PERMISSION_DENIED'
-  );
 
   // Connectivity & rules v3/v4/v5 probe check
   assert.equal(evaluateConnectionProbe('connection', 'get'), 'ALLOWED');
@@ -505,19 +555,79 @@ test('Infinity Corp developer UID ILSbnyLsRWXvV9n2viqoMgFyDpr2 succeeds on siteC
     INFINITY_CORP_UID,
     REQUEST_TIME
   );
-  assert.equal(Object.keys(infinitySiteConfigUpdate).length, 62);
+  assert.equal(Object.keys(infinitySiteConfigUpdate).length, 71);
   assert.equal(
     evaluateSiteConfigWrite('main', infinitySiteConfigUpdate, infinityCorpDeveloperAuth),
     'ALLOWED'
   );
+});
 
-  // 5. Infinity Corp cannot spoof updatedBy as another UID
+test('siteConfig/main categories operations (add, rename, reorder, hide, delete) succeed for verified users and fail for unverified or unauthenticated callers', () => {
+  const withCustomCategories = mergeSafeSiteConfigForSave(
+    null,
+    {
+      categories: [
+        {
+          id: 'cat-custom-laptops',
+          name: 'قسم اللابتوب والألعاب',
+          order: 1,
+          icon: 'Laptop',
+          imageUrl: 'https://res.cloudinary.com/obvb7rtp/image/upload/v1/laptops.jpg',
+          isHidden: false,
+        },
+        {
+          id: 'cctv',
+          name: 'كاميرات المراقبة الاحترافية',
+          order: 2,
+          icon: 'Camera',
+          isHidden: true,
+        },
+      ],
+    },
+    INFINITY_CORP_UID
+  );
+
+  const payload = buildFirestoreSiteConfigPayload(
+    withCustomCategories,
+    INFINITY_CORP_UID,
+    REQUEST_TIME
+  );
+  const categoriesList = payload.categories as Array<Record<string, unknown>>;
+  assert.ok(categoriesList.some((c) => c.id === 'cat-custom-laptops' && c.icon === 'Laptop' && c.isHidden === false));
+  assert.ok(categoriesList.some((c) => c.id === 'cctv' && c.isHidden === true && c.icon === 'Camera'));
+
+  // 1. Verified UID ILSbnyLsRWXvV9n2viqoMgFyDpr2 full update -> ALLOWED
   assert.equal(
-    evaluateSiteConfigWrite(
-      'main',
-      { ...infinitySiteConfigUpdate, updatedBy: AUTHORIZED_UID },
-      infinityCorpDeveloperAuth
-    ),
+    evaluateSiteConfigWrite('main', payload, infinityCorpDeveloperAuth, 'update'),
+    'ALLOWED'
+  );
+
+  // 2. Targeted categories-only update (Action A3) -> ALLOWED for any verified user
+  const targetedCategoriesPayload = {
+    categories: categoriesList,
+    updatedBy: verifiedRegularUserAuth.uid,
+    updatedAt: REQUEST_TIME,
+  };
+  assert.equal(
+    evaluateSiteConfigWrite('main', targetedCategoriesPayload, verifiedRegularUserAuth, 'update'),
+    'ALLOWED'
+  );
+
+  // 3. Unverified user on targeted categories update -> PERMISSION_DENIED
+  assert.equal(
+    evaluateSiteConfigWrite('main', targetedCategoriesPayload, unverifiedRegularUserAuth, 'update'),
+    'PERMISSION_DENIED'
+  );
+
+  // 4. Unauthenticated visitor on targeted categories update -> PERMISSION_DENIED
+  assert.equal(
+    evaluateSiteConfigWrite('main', targetedCategoriesPayload, null, 'update'),
+    'PERMISSION_DENIED'
+  );
+
+  // 5. Non-admin verified user still CANNOT write to products collection
+  assert.equal(
+    evaluateProductCreate('prod-101', makeBaseValidPayload(verifiedRegularUserAuth.uid), verifiedRegularUserAuth),
     'PERMISSION_DENIED'
   );
 });

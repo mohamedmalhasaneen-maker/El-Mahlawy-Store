@@ -35,7 +35,7 @@ import {
 import firebaseConfig from '../../firebase-applet-config.json';
 import { DiscountType, OperationType, Product, ProductFormInput } from '../types/store';
 import { sanitizeProductPayload } from '../utils/catalogLogic';
-import { PRODUCT_CATEGORIES, getCategoryIdByName, getCategoryName } from '../constants/categories';
+import { getCategoryIdByName, getCategoryName } from '../constants/categories';
 import {
   AUTHORIZED_DEVELOPER_EMAIL,
   AUTHORIZED_DEVELOPER_UID,
@@ -54,6 +54,7 @@ import {
   DEFAULT_SITE_CONFIG,
   MAX_FIRESTORE_DOC_SAFE_BYTES,
   SiteConfig,
+  StoreCategoryItem,
   buildFirestoreSiteConfigPayload,
   estimateJsonUtf8Bytes,
   isLegacyOrBrokenGoogleMapsUrl,
@@ -260,6 +261,60 @@ function assertVerifiedDeveloperSession(): User {
   return user;
 }
 
+function assertVerifiedAuthenticatedSession(): User {
+  assertFirebaseProjectConnectionReady();
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('لا توجد جلسة تسجيل دخول نشطة حاليًا. يرجى تسجيل الدخول أولًا.');
+  }
+  if (!user.emailVerified) {
+    throw new Error(
+      `لا يمكن حفظ الإعدادات قبل توثيق البريد الإلكتروني للحساب (${user.email || user.uid}).`
+    );
+  }
+  return user;
+}
+
+async function prepareVerifiedSiteConfigCloudWrite(
+  onStage?: (stage: CloudWriteStage) => void
+): Promise<User> {
+  onStage?.('config_validation');
+  assertFirebaseProjectConnectionReady();
+
+  onStage?.('auth_session');
+  if (typeof auth.authStateReady === 'function') {
+    await auth.authStateReady();
+  }
+  let user = auth.currentUser;
+  if (!user) {
+    throw new Error('لا توجد جلسة تسجيل دخول نشطة حاليًا. يرجى تسجيل الدخول أولًا.');
+  }
+  if (!user.emailVerified) {
+    try {
+      await user.reload();
+      user = auth.currentUser ?? user;
+    } catch {
+      // Ignore reload failures; verification assertion below handles unverified state
+    }
+  }
+  user = assertVerifiedAuthenticatedSession();
+
+  onStage?.('token_verification');
+  const tokenResult = await user.getIdTokenResult(false);
+  const tokenEmailVerified = tokenResult?.claims?.email_verified === true;
+  const expirationMs = tokenResult?.expirationTime
+    ? Date.parse(tokenResult.expirationTime)
+    : Number.NaN;
+  if (
+    !tokenEmailVerified ||
+    (Number.isFinite(expirationMs) && expirationMs - Date.now() < 5 * 60 * 1000)
+  ) {
+    await user.getIdToken(true);
+  }
+
+  return user;
+}
+
 async function prepareVerifiedDeveloperCloudWrite(
   onStage?: (stage: CloudWriteStage) => void
 ): Promise<User> {
@@ -281,7 +336,7 @@ async function prepareVerifiedDeveloperCloudWrite(
     await user.getIdToken(true);
   }
 
-    // Ensure the developer is registered in /admins/{uid} collection in Firestore
+  // Ensure the developer is registered in /admins/{uid} collection in Firestore
   if (user && user.uid && isAuthorizedDeveloperUser(user)) {
     try {
       const adminDocRef = doc(db, 'admins', user.uid);
@@ -296,37 +351,6 @@ async function prepareVerifiedDeveloperCloudWrite(
       }
     } catch {
       // Non-blocking bootstrap check
-    }
-
-    // Ensure /siteConfig/main contains all new default categories in Firestore
-    try {
-      const configRef = doc(db, 'siteConfig', 'main');
-      const snap = await getDoc(configRef);
-      if (snap.exists()) {
-        const rawData = snap.data();
-        const existingCats = Array.isArray(rawData?.categories) ? rawData.categories : [];
-        const missingCats = PRODUCT_CATEGORIES.filter(
-          (def) => !existingCats.some((c: { id?: string }) => c?.id === def.id)
-        );
-        if (missingCats.length > 0) {
-          const mergedCats = [...existingCats];
-          for (const m of missingCats) {
-            mergedCats.push({
-              id: m.id,
-              name: m.name,
-              order: m.order,
-            });
-          }
-          mergedCats.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
-          await updateDoc(configRef, {
-            categories: mergedCats.map((c, i) => ({ ...c, order: i + 1 })),
-            updatedAt: serverTimestamp(),
-            updatedBy: user.uid,
-          });
-        }
-      }
-    } catch {
-      // Non-blocking category synchronization
     }
   }
 
@@ -658,7 +682,7 @@ export async function saveCloudSiteConfig(
   let existedOnServerBeforeWrite: boolean | undefined;
 
   try {
-    const verifiedUser = await prepareVerifiedDeveloperCloudWrite((stage) => {
+    const verifiedUser = await prepareVerifiedSiteConfigCloudWrite((stage) => {
       currentStage = stage;
     });
     const effectiveUid = verifiedUser.uid || authorUid;
@@ -707,8 +731,13 @@ export async function saveCloudSiteConfig(
       await executeWriteWithAuthRebindRetry(verifiedUser, async () => {
         try {
           await updateDoc(configRef, firestoreRecord as Record<string, unknown>);
-        } catch {
-          await setDoc(configRef, firestoreRecord, { merge: true });
+        } catch (err) {
+          const code = extractFirestoreErrorCode(err).toLowerCase();
+          if (code.includes('not-found')) {
+            await setDoc(configRef, firestoreRecord, { merge: true });
+            return;
+          }
+          throw err;
         }
       });
     } else {
@@ -769,7 +798,7 @@ export async function saveCloudHeroBannerSettings(
   let currentStage: CloudWriteStage = 'config_validation';
 
   try {
-    const verifiedUser = await prepareVerifiedDeveloperCloudWrite((stage) => {
+    const verifiedUser = await prepareVerifiedSiteConfigCloudWrite((stage) => {
       currentStage = stage;
     });
     const effectiveUid = verifiedUser.uid || authorUid || AUTHORIZED_DEVELOPER_UID;
@@ -844,7 +873,7 @@ export async function saveCloudAboutBannerSettings(
   let currentStage: CloudWriteStage = 'config_validation';
 
   try {
-    const verifiedUser = await prepareVerifiedDeveloperCloudWrite((stage) => {
+    const verifiedUser = await prepareVerifiedSiteConfigCloudWrite((stage) => {
       currentStage = stage;
     });
     const effectiveUid = verifiedUser.uid || authorUid || AUTHORIZED_DEVELOPER_UID;
@@ -894,6 +923,89 @@ export async function saveCloudAboutBannerSettings(
     });
     handleFirestoreError(error, OperationType.UPDATE, path, {
       operationName: 'saveCloudAboutBannerSettings',
+      failedStage: currentStage,
+    });
+  }
+}
+
+export async function saveCloudSiteCategories(
+  categories: StoreCategoryItem[],
+  authorUid?: string
+): Promise<StoreCategoryItem[]> {
+  const path = 'siteConfig/main';
+  let currentStage: CloudWriteStage = 'config_validation';
+
+  try {
+    const verifiedUser = await prepareVerifiedSiteConfigCloudWrite((stage) => {
+      currentStage = stage;
+    });
+    const effectiveUid = verifiedUser.uid || authorUid || AUTHORIZED_DEVELOPER_UID;
+    const configRef = doc(db, 'siteConfig', 'main');
+
+    currentStage = 'pre_write_server_merge';
+    let existingServerRaw: Record<string, unknown> | null = null;
+    try {
+      const priorSnap = await getDocFromServer(configRef);
+      if (priorSnap.exists()) {
+        existingServerRaw = priorSnap.data() as Record<string, unknown>;
+      }
+    } catch {
+      const fallbackSnap = await getDoc(configRef);
+      if (fallbackSnap.exists()) {
+        existingServerRaw = fallbackSnap.data() as Record<string, unknown>;
+      }
+    }
+
+    const mergedConfig = mergeSafeSiteConfigForSave(
+      existingServerRaw,
+      { categories },
+      effectiveUid
+    );
+
+    currentStage = 'payload_validation';
+    const validation = validateSiteConfigInput(mergedConfig);
+    if (!validation.valid) {
+      throw new Error(validation.errors[0] || 'بيانات الأقسام والتصنيفات غير صالحة للحفظ.');
+    }
+
+    const fullPayload = buildFirestoreSiteConfigPayload(
+      mergedConfig,
+      effectiveUid,
+      serverTimestamp()
+    );
+    const categoriesList = fullPayload.categories as StoreCategoryItem[];
+
+    currentStage = 'firestore_write';
+    if (existingServerRaw) {
+      await executeWriteWithAuthRebindRetry(verifiedUser, () =>
+        updateDoc(configRef, {
+          categories: categoriesList,
+          updatedBy: effectiveUid,
+          updatedAt: serverTimestamp(),
+        })
+      );
+    } else {
+      await executeWriteWithAuthRebindRetry(verifiedUser, () =>
+        setDoc(configRef, fullPayload)
+      );
+    }
+
+    currentStage = 'server_readback_confirm';
+    const serverSnap = await getDocFromServer(configRef);
+    if (!serverSnap.exists()) {
+      throw new Error('لم يتم تأكيد حفظ الأقسام على الخادم.');
+    }
+    return mapSnapshotToSiteConfig(serverSnap.data() as Record<string, unknown>).categories;
+  } catch (error) {
+    logSafeCloudWriteDiagnostic({
+      operationName: 'saveCloudSiteCategories',
+      operationType: OperationType.UPDATE,
+      targetPath: path,
+      failedStage: currentStage,
+      error,
+    });
+    handleFirestoreError(error, OperationType.UPDATE, path, {
+      operationName: 'saveCloudSiteCategories',
       failedStage: currentStage,
     });
   }
@@ -1394,6 +1506,92 @@ export async function deleteCloudProduct(productId: string): Promise<void> {
     });
     handleFirestoreError(error, OperationType.DELETE, path, {
       operationName: 'deleteCloudProduct',
+      failedStage: currentStage,
+    });
+  }
+}
+
+export async function reassignCloudProductsCategory(
+  productsToMove: Product[],
+  newCategoryId: string,
+  newCategoryName: string
+): Promise<Product[]> {
+  if (!Array.isArray(productsToMove) || productsToMove.length === 0) {
+    return [];
+  }
+
+  let currentStage: CloudWriteStage = 'config_validation';
+  let currentPath = 'products';
+  const updatedProducts: Product[] = [];
+
+  try {
+    const verifiedUser = await prepareVerifiedDeveloperCloudWrite((stage) => {
+      currentStage = stage;
+    });
+
+    const targetId = (newCategoryId || '').trim() || 'uncategorized';
+    const targetName = (newCategoryName || '').trim() || 'بدون قسم';
+
+    for (const product of productsToMove) {
+      currentPath = `products/${product.id}`;
+      const productRef = doc(db, 'products', product.id);
+
+      currentStage = 'pre_write_server_merge';
+      const { existingProduct, preservedAuthorUid, preservedCreatedAt } =
+        await resolveExistingProductImmutableMeta(product.id, verifiedUser.uid);
+      if (!existingProduct) continue;
+
+      currentStage = 'payload_validation';
+      const mergedInput: ProductFormInput = {
+        id: product.id,
+        name: existingProduct.name,
+        brand: existingProduct.brand,
+        categoryId: targetId,
+        category: targetName,
+        shortDescription: existingProduct.shortDescription,
+        description: existingProduct.description,
+        price: existingProduct.price,
+        originalPrice: existingProduct.originalPrice,
+        discountEnabled: existingProduct.discountEnabled,
+        discountType: existingProduct.discountType,
+        discountValue: existingProduct.discountValue,
+        discountStartDate: existingProduct.discountStartDate,
+        discountEndDate: existingProduct.discountEndDate,
+        inStock: existingProduct.inStock,
+        isFeatured: existingProduct.isFeatured,
+        featuredOrder: existingProduct.featuredOrder,
+        isPublished: existingProduct.isPublished,
+        images:
+          existingProduct.images.length > 0 ? existingProduct.images : ['/logo.png'],
+        specs: existingProduct.specs,
+        options: existingProduct.options,
+      };
+      const sanitized = sanitizeProductPayload(mergedInput, product.id, preservedAuthorUid);
+      const record = buildFirestoreProductRecord(sanitized, preservedCreatedAt);
+
+      currentStage = 'firestore_write';
+      await executeWriteWithAuthRebindRetry(verifiedUser, () => setDoc(productRef, record));
+
+      currentStage = 'server_readback_confirm';
+      const serverSnap = await getDocFromServer(productRef);
+      if (serverSnap.exists()) {
+        updatedProducts.push(
+          mapDocToProduct(serverSnap.id, serverSnap.data() as Record<string, unknown>)
+        );
+      }
+    }
+
+    return updatedProducts;
+  } catch (error) {
+    logSafeCloudWriteDiagnostic({
+      operationName: 'reassignCloudProductsCategory',
+      operationType: OperationType.UPDATE,
+      targetPath: currentPath,
+      failedStage: currentStage,
+      error,
+    });
+    handleFirestoreError(error, OperationType.UPDATE, currentPath, {
+      operationName: 'reassignCloudProductsCategory',
       failedStage: currentStage,
     });
   }
