@@ -1,5 +1,5 @@
-import { Eye, MessageCircle, Share2, Check } from 'lucide-react';
-import { useState } from 'react';
+import { Eye, MessageCircle, Share2, Check, ShoppingBag, Heart } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { Product } from '../types/store';
 import {
@@ -13,6 +13,7 @@ import {
 import { buildProductImageAlt } from '../utils/seo';
 import { ProductImage } from './ProductImage';
 import { DiscountCountdownBadge } from './DiscountCountdownBadge';
+import { idbGetFavorites, idbSaveCartItem, idbToggleFavorite } from '../utils/offlineDb';
 
 interface ProductCardProps {
   product: Product;
@@ -23,11 +24,17 @@ interface ProductCardProps {
 export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCardProps) {
   const siteConfig = useSiteConfig();
   const [copied, setCopied] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+
   const hasDiscount = isDiscountActive(product);
   const effectivePrice = getEffectiveProductPrice(product);
-  const discountPct = hasDiscount
-    ? calculateDiscountPercent(product.originalPrice, effectivePrice)
-    : 0;
+
+  useEffect(() => {
+    idbGetFavorites().then((favs) => {
+      setIsFavorite(favs.includes(product.id));
+    });
+  }, [product.id]);
 
   const whatsappUrl = buildWhatsAppOrderUrl({
     product,
@@ -68,6 +75,27 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
     }
   };
 
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const cartKey = product.id + '::' + (product.options[0] || '');
+    await idbSaveCartItem({
+      cartKey,
+      productId: product.id,
+      selectedOption: product.options[0] || '',
+      quantity: 1,
+      productSnapshot: product,
+      updatedAt: Date.now(),
+    });
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
+  };
+
+  const handleToggleFav = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextState = await idbToggleFavorite(product.id);
+    setIsFavorite(nextState);
+  };
+
   return (
     <article className="group flex flex-col justify-between rounded-2xl bg-white dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[#7DD3FC] dark:hover:border-[#38BDF8]">
       <div>
@@ -87,10 +115,24 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
             )}
 
             {!product.inStock && (
-              <span className="absolute top-3 left-3 z-20 rounded-lg bg-slate-800/90 px-2.5 py-1 text-xs font-semibold text-white">
+              <span className="absolute top-3 left-3 z-20 rounded-lg bg-slate-800/95 px-2.5 py-1 text-xs font-semibold text-white">
                 غير متوفر حاليًا
               </span>
             )}
+
+            {/* Favorite Button */}
+            <button
+              type="button"
+              onClick={handleToggleFav}
+              title="إضافة للمفضلة"
+              className={`absolute top-12 left-3 z-25 flex h-9 w-9 items-center justify-center rounded-xl border shadow-sm transition-all duration-200 active:scale-90 cursor-pointer ${
+                isFavorite
+                  ? 'bg-rose-500 border-rose-500 text-white'
+                  : 'bg-white/90 dark:bg-[#0E264A]/90 border-white dark:border-[#1E3F73] text-rose-500 hover:bg-white dark:hover:bg-[#1E3F73]'
+              }`}
+            >
+              <Heart className={`h-4 w-4 ${isFavorite ? 'fill-white' : ''}`} />
+            </button>
 
             {/* Quick Share Button in Image Area */}
             <button
@@ -122,7 +164,6 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
 
         {/* Product Info */}
         <div className="px-5 pt-4 pb-3">
-          {/* Unboxed Metadata */}
           {(product.brand || product.categoryId) && (
             <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0284C7] dark:text-[#38BDF8] mb-1.5">
               {product.brand && <span>{product.brand}</span>}
@@ -188,28 +229,38 @@ export function ProductCard({ product, onViewDetails, publicOrigin }: ProductCar
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`طلب المنتج عبر واتساب: ${product.name}`}
-            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-4 py-2.5 text-xs sm:text-sm font-bold text-white transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-4 py-2.5 text-xs sm:text-sm font-bold text-white transition-colors whitespace-nowrap shrink-0"
           >
             <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>طلب المنتج عبر واتساب</span>
           </a>
 
-          <button
-            type="button"
-            onClick={() => onViewDetails(product)}
-            aria-label={`عرض التفاصيل: ${product.name}`}
-            className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl bg-[#F2FAFF] dark:bg-[#0B1F3A] hover:bg-[#E2F3FE] dark:hover:bg-[#153460] border border-[#CBE7FA] dark:border-[#1E3F73] px-4 py-2 text-xs sm:text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE] transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
-          >
-            <Eye
-              className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8] shrink-0"
-              aria-hidden="true"
-            />
-            <span>عرض التفاصيل</span>
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              className={`inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-colors cursor-pointer ${
+                addedToCart
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-[#F2FAFF] dark:bg-[#0B1F3A] hover:bg-[#E2F3FE] dark:hover:bg-[#153460] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0F294A] dark:text-[#E0F2FE]'
+              }`}
+            >
+              {addedToCart ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4 text-[#0284C7]" />}
+              <span>{addedToCart ? 'تمت الإضافة' : 'أضف للسلة'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onViewDetails(product)}
+              aria-label={`عرض التفاصيل: ${product.name}`}
+              className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-[#F2FAFF] dark:bg-[#0B1F3A] hover:bg-[#E2F3FE] dark:hover:bg-[#153460] border border-[#CBE7FA] dark:border-[#1E3F73] px-3 py-2 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE] transition-colors cursor-pointer"
+            >
+              <Eye className="h-4 w-4 text-[#0284C7] dark:text-[#38BDF8]" />
+              <span>التفاصيل</span>
+            </button>
+          </div>
         </div>
       </div>
     </article>
   );
 }
-
-

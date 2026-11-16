@@ -35,6 +35,8 @@ import { MobileOrderSheet } from './MobileOrderSheet';
 import { MobileProductCard } from './MobileProductCard';
 import { MobileProductSheet } from './MobileProductSheet';
 
+import { PWAInstallButton } from '../PWAInstallButton';
+
 interface MobileStorefrontProps {
   products: Product[];
   filteredProducts: Product[];
@@ -59,6 +61,7 @@ interface MobileStorefrontProps {
   heroSpotlightProduct?: Product;
   onOpenRatingModal?: () => void;
   onActiveProductChange?: (product: Product | null) => void;
+  onOpenCart?: () => void;
 }
 
 export function MobileStorefront({
@@ -85,6 +88,7 @@ export function MobileStorefront({
   heroSpotlightProduct,
   onOpenRatingModal,
   onActiveProductChange,
+  onOpenCart,
 }: MobileStorefrontProps) {
   const siteConfig = useSiteConfig();
   const orderedCategories = getOrderedCategories(siteConfig.categories);
@@ -211,6 +215,19 @@ export function MobileStorefront({
           </a>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {onOpenCart && (
+              <button
+                type="button"
+                onClick={onOpenCart}
+                aria-label="سلة المشتريات"
+                className="inline-flex min-h-[40px] items-center justify-center rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] px-2.5 py-2 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE] border border-[#CBE7FA] dark:border-[#1E3F73] cursor-pointer"
+              >
+                <ShoppingBag className="h-4 w-4 text-[#1D4ED8] dark:text-[#38BDF8]" />
+              </button>
+            )}
+
+            <PWAInstallButton variant="mobile" />
+
             {onToggleTheme && <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />}
 
             <button

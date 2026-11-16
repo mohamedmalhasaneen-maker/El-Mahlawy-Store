@@ -1,6 +1,7 @@
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag } from 'lucide-react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { ThemeToggle } from './ThemeToggle';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
   activeView: 'store' | 'about' | 'developer';
@@ -10,6 +11,7 @@ interface NavbarProps {
   isDark?: boolean;
   onToggleTheme?: () => void;
   onOpenRatingModal?: () => void;
+  onOpenCart?: () => void;
 }
 
 export function Navbar({
@@ -20,6 +22,7 @@ export function Navbar({
   isDark = false,
   onToggleTheme,
   onOpenRatingModal,
+  onOpenCart,
 }: NavbarProps) {
   const siteConfig = useSiteConfig();
 
@@ -155,8 +158,20 @@ export function Navbar({
           )}
         </nav>
 
-        {/* Zone 3: Actions (Theme Toggle & Developer Settings) */}
+        {/* Zone 3: Actions (Theme Toggle, Cart, Install App & Developer Settings) */}
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onOpenCart}
+            aria-label="سلة المشتريات والمفضلة"
+            className="relative inline-flex min-h-[40px] items-center justify-center rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] px-3 py-2 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE] border border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E2F3FE] dark:hover:bg-[#163868] transition-colors cursor-pointer"
+          >
+            <ShoppingBag className="h-4 w-4 text-[#1D4ED8] dark:text-[#38BDF8]" />
+            <span className="hidden sm:inline">السلة</span>
+          </button>
+
+          <PWAInstallButton variant="navbar" />
+
           {onToggleTheme && <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />}
 
           {activeView === 'store' && (

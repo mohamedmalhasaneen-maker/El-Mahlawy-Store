@@ -1,26 +1,34 @@
 {
-  "name": "المحلاوي ستور | Elmahlawy Store",
-  "short_name": "Elmahlawy Store",
-  "description": "المحلاوي ستور (Elmahlawy Store) في مصر — تسوق كاميرات المراقبة، الستالايت والرسيفرات، أنظمة الصوتيات، السمارت هوم، والإنذار المبكر مع شحن لجميع المحافظات.",
-  "lang": "ar",
-  "dir": "rtl",
+  "name": "المحلاوي ستور | El Mahlawy Store",
+  "short_name": "المحلاوي ستور",
+  "description": "المحلاوي ستور (El Mahlawy Store) في مصر — تسوق كاميرات المراقبة، الستالايت والرسيفرات، أنظمة الصوتيات، السمارت هوم، والإنذار المبكر مع شحن لجميع المحافظات.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "background_color": "#081A33",
   "theme_color": "#1D4ED8",
+  "lang": "ar",
+  "dir": "rtl",
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

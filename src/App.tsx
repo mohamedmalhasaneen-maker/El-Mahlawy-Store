@@ -49,6 +49,9 @@ import { TechBackground } from './components/TechBackground';
 import { ValuesAndPrinciplesSection } from './components/ValuesAndPrinciplesSection';
 import { RatingInvitationPrompt } from './components/RatingInvitationPrompt';
 import { RatingFormModal } from './components/RatingFormModal';
+import { PWAStatusBanner } from './components/PWAStatusBanner';
+import { CartAndFavoritesDrawer } from './components/CartAndFavoritesDrawer';
+import { idbGetProducts, idbGetSiteConfig, idbSaveProducts, idbSaveSiteConfig } from './utils/offlineDb';
 import { listenForRatingPromptTrigger, recordUsefulActivity } from './utils/activityTracker';
 import { useTheme } from './utils/useTheme';
 import { getCategoryIcon, getCategoryIdByName, getCategoryName, getOrderedCategories } from './constants/categories';
@@ -60,7 +63,6 @@ import {
   syncDocumentSeoHead,
 } from './utils/seo';
 
-const LEGACY_PRODUCT_STORAGE_KEY = 'mahallawy_store_catalog_v1';
 const SITE_CONFIG_CACHE_KEY = 'mahallawy_site_config_v1';
 
 function loadCachedSiteConfig(): SiteConfig {
@@ -99,7 +101,6 @@ function resolveViewFromRoute(
 ): 'store' | 'about' | 'developer' {
   if (route.kind === 'developer') return 'developer';
   if (route.kind === 'about') {
-    // Clean stale #about hash on root reload while honoring clean /about pathname & ?view=about
     if ((pathname === '/' || pathname === '') && hash.toLowerCase() === '#about') {
       return 'store';
     }
@@ -149,6 +150,10 @@ export default function App() {
     initialRoute.kind === 'category' ? initialRoute.categoryId : 'all'
   );
 
+  // Cart & Favorites Drawer State
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartTab, setCartTab] = useState<'cart' | 'favorites'>('cart');
+
   // Visitor Rating invitation prompt & modal state
   const [isRatingPromptOpen, setIsRatingPromptOpen] = useState(false);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
@@ -165,9 +170,7 @@ export default function App() {
         }
       }
       setLocationSnapshot(readWindowLocationSnapshot());
-    } catch {
-      // Ignore history restrictions in sandboxed iframes
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -233,11 +236,9 @@ export default function App() {
     updateBrowserUrl(getStoreFallbackPath(categoryId), 'push');
   };
 
-  // Sync URL pathname/search/hash <-> activeView, category, search & product state
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Clean legacy #about hash on root reload so home entry stays clean
     if (
       (window.location.pathname === '/' || window.location.pathname === '') &&
       window.location.hash.toLowerCase() === '#about'
@@ -293,7 +294,6 @@ export default function App() {
     };
   }, [updateBrowserUrl]);
 
-  // Synchronize document <title>, <meta>, <link rel="canonical">, OpenGraph, Twitter & JSON-LD
   const activeSeoProduct = selectedProduct || mobileActiveProduct;
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -350,7 +350,6 @@ export default function App() {
     siteConfig,
   ]);
 
-  // Listen to Firebase Auth state & verify admin role
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -448,14 +447,33 @@ export default function App() {
             transaction.update(statsRef, { count: newCount });
           }
         });
-      } catch (e) {
-        console.error("Error incrementing visitor count", e);
-      }
+      } catch (e) {}
     };
     incrementVisitorCount();
   }, []);
 
-  // Subscribe to public published products and cloud SiteConfig
+  // Offline-first hydration from IndexedDB on startup
+  useEffect(() => {
+    idbGetProducts()
+      .then((cachedProducts) => {
+        if (cachedProducts && cachedProducts.length > 0 && products.length === 0) {
+          setProducts(cachedProducts);
+          setIsLoadingProducts(false);
+        }
+      })
+      .catch(() => {});
+
+    idbGetSiteConfig()
+      .then((cachedCfg) => {
+        if (cachedCfg && !isSiteConfigLoaded) {
+          setSiteConfig(cachedCfg);
+          setIsSiteConfigLoaded(true);
+        }
+      })
+      .catch(() => {});
+  }, [isSiteConfigLoaded, products.length]);
+
+  // Subscribe to live Firebase published products & SiteConfig, persisting snapshots to IndexedDB
   useEffect(() => {
     fetch('/api/health')
       .then((res) => res.json())
@@ -464,20 +482,13 @@ export default function App() {
           setPublicOrigin(data.publicOrigin);
         }
       })
-      .catch(() => {
-        // Keep window.location.origin fallback
-      });
-
-    try {
-      localStorage.removeItem(LEGACY_PRODUCT_STORAGE_KEY);
-    } catch {
-      // Ignore storage restrictions
-    }
+      .catch(() => {});
 
     const unsubProducts = subscribeToPublishedProducts(
       (items) => {
         setProducts(items);
         setIsLoadingProducts(false);
+        void idbSaveProducts(items);
       },
       (err) => {
         console.error('Error fetching published products:', err);
@@ -489,11 +500,10 @@ export default function App() {
       (cfg) => {
         setSiteConfig(cfg);
         setIsSiteConfigLoaded(true);
+        void idbSaveSiteConfig(cfg);
         try {
           localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(cfg));
-        } catch {
-          // Ignore storage quota warnings
-        }
+        } catch {}
       },
       (err) => {
         console.error('Error fetching site config:', err);
@@ -507,7 +517,6 @@ export default function App() {
     };
   }, []);
 
-  // Subscribe to full catalog (including hidden/unpublished products) when authenticated as authorized developer
   useEffect(() => {
     const isAuthorized = isAuthorizedDeveloperUser(currentUser);
 
@@ -521,7 +530,6 @@ export default function App() {
         setAdminProducts(items);
       },
       (err) => {
-        console.error('Admin catalog subscription fallback:', err);
         setAdminProducts(null);
       }
     );
@@ -529,11 +537,10 @@ export default function App() {
     void migrateLegacySiteConfigMapsInCloud().then((migrated) => {
       if (migrated) {
         setSiteConfig(migrated);
+        void idbSaveSiteConfig(migrated);
         try {
           localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(migrated));
-        } catch {
-          // Ignore storage quota warnings
-        }
+        } catch {}
       }
     });
 
@@ -543,16 +550,14 @@ export default function App() {
   const handleDeveloperLogout = useCallback(async () => {
     try {
       await signOutAdmin();
-    } catch (err) {
-      console.error('Sign out error:', err);
-    } finally {
+    } catch {}
+    finally {
       setIsCloudAdmin(false);
       setCurrentUser(null);
       setAdminProducts(null);
     }
   }, []);
 
-  // Secure session management: idle auto-logout (45 min) & token validity recheck on tab focus
   useEffect(() => {
     if (!isCloudAdmin) return;
     const IDLE_TIMEOUT_MS = 45 * 60 * 1000;
@@ -584,12 +589,7 @@ export default function App() {
     };
 
     resetIdleTimer();
-    const activityEvents: (keyof WindowEventMap)[] = [
-      'pointerdown',
-      'keydown',
-      'touchstart',
-      'scroll',
-    ];
+    const activityEvents: (keyof WindowEventMap)[] = ['pointerdown', 'keydown', 'touchstart', 'scroll'];
     for (const ev of activityEvents) {
       window.addEventListener(ev, resetIdleTimer, { passive: true });
     }
@@ -607,7 +607,9 @@ export default function App() {
   const syncAuthoritativeProductIntoState = useCallback((saved: Product) => {
     setProducts((prev) => {
       const withoutTarget = prev.filter((item) => item.id !== saved.id);
-      return saved.isPublished ? [saved, ...withoutTarget] : withoutTarget;
+      const nextList = saved.isPublished ? [saved, ...withoutTarget] : withoutTarget;
+      void idbSaveProducts(nextList);
+      return nextList;
     });
     setAdminProducts((prev) => {
       if (!prev) return prev;
@@ -633,7 +635,11 @@ export default function App() {
 
   const handleDeleteProduct = async (productId: string) => {
     await deleteCloudProduct(productId);
-    setProducts((prev) => prev.filter((item) => item.id !== productId));
+    setProducts((prev) => {
+      const nextList = prev.filter((item) => item.id !== productId);
+      void idbSaveProducts(nextList);
+      return nextList;
+    });
     setAdminProducts((prev) => (prev ? prev.filter((item) => item.id !== productId) : prev));
   };
 
@@ -667,11 +673,10 @@ export default function App() {
     }
     const saved = await saveCloudSiteConfig(nextConfig, currentUid);
     setSiteConfig(saved);
+    void idbSaveSiteConfig(saved);
     try {
       localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(saved));
-    } catch {
-      // Ignore storage quota warnings
-    }
+    } catch {}
   };
 
   const handleReassignProductsCategory = async (
@@ -745,6 +750,7 @@ export default function App() {
     <SiteConfigContext.Provider value={siteConfig}>
       <div className="relative min-h-screen flex flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] transition-colors">
         <TechBackground isDark={isDark} />
+        <PWAStatusBanner />
 
         {activeView === 'developer' ? (
           <div className="relative z-10">
@@ -780,7 +786,6 @@ export default function App() {
           </div>
         ) : (
           <div className="relative z-10">
-            {/* Dedicated Mobile Storefront (< 768px) */}
             <MobileStorefront
               products={products}
               filteredProducts={filteredProducts}
@@ -805,9 +810,12 @@ export default function App() {
               heroSpotlightProduct={heroSpotlightProduct}
               onOpenRatingModal={() => setIsRatingModalOpen(true)}
               onActiveProductChange={handleMobileActiveProductChange}
+              onOpenCart={() => {
+                setCartTab('cart');
+                setIsCartOpen(true);
+              }}
             />
 
-            {/* Desktop Storefront (>= 768px) */}
             <div className="hidden md:flex md:flex-col min-h-screen">
               <Navbar
                 activeView={activeView}
@@ -823,10 +831,13 @@ export default function App() {
                 isDark={isDark}
                 onToggleTheme={toggleTheme}
                 onOpenRatingModal={() => setIsRatingModalOpen(true)}
+                onOpenCart={() => {
+                  setCartTab('cart');
+                  setIsCartOpen(true);
+                }}
               />
 
               <main className="flex-1">
-                {/* 1. Welcome Hero & Trust Banner */}
                 <HeroSection
                   searchQuery={searchQuery}
                   onSearchChange={handleSearchChange}
@@ -837,7 +848,6 @@ export default function App() {
                   publicOrigin={publicOrigin}
                 />
 
-                {/* 2. Dedicated Offers & Discounts Section */}
                 {siteConfig.showOffersSection && (
                   <OffersSection
                     products={products}
@@ -846,14 +856,12 @@ export default function App() {
                   />
                 )}
 
-                {/* 3. Main Products Catalog Section */}
                 <section
                   id="products-section"
                   aria-labelledby="catalog-heading"
                   className="py-12 sm:py-16 bg-white dark:bg-[#071326]"
                 >
                   <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    {/* Catalog Header & Controls */}
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 mb-8">
                       <div>
                         <p className="text-xs sm:text-sm font-bold text-[#0284C7] dark:text-[#38BDF8] mb-1">
@@ -887,7 +895,6 @@ export default function App() {
                         </h2>
                       </div>
 
-                      {/* Search & Sort Controls */}
                       {products.length > 0 && (
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                           <div className="relative min-w-[240px] sm:w-72">
@@ -935,7 +942,6 @@ export default function App() {
                       )}
                     </div>
 
-                    {/* Category Filter Bar */}
                     <div className="mb-10 overflow-x-auto pb-2 scrollbar-hide">
                       <div className="flex items-center gap-3 min-w-max">
                         <button
@@ -973,7 +979,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Product Cards Grid, Skeleton, or Empty State */}
                     {isLoadingProducts && products.length === 0 ? (
                       <div
                         aria-label="جاري تحميل المنتجات"
@@ -1063,7 +1068,6 @@ export default function App() {
                   </div>
                 </section>
 
-                {/* 4. Values & Principles Section */}
                 <ValuesAndPrinciplesSection id="values-section" variant="storefront" />
               </main>
 
@@ -1073,7 +1077,6 @@ export default function App() {
                 onOpenRatingModal={() => setIsRatingModalOpen(true)}
               />
 
-              {/* Desktop Product Details Modal */}
               <ProductDetailModal
                 product={selectedProduct}
                 onClose={() => handleSelectProduct(null)}
@@ -1083,7 +1086,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Visitor Rating Prompt & Form Modal */}
         <RatingInvitationPrompt
           isOpen={isRatingPromptOpen}
           onOpenRatingModal={() => {
@@ -1096,6 +1098,15 @@ export default function App() {
         <RatingFormModal
           isOpen={isRatingModalOpen}
           onClose={() => setIsRatingModalOpen(false)}
+        />
+
+        <CartAndFavoritesDrawer
+          isOpen={isCartOpen}
+          onClose={() => setIsCartOpen(false)}
+          initialTab={cartTab}
+          products={products}
+          onViewDetails={(p) => handleSelectProduct(p)}
+          publicOrigin={publicOrigin}
         />
       </div>
     </SiteConfigContext.Provider>

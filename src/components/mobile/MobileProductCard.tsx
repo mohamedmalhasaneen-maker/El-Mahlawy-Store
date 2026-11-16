@@ -1,5 +1,5 @@
-import { Check, Share2, ShoppingBag } from 'lucide-react';
-import { useState } from 'react';
+import { Check, Heart, Share2, ShoppingBag } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Product } from '../../types/store';
 import {
   buildProductShareUrl,
@@ -11,6 +11,7 @@ import {
 import { buildProductImageAlt } from '../../utils/seo';
 import { ProductImage } from '../ProductImage';
 import { DiscountCountdownBadge } from '../DiscountCountdownBadge';
+import { idbGetFavorites, idbSaveCartItem, idbToggleFavorite } from '../../utils/offlineDb';
 
 interface MobileProductCardProps {
   product: Product;
@@ -26,11 +27,15 @@ export function MobileProductCard({
   publicOrigin,
 }: MobileProductCardProps) {
   const [copied, setCopied] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+
   const hasDiscount = isDiscountActive(product);
   const effectivePrice = getEffectiveProductPrice(product);
-  const discountPct = hasDiscount
-    ? calculateDiscountPercent(product.originalPrice, effectivePrice)
-    : 0;
+
+  useEffect(() => {
+    idbGetFavorites().then((favs) => setIsFavorite(favs.includes(product.id)));
+  }, [product.id]);
 
   const shareUrl = buildProductShareUrl(product.id, publicOrigin);
 
@@ -48,23 +53,39 @@ export function MobileProductCard({
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }
-    } catch (err) {
-      if (err instanceof Error && err.name !== 'AbortError') {
-        try {
-          await navigator.clipboard.writeText(shareUrl);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        } catch {
-          // Ignore
-        }
-      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {}
     }
+  };
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const cartKey = product.id + '::' + (product.options[0] || '');
+    await idbSaveCartItem({
+      cartKey,
+      productId: product.id,
+      selectedOption: product.options[0] || '',
+      quantity: 1,
+      productSnapshot: product,
+      updatedAt: Date.now(),
+    });
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
+  };
+
+  const handleToggleFav = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextState = await idbToggleFavorite(product.id);
+    setIsFavorite(nextState);
   };
 
   return (
     <article className="flex h-full flex-col justify-between rounded-2xl bg-white dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-2.5 shadow-[0_2px_10px_rgba(11,31,58,0.03)]">
       <div>
-        {/* Fixed Aspect-Ratio Uncropped Product Image */}
         <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-[#F2FAFF] dark:bg-[#081830]">
           <button
             type="button"
@@ -88,26 +109,35 @@ export function MobileProductCard({
             />
           </button>
 
-          {/* Quick Share Button in Image Area */}
+          {/* Favorite Button */}
+          <button
+            type="button"
+            onClick={handleToggleFav}
+            title="إضافة للمفضلة"
+            className={`absolute top-2 left-2 z-25 flex h-8 w-8 items-center justify-center rounded-lg border shadow-xs transition-all active:scale-90 cursor-pointer ${
+              isFavorite
+                ? 'bg-rose-500 border-rose-500 text-white'
+                : 'bg-white/90 dark:bg-[#0E264A]/90 border-white dark:border-[#1E3F73] text-rose-500'
+            }`}
+          >
+            <Heart className={`h-3.5 w-3.5 ${isFavorite ? 'fill-white' : ''}`} />
+          </button>
+
+          {/* Quick Share Button */}
           <button
             type="button"
             onClick={handleShare}
             title="مشاركة الرابط"
-            className={`absolute bottom-2 left-2 z-20 flex h-8 w-8 items-center justify-center rounded-lg border shadow-xs transition-all duration-200 active:scale-90 cursor-pointer ${
+            className={`absolute bottom-2 left-2 z-20 flex h-8 w-8 items-center justify-center rounded-lg border shadow-xs transition-all active:scale-90 cursor-pointer ${
               copied
                 ? 'bg-emerald-500 border-emerald-500 text-white'
                 : 'bg-white/90 dark:bg-[#0E264A]/90 border-white dark:border-[#1E3F73] text-[#0284C7] dark:text-[#38BDF8]'
             }`}
           >
-            {copied ? (
-              <Check className="h-3.5 w-3.5" aria-hidden="true" />
-            ) : (
-              <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
           </button>
         </div>
 
-        {/* Unboxed Brand & Availability */}
         {(product.brand || !product.inStock) && (
           <p className="mt-2 truncate text-[11px] font-semibold text-[#0284C7] dark:text-[#38BDF8]">
             {product.brand}
@@ -116,7 +146,6 @@ export function MobileProductCard({
           </p>
         )}
 
-        {/* Product Name (Clamped to 2 Lines) */}
         <h3 className="mt-0.5 text-[13px] min-[390px]:text-sm font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] leading-snug line-clamp-2">
           <a
             href={`/product/${encodeURIComponent(product.id)}`}
@@ -125,19 +154,17 @@ export function MobileProductCard({
               e.preventDefault();
               onOpenDetails(product);
             }}
-            className="block w-full text-right focus-visible:outline-2 focus-visible:outline-[#1D4ED8] rounded cursor-pointer"
+            className="block w-full text-right cursor-pointer"
           >
             {product.name}
           </a>
         </h3>
 
-        {/* Short Clamped Description so Long Text Never Stretches Cards */}
         <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-300 leading-relaxed line-clamp-2">
           {product.shortDescription || product.description}
         </p>
       </div>
 
-      {/* Price & Primary Order Button */}
       <div className="mt-2.5 pt-2 border-t border-[#EBF6FE] dark:border-[#1E3F73]">
         <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
           <span className="font-num text-[15px] min-[390px]:text-base font-extrabold text-[#1D4ED8] dark:text-[#38BDF8]">
@@ -146,23 +173,36 @@ export function MobileProductCard({
           <span className="text-[11px] font-bold text-[#0F294A] dark:text-[#E0F2FE]">ج.م</span>
 
           {hasDiscount && (
-            <span className="font-num text-[11px] font-semibold text-slate-400 dark:text-slate-400 line-through">
+            <span className="font-num text-[11px] font-semibold text-slate-400 line-through">
               {formatPriceEgp(product.originalPrice)} ج.م
             </span>
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => onOrderProduct(product)}
-          aria-label={`طلب المنتج ${product.name}`}
-          className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] active:scale-[0.98] px-3 py-2 text-xs font-extrabold text-white transition-all whitespace-nowrap cursor-pointer"
-        >
-          <ShoppingBag className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span>طلب المنتج</span>
-        </button>
+        <div className="grid grid-cols-2 gap-1.5 mt-2">
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            className={`inline-flex min-h-[40px] items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-extrabold transition-all cursor-pointer ${
+              addedToCart
+                ? 'bg-emerald-500 text-white'
+                : 'bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0F294A] dark:text-[#E0F2FE]'
+            }`}
+          >
+            {addedToCart ? <Check className="h-3.5 w-3.5" /> : <ShoppingBag className="h-3.5 w-3.5 text-[#0284C7]" />}
+            <span>{addedToCart ? 'تمت الإضافة' : 'أضف للسلة'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onOrderProduct(product)}
+            aria-label={`طلب المنتج ${product.name}`}
+            className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] active:scale-[0.98] px-2 py-2 text-[11px] font-extrabold text-white transition-all cursor-pointer"
+          >
+            <span>طلب واتساب</span>
+          </button>
+        </div>
       </div>
     </article>
   );
 }
-
