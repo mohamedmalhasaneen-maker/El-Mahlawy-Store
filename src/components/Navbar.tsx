@@ -4,6 +4,11 @@ import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { useCart } from '../contexts/CartContext';
 import { ThemeToggle } from './ThemeToggle';
 import { PWAInstallButton } from './PWAInstallButton';
+import {
+  findVisibleElementById,
+  smoothScrollToElement,
+  smoothScrollToTop,
+} from '../utils/smoothScroll';
 
 interface NavbarProps {
   activeView: 'store' | 'about' | 'developer';
@@ -35,17 +40,6 @@ export function Navbar({
   );
   const manualLockUntilRef = useRef<number>(0);
 
-  const findVisibleTarget = (sectionId: string): HTMLElement | null => {
-    if (typeof document === 'undefined') return null;
-    const candidates = document.querySelectorAll<HTMLElement>(`#${CSS.escape(sectionId)}`);
-    for (const el of candidates) {
-      if (el.getClientRects().length > 0) {
-        return el;
-      }
-    }
-    return document.getElementById(sectionId);
-  };
-
   useEffect(() => {
     if (activeView === 'about') {
       setActiveSection('about');
@@ -71,7 +65,7 @@ export function Navbar({
         window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 40;
       if (nearBottom) {
         for (const item of trackedSections) {
-          if (findVisibleTarget(item.id)) {
+          if (findVisibleElementById(item.id)) {
             setActiveSection(item.key);
             return;
           }
@@ -79,7 +73,7 @@ export function Navbar({
       }
 
       for (const item of trackedSections) {
-        const el = findVisibleTarget(item.id);
+        const el = findVisibleElementById(item.id);
         if (!el) continue;
         if (el.getBoundingClientRect().top <= 180) {
           setActiveSection(item.key);
@@ -98,9 +92,7 @@ export function Navbar({
     manualLockUntilRef.current = Date.now() + 900;
     setActiveSection('home');
     onSwitchView('store');
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    smoothScrollToTop();
   };
 
   const handleNavClick = (sectionKey: NavSectionKey, sectionId: string, fallback?: () => void) => {
@@ -108,13 +100,13 @@ export function Navbar({
     setActiveSection(sectionKey);
 
     const scrollToTarget = () => {
-      const target = findVisibleTarget(sectionId);
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (fallback) {
-        fallback();
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+      const scrolled = smoothScrollToElement(sectionId, { highlight: true });
+      if (!scrolled) {
+        if (fallback) {
+          fallback();
+        } else {
+          smoothScrollToTop();
+        }
       }
     };
 

@@ -54,6 +54,7 @@ import { CartAndFavoritesDrawer } from './components/CartAndFavoritesDrawer';
 import { idbGetProducts, idbGetSiteConfig, idbSaveProducts, idbSaveSiteConfig } from './utils/offlineDb';
 import { listenForRatingPromptTrigger, recordUsefulActivity } from './utils/activityTracker';
 import { useTheme } from './utils/useTheme';
+import { smoothScrollToTop } from './utils/smoothScroll';
 import { getCategoryIcon, getCategoryIdByName, getCategoryName, getOrderedCategories } from './constants/categories';
 import {
   SeoRouteInfo,
@@ -403,9 +404,37 @@ export default function App() {
         setSelectedCategoryId('all');
         updateBrowserUrl('/', 'push');
       }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      smoothScrollToTop();
     }
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') return;
+    const targets = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        'main > section, footer > div#footer-contact, footer > div#footer-about, footer > div#footer-ratings'
+      )
+    );
+    if (targets.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const el = entry.target as HTMLElement;
+            el.classList.add('animate-section-glide');
+            observer.unobserve(el);
+          }
+        }
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -30px 0px' }
+    );
+
+    for (const target of targets) {
+      observer.observe(target);
+    }
+    return () => observer.disconnect();
+  }, [activeView]);
 
   const handleOpenDeveloperSettings = () => {
     navigateToView('developer');
@@ -753,7 +782,7 @@ export default function App() {
           <TechBackground isDark={isDark} />
 
         {activeView === 'developer' ? (
-          <div className="relative z-10">
+          <div key="developer" className="relative z-10 animate-view-enter">
             <DeveloperSettingsPage
               products={developerCatalogProducts}
               siteConfig={siteConfig}
@@ -776,7 +805,7 @@ export default function App() {
             />
           </div>
         ) : activeView === 'about' ? (
-          <div className="relative z-10">
+          <div key="about" className="relative z-10 animate-view-enter">
             <AboutUsPage
               onBackToStore={() => navigateToView('store')}
               onAdminButtonClick={handleOpenDeveloperSettings}
@@ -789,7 +818,7 @@ export default function App() {
             />
           </div>
         ) : (
-          <div className="relative z-10">
+          <div key="store" className="relative z-10 animate-view-enter">
             <MobileStorefront
               products={products}
               filteredProducts={filteredProducts}
@@ -1001,7 +1030,10 @@ export default function App() {
                         ))}
                       </div>
                     ) : filteredProducts.length === 0 ? (
-                      <div className="rounded-3xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-10 sm:p-14 text-center">
+                      <div
+                        key={`desktop-empty-${selectedCategoryId}`}
+                        className="animate-catalog-switch rounded-3xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#D8EEFB] dark:border-[#1E3F73] p-10 sm:p-14 text-center"
+                      >
                         {searchQuery.trim() ? (
                           <>
                             <p className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-2">
@@ -1058,7 +1090,10 @@ export default function App() {
                         )}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                      <div
+                        key={`desktop-grid-${selectedCategoryId}`}
+                        className="animate-catalog-switch grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8"
+                      >
                         {filteredProducts.map((product) => (
                           <ProductCard
                             key={product.id}

@@ -316,70 +316,6 @@ export function MobileStorefront({
           </div>
         </section>
 
-        {/* Category Bar */}
-        <div className="px-3.5 mb-2 overflow-x-auto pb-2 no-scrollbar">
-          <div className="flex items-center gap-2 min-w-max">
-            {hasFeaturedProducts && (
-              <button
-                type="button"
-                onClick={() => onCategoryChange?.('featured')}
-                className={`inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
-                  !isSearching && selectedCategoryId === 'featured'
-                    ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
-                    : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
-                } cursor-pointer`}
-              >
-                <Star
-                  className={`h-3.5 w-3.5 shrink-0 ${
-                    !isSearching && selectedCategoryId === 'featured'
-                      ? 'text-[#FCD34D] fill-[#FCD34D]'
-                      : 'text-[#F59E0B] fill-[#F59E0B]'
-                  }`}
-                  aria-hidden="true"
-                />
-                <span>منتجاتنا المفضّلة</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => onCategoryChange?.('all')}
-              className={`inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
-                selectedCategoryId === 'all' ||
-                (!hasFeaturedProducts && selectedCategoryId === 'featured') ||
-                (isSearching && selectedCategoryId === 'featured')
-                  ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
-                  : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
-              } cursor-pointer`}
-            >
-              <Layers className="h-3.5 w-3.5 shrink-0 text-current" aria-hidden="true" />
-              <span>{hasFeaturedProducts ? 'كل المنتجات' : 'الكل'}</span>
-            </button>
-            {orderedCategories
-              .filter((cat) => !cat.isHidden)
-              .map((cat) => {
-                const CatIcon = getCategoryIcon(cat.icon || cat.id);
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => {
-                      onCategoryChange?.(cat.id);
-                      recordUsefulActivity('category_switch', cat.name);
-                    }}
-                    className={`inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
-                      selectedCategoryId === cat.id
-                        ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
-                        : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
-                    } cursor-pointer`}
-                  >
-                    <CatIcon className="h-3.5 w-3.5 shrink-0 text-current" aria-hidden="true" />
-                    <span>{cat.name}</span>
-                  </button>
-                );
-              })}
-          </div>
-        </div>
-
         {/* 3. Compact Welcome Banner (Inherits exact Firestore SiteConfig banner settings) */}
         {!isSearching && (
           <section aria-label={`ترحيب ${siteConfig.storeName}`} className="px-3.5 pb-4">
@@ -645,6 +581,70 @@ export function MobileStorefront({
                 </select>
               </div>
             )}
+          </div>
+
+          {/* Category Bar */}
+          <div className="mb-3.5 overflow-x-auto pb-1 no-scrollbar">
+            <div className="flex items-center gap-2 min-w-max">
+              {hasFeaturedProducts && (
+                <button
+                  type="button"
+                  onClick={() => onCategoryChange?.('featured')}
+                  className={`inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
+                    !isSearching && selectedCategoryId === 'featured'
+                      ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
+                      : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
+                  } cursor-pointer`}
+                >
+                  <Star
+                    className={`h-3.5 w-3.5 shrink-0 ${
+                      !isSearching && selectedCategoryId === 'featured'
+                        ? 'text-[#FCD34D] fill-[#FCD34D]'
+                        : 'text-[#F59E0B] fill-[#F59E0B]'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span>منتجاتنا المفضّلة</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onCategoryChange?.('all')}
+                className={`inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
+                  selectedCategoryId === 'all' ||
+                  (!hasFeaturedProducts && selectedCategoryId === 'featured') ||
+                  (isSearching && selectedCategoryId === 'featured')
+                    ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
+                    : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
+                } cursor-pointer`}
+              >
+                <Layers className="h-3.5 w-3.5 shrink-0 text-current" aria-hidden="true" />
+                <span>{hasFeaturedProducts ? 'كل المنتجات' : 'الكل'}</span>
+              </button>
+              {orderedCategories
+                .filter((cat) => !cat.isHidden)
+                .map((cat) => {
+                  const CatIcon = getCategoryIcon(cat.icon || cat.id);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        onCategoryChange?.(cat.id);
+                        recordUsefulActivity('category_switch', cat.name);
+                      }}
+                      className={`inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
+                        selectedCategoryId === cat.id
+                          ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
+                          : 'bg-[#F2FAFF] dark:bg-[#0E264A] text-[#0F294A] dark:text-[#E0F2FE] border-[#CBE7FA] dark:border-[#1E3F73]'
+                      } cursor-pointer`}
+                    >
+                      <CatIcon className="h-3.5 w-3.5 shrink-0 text-current" aria-hidden="true" />
+                      <span>{cat.name}</span>
+                    </button>
+                  );
+                })}
+            </div>
           </div>
 
           {isLoadingProducts && products.length === 0 ? (

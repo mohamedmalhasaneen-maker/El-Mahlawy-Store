@@ -10,6 +10,7 @@ import {
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { Product } from '../types/store';
 import { FeaturedSpotlightCarousel } from './FeaturedSpotlightCarousel';
+import { smoothScrollToElement } from '../utils/smoothScroll';
 
 interface HeroSectionProps {
   searchQuery: string;
@@ -71,11 +72,11 @@ export function HeroSection({
   };
 
   const scrollToProducts = () => {
-    document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' });
+    smoothScrollToElement('products-section', { highlight: true });
   };
 
   const scrollToOffers = () => {
-    document.getElementById('offers-section')?.scrollIntoView({ behavior: 'smooth' });
+    smoothScrollToElement('offers-section', { highlight: true });
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
