@@ -25,6 +25,8 @@ import {
   getFirestore,
   initializeFirestore,
   onSnapshot,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   query,
   runTransaction,
   serverTimestamp,
@@ -92,11 +94,24 @@ function createResilientFirestore(): Firestore {
   try {
     return initializeFirestore(
       app,
-      { experimentalAutoDetectLongPolling: true },
+      {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+        experimentalAutoDetectLongPolling: true,
+      },
       firebaseConfig.firestoreDatabaseId
     );
   } catch {
-    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    try {
+      return initializeFirestore(
+        app,
+        { experimentalAutoDetectLongPolling: true },
+        firebaseConfig.firestoreDatabaseId
+      );
+    } catch {
+      return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    }
   }
 }
 
