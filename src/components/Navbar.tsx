@@ -1,4 +1,4 @@
-import { LayoutDashboard, ShoppingBag } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import { ThemeToggle } from './ThemeToggle';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -174,19 +174,6 @@ export function Navbar({
 
           {onToggleTheme && <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />}
 
-          {activeView === 'store' && (
-            <button
-              type="button"
-              onClick={onAdminButtonClick}
-              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-[#0F294A] dark:text-[#E0F2FE] border border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E2F3FE] dark:hover:bg-[#163868] transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
-            >
-              <LayoutDashboard
-                className="h-4 w-4 text-[#1D4ED8] dark:text-[#38BDF8]"
-                aria-hidden="true"
-              />
-              <span>إعدادات المطور</span>
-            </button>
-          )}
         </div>
       </div>
     </header>

@@ -49,7 +49,6 @@ import { TechBackground } from './components/TechBackground';
 import { ValuesAndPrinciplesSection } from './components/ValuesAndPrinciplesSection';
 import { RatingInvitationPrompt } from './components/RatingInvitationPrompt';
 import { RatingFormModal } from './components/RatingFormModal';
-import { PWAStatusBanner } from './components/PWAStatusBanner';
 import { CartAndFavoritesDrawer } from './components/CartAndFavoritesDrawer';
 import { idbGetProducts, idbGetSiteConfig, idbSaveProducts, idbSaveSiteConfig } from './utils/offlineDb';
 import { listenForRatingPromptTrigger, recordUsefulActivity } from './utils/activityTracker';
@@ -750,7 +749,6 @@ export default function App() {
     <SiteConfigContext.Provider value={siteConfig}>
       <div className="relative min-h-screen flex flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] transition-colors">
         <TechBackground isDark={isDark} />
-        <PWAStatusBanner />
 
         {activeView === 'developer' ? (
           <div className="relative z-10">
