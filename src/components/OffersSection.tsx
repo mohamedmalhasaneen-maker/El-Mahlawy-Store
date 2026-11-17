@@ -1,5 +1,6 @@
-import { Eye, MessageCircle } from 'lucide-react';
+import { Check, Eye, MessageCircle, ShoppingCart } from 'lucide-react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
+import { useAddToCartButton } from '../contexts/CartContext';
 import { Product } from '../types/store';
 import {
   buildWhatsAppOrderUrl,
@@ -12,6 +13,35 @@ import {
 import { buildProductImageAlt } from '../utils/seo';
 import { ProductImage } from './ProductImage';
 import { DiscountCountdownBadge } from './DiscountCountdownBadge';
+
+function OfferAddToCartButton({ product }: { product: Product }) {
+  const { justAdded, triggerAdd } = useAddToCartButton();
+  return (
+    <button
+      type="button"
+      disabled={justAdded}
+      onClick={() =>
+        triggerAdd(product, {
+          selectedOption: product.options[0] || '',
+          quantity: 1,
+        })
+      }
+      aria-label={`أضف ${product.name} إلى السلة`}
+      className={`inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold transition-all duration-150 active:scale-[0.97] whitespace-nowrap shrink-0 cursor-pointer ${
+        justAdded
+          ? 'bg-emerald-600 text-white border border-emerald-600'
+          : 'bg-[#F2FAFF] dark:bg-[#081830] hover:bg-[#E2F3FE] dark:hover:bg-[#153460] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0F294A] dark:text-[#E0F2FE]'
+      }`}
+    >
+      {justAdded ? (
+        <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+      ) : (
+        <ShoppingCart className="h-4 w-4 shrink-0 text-[#0284C7] dark:text-[#38BDF8]" aria-hidden="true" />
+      )}
+      <span>{justAdded ? 'تمت الإضافة' : 'أضف إلى السلة'}</span>
+    </button>
+  );
+}
 
 interface OffersSectionProps {
   products: Product[];
@@ -146,7 +176,7 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <a
                         href={whatsappUrl}
                         target="_blank"
@@ -157,6 +187,8 @@ export function OffersSection({ products, onViewDetails, publicOrigin }: OffersS
                         <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
                         <span>طلب العرض</span>
                       </a>
+
+                      <OfferAddToCartButton product={product} />
 
                       <button
                         type="button"

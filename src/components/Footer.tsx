@@ -64,7 +64,7 @@ export function Footer({
       {/* 1. قسم «تواصل معنا» */}
       <div
         id="footer-contact"
-        className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-12 sm:pb-16"
+        className="scroll-mt-16 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-12 sm:pb-16"
       >
         <div className="mb-8 sm:mb-10">
           {siteConfig.contactSectionSubtitle && (
@@ -534,7 +534,10 @@ export function Footer({
 
       {/* 2. زر ومعاينة «من نحن | About Us» للانتقال إلى الصفحة المستقلة */}
       {showAboutSection && siteConfig.showAboutBanner && (
-        <div className="border-t border-[#1E3F73] bg-gradient-to-r from-[#0B1F3A] via-[#1545A3] to-[#0284C7] py-10 px-4 text-center text-white">
+        <div
+          id="footer-about"
+          className="scroll-mt-16 border-t border-[#1E3F73] bg-gradient-to-r from-[#0B1F3A] via-[#1545A3] to-[#0284C7] py-10 px-4 text-center text-white"
+        >
           <div className="mx-auto max-w-4xl space-y-3.5">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-extrabold text-[#7DD3FC] border border-white/15">
               <Sparkles className="h-4 w-4 text-[#38BDF8]" />
@@ -576,7 +579,10 @@ export function Footer({
 
       {/* 2.5. قسم تقييمات الزوار ورأيهم بالموقع */}
       {siteConfig.showRatingsSection !== false && (
-        <div className={`border-t ${isDark ? 'border-[#D4AF37]/30' : 'border-[#1E3F73]'} py-5 sm:py-6 px-4`}>
+        <div
+          id="footer-ratings"
+          className={`scroll-mt-16 border-t ${isDark ? 'border-[#D4AF37]/30' : 'border-[#1E3F73]'} py-5 sm:py-6 px-4`}
+        >
           <div className="mx-auto max-w-7xl">
             <RatingStatsDisplay onOpenRatingModal={onOpenRatingModal} isDark={isDark} />
           </div>

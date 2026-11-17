@@ -5,13 +5,18 @@ import {
   ChevronRight,
   Copy,
   ExternalLink,
+  Heart,
   MessageCircle,
+  Minus,
+  Plus,
   Send,
   Share2,
   ShoppingBag,
+  ShoppingCart,
   X,
 } from 'lucide-react';
 import { useSiteConfig } from '../../contexts/SiteConfigContext';
+import { useAddToCartButton, useCart } from '../../contexts/CartContext';
 import { Product } from '../../types/store';
 import {
   buildProductShareLinks,
@@ -41,17 +46,25 @@ export function MobileProductSheet({
   publicOrigin,
 }: MobileProductSheetProps) {
   const siteConfig = useSiteConfig();
+  const { isFavorite: checkIsFavorite, toggleFavorite } = useCart();
+  const { justAdded, triggerAdd } = useAddToCartButton();
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [selectedOption, setSelectedOption] = useState('');
+  const [quantity, setQuantity] = useState(1);
   const [shareOpen, setShareOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
   const copyTimerRef = useRef<number | null>(null);
+
+  const isFavorite = product ? checkIsFavorite(product.id) : false;
 
   useMobileOverlay(Boolean(product), onClose, 'mobile-product-details');
 
   useEffect(() => {
     if (product) {
       setActiveImageIdx(0);
+      setSelectedOption(product.options[0] || '');
+      setQuantity(1);
       setShareOpen(false);
       setCopiedLink(false);
     }
@@ -186,14 +199,29 @@ export function MobileProductSheet({
               </span>
             </p>
 
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="إغلاق تفاصيل المنتج"
-              className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] text-[#0B1F3A] active:scale-95 transition-transform cursor-pointer"
-            >
-              <X className="h-5 w-5" aria-hidden="true" />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => toggleFavorite(product.id)}
+                aria-label={isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
+                className={`inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl border active:scale-95 transition-all cursor-pointer ${
+                  isFavorite
+                    ? 'bg-rose-500 border-rose-500 text-white'
+                    : 'bg-[#F2FAFF] border-[#CBE7FA] text-rose-500'
+                }`}
+              >
+                <Heart className={`h-4.5 w-4.5 ${isFavorite ? 'fill-white' : ''}`} aria-hidden="true" />
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="إغلاق تفاصيل المنتج"
+                className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl bg-[#F2FAFF] border border-[#CBE7FA] text-[#0B1F3A] active:scale-95 transition-transform cursor-pointer"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -325,17 +353,59 @@ export function MobileProductSheet({
             </p>
           </div>
 
-          {/* Available Options Preview */}
+          {/* Selectable Options & Quantity */}
           {product.options.length > 0 && (
             <div>
-              <h3 className="text-xs font-extrabold text-[#0B1F3A] mb-1.5">
-                الخيارات المتوفرة عند الطلب
+              <h3 className="text-xs font-extrabold text-[#0B1F3A] mb-2">
+                اختيار الموديل / الخيار:
               </h3>
-              <p className="text-xs font-semibold text-[#0F294A]">
-                {product.options.join(' · ')}
-              </p>
+              <div className="flex flex-wrap gap-2">
+                {product.options.map((opt) => {
+                  const active = selectedOption === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setSelectedOption(opt)}
+                      className={`min-h-[38px] rounded-xl px-3 py-1.5 text-xs font-bold border transition-colors cursor-pointer ${
+                        active
+                          ? 'bg-[#1D4ED8] text-white border-[#1D4ED8]'
+                          : 'bg-[#F2FAFF] text-[#0F294A] border-[#CBE7FA]'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
+
+          {/* Quantity Stepper */}
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#F8FCFF] border border-[#D8EEFB] px-3.5 py-2.5">
+            <span className="text-xs font-extrabold text-[#0B1F3A]">الكمية:</span>
+            <div className="inline-flex items-center rounded-xl bg-white border border-[#CBE7FA] p-0.5">
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                aria-label="تقليل الكمية"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#0B1F3A] active:bg-[#F2FAFF] cursor-pointer"
+              >
+                <Minus className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <span className="font-num min-w-[30px] text-center text-sm font-extrabold text-[#0B1F3A]">
+                {quantity}
+              </span>
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+                aria-label="زيادة الكمية"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#0B1F3A] active:bg-[#F2FAFF] cursor-pointer"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
 
           {/* Technical Specifications */}
           {product.specs.length > 0 && (
@@ -452,29 +522,53 @@ export function MobileProductSheet({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              disabled={justAdded}
+              onClick={() =>
+                triggerAdd(product, {
+                  selectedOption,
+                  quantity,
+                })
+              }
+              aria-label={`أضف ${product.name} إلى السلة`}
+              className={`inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 py-3 text-xs min-[380px]:text-sm font-extrabold transition-all duration-150 active:scale-[0.98] whitespace-nowrap cursor-pointer ${
+                justAdded
+                  ? 'bg-emerald-600 text-white border border-emerald-600'
+                  : 'bg-[#F2FAFF] border border-[#CBE7FA] text-[#0F294A] hover:bg-[#E2F3FE]'
+              }`}
+            >
+              {justAdded ? (
+                <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+              ) : (
+                <ShoppingCart className="h-4 w-4 shrink-0 text-[#0284C7]" aria-hidden="true" />
+              )}
+              <span>{justAdded ? 'تمت الإضافة' : 'أضف إلى السلة'}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => {
                 const target = product;
                 onClose();
                 setTimeout(() => onOrderProduct(target), 20);
               }}
-              className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] active:scale-[0.98] px-3 py-3 text-xs min-[380px]:text-sm font-extrabold text-white transition-all whitespace-nowrap cursor-pointer"
+              className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] active:scale-[0.98] px-2.5 py-3 text-xs min-[380px]:text-sm font-extrabold text-white transition-all whitespace-nowrap cursor-pointer"
             >
               <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>طلب عبر <bdi>WhatsApp</bdi></span>
+              <span>طلب <bdi>WhatsApp</bdi></span>
             </button>
 
             <button
               type="button"
               onClick={handleShareButtonClick}
               aria-expanded={shareOpen}
-              className={`inline-flex min-h-[48px] shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 min-[380px]:px-4 py-3 text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer active:scale-[0.98] ${
+              aria-label="مشاركة المنتج"
+              className={`inline-flex min-h-[48px] min-w-[48px] shrink-0 items-center justify-center rounded-xl border px-3 py-3 text-xs font-extrabold transition-all whitespace-nowrap cursor-pointer active:scale-[0.98] ${
                 shareOpen
                   ? 'bg-[#E0F2FE] border-[#0284C7] text-[#0B2354]'
                   : 'bg-[#F2FAFF] border-[#CBE7FA] text-[#0F294A] hover:bg-[#E2F3FE]'
               }`}
             >
               <Share2 className="h-4 w-4 text-[#1D4ED8] shrink-0" aria-hidden="true" />
-              <span>مشاركة المنتج</span>
             </button>
           </div>
         </div>

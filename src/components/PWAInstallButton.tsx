@@ -5,9 +5,10 @@ import { usePWAInstall } from '../hooks/usePWAInstall';
 interface PWAInstallButtonProps {
   className?: string;
   variant?: 'navbar' | 'mobile' | 'banner';
+  iconOnly?: boolean;
 }
 
-export function PWAInstallButton({ className = '', variant = 'navbar' }: PWAInstallButtonProps) {
+export function PWAInstallButton({ className = '', variant = 'navbar', iconOnly = false }: PWAInstallButtonProps) {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -53,9 +54,11 @@ export function PWAInstallButton({ className = '', variant = 'navbar' }: PWAInst
           type="button"
           onClick={handleInstallClick}
           disabled={installing}
-          className={`inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#1D4ED8] to-[#0284C7] hover:from-[#1E40AF] hover:to-[#0369A1] text-white px-4 py-2.5 text-xs font-extrabold shadow-md active:scale-95 transition-all cursor-pointer ${className}`}
+          aria-label="تنزيل التطبيق"
+          title="تنزيل التطبيق"
+          className={`inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-xl bg-gradient-to-r from-[#1D4ED8] to-[#0284C7] hover:from-[#1E40AF] hover:to-[#0369A1] text-white p-2 shadow-sm active:scale-95 transition-all cursor-pointer ${className}`}
         >
-          {buttonContent}
+          <Download className="h-4 w-4 text-white shrink-0" aria-hidden="true" />
         </button>
 
         {showIOSGuide && (
@@ -123,9 +126,19 @@ export function PWAInstallButton({ className = '', variant = 'navbar' }: PWAInst
         type="button"
         onClick={handleInstallClick}
         disabled={installing}
-        className={`inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-gradient-to-r from-[#1D4ED8] to-[#0284C7] hover:from-[#1E40AF] hover:to-[#0369A1] text-white px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold shadow-md transition-all active:scale-95 cursor-pointer shrink-0 ${className}`}
+        aria-label="تنزيل التطبيق"
+        title="تنزيل التطبيق"
+        className={
+          iconOnly
+            ? `inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-xl bg-gradient-to-r from-[#1D4ED8] to-[#0284C7] hover:from-[#1E40AF] hover:to-[#0369A1] text-white p-2 shadow-sm transition-all active:scale-95 cursor-pointer shrink-0 ${className}`
+            : `inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-gradient-to-r from-[#1D4ED8] to-[#0284C7] hover:from-[#1E40AF] hover:to-[#0369A1] text-white px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold shadow-md transition-all active:scale-95 cursor-pointer shrink-0 ${className}`
+        }
       >
-        {buttonContent}
+        {iconOnly ? (
+          <Download className="h-4 w-4 text-white shrink-0" aria-hidden="true" />
+        ) : (
+          buttonContent
+        )}
       </button>
 
       {showIOSGuide && (

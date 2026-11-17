@@ -1,9 +1,9 @@
-import { Check, Heart, Share2, ShoppingBag } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Check, Heart, Share2, ShoppingCart } from 'lucide-react';
+import { useState } from 'react';
 import { Product } from '../../types/store';
+import { useAddToCartButton, useCart } from '../../contexts/CartContext';
 import {
   buildProductShareUrl,
-  calculateDiscountPercent,
   formatPriceEgp,
   getEffectiveProductPrice,
   isDiscountActive,
@@ -11,7 +11,6 @@ import {
 import { buildProductImageAlt } from '../../utils/seo';
 import { ProductImage } from '../ProductImage';
 import { DiscountCountdownBadge } from '../DiscountCountdownBadge';
-import { idbGetFavorites, idbSaveCartItem, idbToggleFavorite } from '../../utils/offlineDb';
 
 interface MobileProductCardProps {
   product: Product;
@@ -26,16 +25,13 @@ export function MobileProductCard({
   onOrderProduct,
   publicOrigin,
 }: MobileProductCardProps) {
+  const { isFavorite: checkIsFavorite, toggleFavorite } = useCart();
+  const { justAdded, triggerAdd } = useAddToCartButton();
   const [copied, setCopied] = useState(false);
-  const [addedToCart, setAddedToCart] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
 
+  const isFavorite = checkIsFavorite(product.id);
   const hasDiscount = isDiscountActive(product);
   const effectivePrice = getEffectiveProductPrice(product);
-
-  useEffect(() => {
-    idbGetFavorites().then((favs) => setIsFavorite(favs.includes(product.id)));
-  }, [product.id]);
 
   const shareUrl = buildProductShareUrl(product.id, publicOrigin);
 
@@ -62,25 +58,17 @@ export function MobileProductCard({
     }
   };
 
-  const handleAddToCart = async (e: React.MouseEvent) => {
+  const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const cartKey = product.id + '::' + (product.options[0] || '');
-    await idbSaveCartItem({
-      cartKey,
-      productId: product.id,
+    triggerAdd(product, {
       selectedOption: product.options[0] || '',
       quantity: 1,
-      productSnapshot: product,
-      updatedAt: Date.now(),
     });
-    setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 2000);
   };
 
-  const handleToggleFav = async (e: React.MouseEvent) => {
+  const handleToggleFav = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nextState = await idbToggleFavorite(product.id);
-    setIsFavorite(nextState);
+    toggleFavorite(product.id);
   };
 
   return (
@@ -183,14 +171,20 @@ export function MobileProductCard({
           <button
             type="button"
             onClick={handleAddToCart}
-            className={`inline-flex min-h-[40px] items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-extrabold transition-all cursor-pointer ${
-              addedToCart
-                ? 'bg-emerald-500 text-white'
+            disabled={justAdded}
+            aria-label={`أضف ${product.name} إلى السلة`}
+            className={`inline-flex min-h-[40px] items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-[10.5px] min-[390px]:text-[11px] font-extrabold transition-all duration-150 active:scale-[0.97] whitespace-nowrap cursor-pointer ${
+              justAdded
+                ? 'bg-emerald-600 text-white border border-emerald-600 shadow-xs'
                 : 'bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0F294A] dark:text-[#E0F2FE]'
             }`}
           >
-            {addedToCart ? <Check className="h-3.5 w-3.5" /> : <ShoppingBag className="h-3.5 w-3.5 text-[#0284C7]" />}
-            <span>{addedToCart ? 'تمت الإضافة' : 'أضف للسلة'}</span>
+            {justAdded ? (
+              <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            ) : (
+              <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-[#0284C7] dark:text-[#38BDF8]" aria-hidden="true" />
+            )}
+            <span>{justAdded ? 'تمت الإضافة' : 'أضف إلى السلة'}</span>
           </button>
 
           <button

@@ -14,6 +14,7 @@ import {
   Package,
   Radio,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
   Truck,
   Volume2,
@@ -21,6 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
+import { useCart } from '../contexts/CartContext';
 import { PARTNER_INFO } from '../types/store';
 import { buildWhatsAppLinkFromPhone, parsePartnerScopeList } from '../utils/siteConfig';
 import { ThemeToggle } from './ThemeToggle';
@@ -32,6 +34,7 @@ interface AboutUsPageProps {
   onAdminButtonClick?: () => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
+  onOpenCart?: () => void;
 }
 
 const STORE_PRODUCTS_LIST = [
@@ -106,8 +109,9 @@ const INFINITY_SERVICES_LIST = [
   },
 ];
 
-export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false, onToggleTheme }: AboutUsPageProps) {
+export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false, onToggleTheme, onOpenCart }: AboutUsPageProps) {
   const siteConfig = useSiteConfig();
+  const { totals } = useCart();
   const partnerScopeList = parsePartnerScopeList(siteConfig.partnerServiceScopeText);
   const effectiveScope =
     partnerScopeList.length > 0 ? partnerScopeList : PARTNER_INFO.serviceScope;
@@ -156,6 +160,22 @@ export function AboutUsPage({ onBackToStore, onAdminButtonClick, isDark = false,
           </a>
 
           <div className="flex items-center gap-2">
+            {onOpenCart && (
+              <button
+                type="button"
+                onClick={onOpenCart}
+                aria-label={`سلة المشتريات والمفضلة (${totals.totalQuantity} منتج)`}
+                className="relative inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] px-3 py-2 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE] border border-[#CBE7FA] dark:border-[#1E3F73] hover:bg-[#E2F3FE] dark:hover:bg-[#163868] transition-colors cursor-pointer"
+              >
+                <ShoppingCart className="h-4 w-4 text-[#1D4ED8] dark:text-[#38BDF8]" aria-hidden="true" />
+                <span className="hidden sm:inline">السلة</span>
+                {totals.totalQuantity > 0 && (
+                  <span className="font-num inline-flex min-w-[20px] h-5 items-center justify-center rounded-full bg-[#1D4ED8] px-1.5 text-[11px] font-extrabold text-white shadow-xs">
+                    {totals.totalQuantity > 99 ? '+99' : totals.totalQuantity}
+                  </span>
+                )}
+              </button>
+            )}
             {onToggleTheme && <ThemeToggle isDark={isDark} onToggle={onToggleTheme} />}
             <a
               href="/"

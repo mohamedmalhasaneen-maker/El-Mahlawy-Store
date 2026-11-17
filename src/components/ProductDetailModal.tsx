@@ -6,14 +6,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Heart,
   MessageCircle,
   Minus,
   Plus,
   Share2,
+  ShoppingCart,
   Truck,
   X,
 } from 'lucide-react';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
+import { useAddToCartButton, useCart } from '../contexts/CartContext';
 import { Product } from '../types/store';
 import {
   buildProductShareUrl,
@@ -39,6 +42,8 @@ interface ProductDetailModalProps {
 
 export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDetailModalProps) {
   const siteConfig = useSiteConfig();
+  const { isFavorite: checkIsFavorite, toggleFavorite } = useCart();
+  const { justAdded, triggerAdd } = useAddToCartButton();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -47,6 +52,8 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
   const [pdfImageSrc, setPdfImageSrc] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const pdfRef = useRef<HTMLDivElement>(null);
+
+  const isFavorite = product ? checkIsFavorite(product.id) : false;
 
   useEffect(() => {
     if (product) {
@@ -456,6 +463,19 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => toggleFavorite(product.id)}
+                    aria-label={isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
+                    className={`inline-flex min-h-[38px] items-center justify-center rounded-xl border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                      isFavorite
+                        ? 'bg-rose-500 border-rose-500 text-white'
+                        : 'bg-white dark:bg-[#0E264A] border-[#CBE7FA] dark:border-[#1E3F73] text-rose-500 hover:bg-rose-50 dark:hover:bg-[#153460]'
+                    }`}
+                  >
+                    <Heart className={`h-4 w-4 ${isFavorite ? 'fill-white' : ''}`} aria-hidden="true" />
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={handleShare}
                     className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                       copied
@@ -551,7 +571,7 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
 
         {/* Sticky Non-Overlapping Footer CTA Bar */}
         <div className="border-t border-[#D8EEFB] dark:border-[#1E3F73] bg-white dark:bg-[#081A33] px-5 py-3.5 sm:px-7 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
-          <div className="hidden sm:block">
+          <div className="hidden sm:block shrink-0">
             <span className="text-xs text-slate-500 dark:text-slate-400 block">
               الإجمالي التقديري للطلب
             </span>
@@ -560,15 +580,41 @@ export function ProductDetailModal({ product, onClose, publicOrigin }: ProductDe
             </span>
           </div>
 
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-[48px] flex-1 sm:max-w-md items-center justify-center gap-2.5 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-6 py-3 text-sm sm:text-base font-extrabold text-white shadow-sm transition-colors whitespace-nowrap shrink-0"
-          >
-            <MessageCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
-            <span>اطلب الآن عبر واتساب</span>
-          </a>
+          <div className="flex flex-1 items-center gap-2.5 sm:justify-end">
+            <button
+              type="button"
+              disabled={justAdded}
+              onClick={() =>
+                triggerAdd(product, {
+                  selectedOption,
+                  quantity,
+                })
+              }
+              aria-label={`أضف ${product.name} إلى السلة`}
+              className={`inline-flex min-h-[48px] flex-1 sm:flex-initial sm:min-w-[180px] items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-extrabold transition-all duration-150 active:scale-[0.98] whitespace-nowrap shrink-0 cursor-pointer ${
+                justAdded
+                  ? 'bg-emerald-600 text-white border border-emerald-600 shadow-sm'
+                  : 'bg-[#F2FAFF] dark:bg-[#0E264A] hover:bg-[#E2F3FE] dark:hover:bg-[#163868] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0F294A] dark:text-[#E0F2FE]'
+              }`}
+            >
+              {justAdded ? (
+                <Check className="h-5 w-5 shrink-0" aria-hidden="true" />
+              ) : (
+                <ShoppingCart className="h-5 w-5 shrink-0 text-[#0284C7] dark:text-[#38BDF8]" aria-hidden="true" />
+              )}
+              <span>{justAdded ? 'تمت الإضافة' : 'أضف إلى السلة'}</span>
+            </button>
+
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[48px] flex-1 sm:max-w-xs items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] hover:bg-[#1E40AF] px-5 py-3 text-sm sm:text-base font-extrabold text-white shadow-sm transition-colors whitespace-nowrap shrink-0"
+            >
+              <MessageCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span>اطلب الآن عبر واتساب</span>
+            </a>
+          </div>
         </div>
 
         {/* Hidden PDF Container for html2canvas */}

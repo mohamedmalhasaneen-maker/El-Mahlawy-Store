@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ArrowUpDown,
+  Check,
   ExternalLink,
   Layers,
   MapPin,
@@ -8,12 +9,13 @@ import {
   MessageCircle,
   RotateCcw,
   Search,
-  ShoppingBag,
+  ShoppingCart,
   Star,
   Truck,
   X,
 } from 'lucide-react';
 import { useSiteConfig } from '../../contexts/SiteConfigContext';
+import { useAddToCartButton, useCart } from '../../contexts/CartContext';
 import { Product, SortOption } from '../../types/store';
 import {
   calculateDiscountPercent,
@@ -36,6 +38,35 @@ import { MobileProductCard } from './MobileProductCard';
 import { MobileProductSheet } from './MobileProductSheet';
 
 import { PWAInstallButton } from '../PWAInstallButton';
+
+function MobileOfferAddToCartButton({ product }: { product: Product }) {
+  const { justAdded, triggerAdd } = useAddToCartButton();
+  return (
+    <button
+      type="button"
+      disabled={justAdded}
+      onClick={() =>
+        triggerAdd(product, {
+          selectedOption: product.options[0] || '',
+          quantity: 1,
+        })
+      }
+      aria-label={`أضف ${product.name} إلى السلة`}
+      className={`inline-flex min-h-[42px] flex-1 items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-[11px] font-extrabold transition-all active:scale-[0.97] whitespace-nowrap cursor-pointer ${
+        justAdded
+          ? 'bg-emerald-600 text-white border border-emerald-600'
+          : 'bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0F294A] dark:text-[#E0F2FE]'
+      }`}
+    >
+      {justAdded ? (
+        <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      ) : (
+        <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-[#0284C7] dark:text-[#38BDF8]" aria-hidden="true" />
+      )}
+      <span>{justAdded ? 'تمت الإضافة' : 'أضف إلى السلة'}</span>
+    </button>
+  );
+}
 
 interface MobileStorefrontProps {
   products: Product[];
@@ -91,6 +122,7 @@ export function MobileStorefront({
   onOpenCart,
 }: MobileStorefrontProps) {
   const siteConfig = useSiteConfig();
+  const { totals } = useCart();
   const orderedCategories = getOrderedCategories(siteConfig.categories);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [detailsProduct, setDetailsProduct] = useState<Product | null>(null);
@@ -183,11 +215,6 @@ export function MobileStorefront({
       id="mobile-top"
       className="flex min-h-dvh flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] md:hidden"
     >
-      <style>{`
-        div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div#mobile-top:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1) {
-          display: none !important;
-        }
-      `}</style>
       {/* 1. Simple Sticky Mobile Top Bar (<= 56px, safe-area top, <= 15% viewport height) */}
       <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#081A33]/95 backdrop-blur-md border-b border-[#D8EEFB] dark:border-[#163663] pt-[env(safe-area-inset-top)]">
         <div className="flex h-14 items-center justify-between gap-2 px-3.5">
@@ -219,10 +246,15 @@ export function MobileStorefront({
               <button
                 type="button"
                 onClick={onOpenCart}
-                aria-label="سلة المشتريات"
-                className="inline-flex min-h-[40px] items-center justify-center rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] px-2.5 py-2 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE] border border-[#CBE7FA] dark:border-[#1E3F73] cursor-pointer"
+                aria-label={`سلة المشتريات والمفضلة (${totals.totalQuantity} منتج)`}
+                className="relative inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-xl bg-[#F2FAFF] dark:bg-[#0E264A] px-2.5 py-2 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE] border border-[#CBE7FA] dark:border-[#1E3F73] cursor-pointer"
               >
-                <ShoppingBag className="h-4 w-4 text-[#1D4ED8] dark:text-[#38BDF8]" />
+                <ShoppingCart className="h-4.5 w-4.5 text-[#1D4ED8] dark:text-[#38BDF8]" aria-hidden="true" />
+                {totals.totalQuantity > 0 && (
+                  <span className="font-num absolute -top-1.5 -left-1.5 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-[#1D4ED8] px-1 text-[10px] font-extrabold text-white shadow-xs">
+                    {totals.totalQuantity > 99 ? '+99' : totals.totalQuantity}
+                  </span>
+                )}
               </button>
             )}
 
@@ -531,15 +563,18 @@ export function MobileStorefront({
                         </span>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setOrderProduct(offer)}
-                        aria-label={`طلب عرض ${offer.name}`}
-                        className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl bg-[#1D4ED8] active:scale-[0.98] px-3 py-2 text-xs font-extrabold text-white whitespace-nowrap cursor-pointer"
-                      >
-                        <ShoppingBag className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                        <span>طلب العرض الآن</span>
-                      </button>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <MobileOfferAddToCartButton product={offer} />
+                        <button
+                          type="button"
+                          onClick={() => setOrderProduct(offer)}
+                          aria-label={`طلب عرض ${offer.name}`}
+                          className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-1 rounded-xl bg-[#1D4ED8] active:scale-[0.98] px-2.5 py-2 text-[11px] font-extrabold text-white whitespace-nowrap cursor-pointer"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          <span>طلب العرض</span>
+                        </button>
+                      </div>
                     </div>
                   </article>
                 );

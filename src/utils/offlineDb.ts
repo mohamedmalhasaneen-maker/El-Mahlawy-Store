@@ -1,17 +1,13 @@
 import { Product } from '../types/store';
 import { SiteConfig } from './siteConfig';
+import { CartItem, normalizeCartItems } from './cartLogic';
+
+export type { CartItem };
 
 const DB_NAME = 'elmahlawy_store_pwa_v1';
 const DB_VERSION = 1;
-
-export interface CartItem {
-  cartKey: string; // productId + '::' + (selectedOption || '')
-  productId: string;
-  selectedOption: string;
-  quantity: number;
-  productSnapshot: Product;
-  updatedAt: number;
-}
+export const CART_LS_KEY = 'mahallawy_cart_v1';
+export const FAVORITES_LS_KEY = 'mahallawy_favorites_v1';
 
 export interface SyncQueueItem {
   id: string;
@@ -172,6 +168,22 @@ export async function idbClearCart(): Promise<void> {
   });
 }
 
+export async function idbReplaceCartItems(items: CartItem[]): Promise<void> {
+  const db = await openOfflineDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('cart', 'readwrite');
+    const store = tx.objectStore('cart');
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+
+    store.clear();
+    for (const item of items) {
+      store.put(item);
+    }
+  });
+}
+
 export async function idbGetFavorites(): Promise<string[]> {
   const db = await openOfflineDb();
   return new Promise((resolve, reject) => {
@@ -184,6 +196,23 @@ export async function idbGetFavorites(): Promise<string[]> {
       resolve(items.map((i) => i.id));
     };
     req.onerror = () => reject(req.error);
+  });
+}
+
+export async function idbSetFavorites(ids: string[]): Promise<void> {
+  const db = await openOfflineDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('favorites', 'readwrite');
+    const store = tx.objectStore('favorites');
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+
+    store.clear();
+    const unique = Array.from(new Set(ids.filter((id) => typeof id === 'string' && id.trim())));
+    for (const id of unique) {
+      store.put({ id, addedAt: Date.now() });
+    }
   });
 }
 
@@ -205,6 +234,48 @@ export async function idbToggleFavorite(productId: string): Promise<boolean> {
     };
     getReq.onerror = () => reject(getReq.error);
   });
+}
+
+export function lsGetCartItems(): CartItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(CART_LS_KEY);
+    if (!raw) return [];
+    return normalizeCartItems(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+}
+
+export function lsSaveCartItems(items: CartItem[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(CART_LS_KEY, JSON.stringify(items));
+  } catch {
+    // Ignore storage quota errors cleanly
+  }
+}
+
+export function lsGetFavorites(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(FAVORITES_LS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return Array.from(new Set(parsed.filter((id): id is string => typeof id === 'string' && id.length > 0)));
+  } catch {
+    return [];
+  }
+}
+
+export function lsSaveFavorites(ids: string[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(FAVORITES_LS_KEY, JSON.stringify(Array.from(new Set(ids))));
+  } catch {
+    // Ignore storage quota errors cleanly
+  }
 }
 
 export async function idbAddSyncQueueItem(item: Omit<SyncQueueItem, 'id' | 'createdAt' | 'retryCount'>): Promise<string> {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowUpDown, Layers, MessageCircle, RotateCcw, Search, Star } from 'lucide-react';
 import './lib/firebase';
 import { SiteConfigContext } from './contexts/SiteConfigContext';
+import { CartProvider } from './contexts/CartContext';
 import { Product, ProductFormInput, SortOption } from './types/store';
 import {
   filterAndSortProducts,
@@ -747,8 +748,9 @@ export default function App() {
 
   return (
     <SiteConfigContext.Provider value={siteConfig}>
-      <div className="relative min-h-screen flex flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] transition-colors">
-        <TechBackground isDark={isDark} />
+      <CartProvider products={products}>
+        <div className="relative min-h-screen flex flex-col bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] transition-colors">
+          <TechBackground isDark={isDark} />
 
         {activeView === 'developer' ? (
           <div className="relative z-10">
@@ -780,6 +782,10 @@ export default function App() {
               onAdminButtonClick={handleOpenDeveloperSettings}
               isDark={isDark}
               onToggleTheme={toggleTheme}
+              onOpenCart={() => {
+                setCartTab('cart');
+                setIsCartOpen(true);
+              }}
             />
           </div>
         ) : (
@@ -1106,7 +1112,8 @@ export default function App() {
           onViewDetails={(p) => handleSelectProduct(p)}
           publicOrigin={publicOrigin}
         />
-      </div>
+        </div>
+      </CartProvider>
     </SiteConfigContext.Provider>
   );
 }
