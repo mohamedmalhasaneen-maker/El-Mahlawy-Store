@@ -22,12 +22,12 @@ export function ThemeToggle({ isDark, onToggle, className = '', iconOnly = false
             className={`${iconOnly ? 'h-4 w-4' : 'h-4.5 w-4.5'} text-amber-400 animate-pulse-slow`}
             aria-hidden="true"
           />
-          {!iconOnly && <span className="hidden sm:inline">نهاري</span>}
+          {!iconOnly && <span className="hidden sm:inline text-amber-300">نهاري</span>}
         </span>
       ) : (
-        <span className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#0F294A]">
+        <span className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#0F294A] dark:text-[#E0F2FE]">
           <Moon
-            className={`${iconOnly ? 'h-4 w-4' : 'h-4.5 w-4.5'} text-[#1D4ED8]`}
+            className={`${iconOnly ? 'h-4 w-4' : 'h-4.5 w-4.5'} text-[#1D4ED8] dark:text-[#38BDF8]`}
             aria-hidden="true"
           />
           {!iconOnly && <span className="hidden sm:inline">ليلي</span>}

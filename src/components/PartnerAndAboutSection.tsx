@@ -97,7 +97,7 @@ export function PartnerAndAboutSection() {
   return (
     <div id="about-us" className="space-y-0">
       {/* HEADER BANNER */}
-      <section className="bg-gradient-to-r from-[#0B1F3A] via-[#1D4ED8] to-[#0284C7] text-white py-12 sm:py-16 border-t border-b border-[#38BDF8]/20">
+      <section className="bg-gradient-to-r from-[#0B1F3A] via-[#1D4ED8] to-[#0284C7] text-white py-12 sm:py-16 border-t border-b border-[#38BDF8]/25">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-extrabold text-[#7DD3FC] border border-white/15">
             <Sparkles className="h-4 w-4 text-[#38BDF8]" />
@@ -116,48 +116,48 @@ export function PartnerAndAboutSection() {
       <section
         id="about-store"
         aria-labelledby="about-store-heading"
-        className="bg-white py-12 sm:py-16 border-b border-[#D8EEFB]"
+        className="bg-white dark:bg-[#071326] text-[#0B1F3A] dark:text-[#F0F9FF] py-12 sm:py-16 border-b border-[#D8EEFB] dark:border-[#163663]"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
           {/* Top Brand Identity */}
           <div className="max-w-3xl space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-lg bg-[#F2FAFF] border border-[#CBE7FA] px-3 py-1 text-xs font-bold text-[#1D4ED8]">
+            <div className="inline-flex items-center gap-2 rounded-lg bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] px-3 py-1 text-xs font-bold text-[#1D4ED8] dark:text-[#38BDF8]">
               <Package className="h-3.5 w-3.5" />
               <span>المتجر الرسمي والبيع المباشر</span>
             </div>
             <h2
               id="about-store-heading"
-              className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A]"
+              className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]"
             >
-              المحلاوي ستور | <bdi className="text-[#0284C7]">El Mahlawy Store</bdi>
+              المحلاوي ستور | <bdi className="text-[#0284C7] dark:text-[#38BDF8]">El Mahlawy Store</bdi>
             </h2>
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-medium">
+            <p className="text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
               المحلاوي ستور هو وجهتك لشراء الأجهزة والمعدات ومستلزمات الأنظمة الفنية بأسعار تنافسية، مع توفير مجموعة متنوعة من المنتجات التي تلبي احتياجات الأفراد والشركات والمحلات والمنشآت التجارية. نوفر الشحن لجميع محافظات مصر، بالإضافة إلى خدمة التوصيل داخل شرم الشيخ.
             </p>
           </div>
 
           {/* Products Grid */}
           <div>
-            <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] mb-4 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-[#0284C7]" />
+            <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-4 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-[#0284C7] dark:text-[#38BDF8]" />
               <span>منتجاتنا الأساسية والمتنوعة</span>
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {STORE_PRODUCTS_LIST.map(({ title, description, Icon }) => (
                 <div
                   key={title}
-                  className="rounded-2xl bg-[#F2FAFF] border border-[#CBE7FA] p-4 sm:p-5 flex flex-col justify-between hover:border-[#0284C7] transition-colors"
+                  className="rounded-2xl bg-[#F2FAFF] dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] p-4 sm:p-5 flex flex-col justify-between hover:border-[#0284C7] dark:hover:border-[#38BDF8] transition-colors"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-[#D8EEFB] text-[#1D4ED8] shadow-xs">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#081830] border border-[#D8EEFB] dark:border-[#1E3F73] text-[#1D4ED8] dark:text-[#38BDF8] shadow-xs">
                         <Icon className="h-5 w-5" />
                       </span>
-                      <h4 className="text-sm sm:text-base font-extrabold text-[#0B1F3A]">
+                      <h4 className="text-sm sm:text-base font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]">
                         {title}
                       </h4>
                     </div>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-1">
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed pt-1">
                       {description}
                     </p>
                   </div>
@@ -169,13 +169,13 @@ export function PartnerAndAboutSection() {
           {/* Info Details Grid: Shipping, Address, After Sales, Contact */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
             {/* Address */}
-            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-2 shadow-xs flex flex-col justify-between">
+            <div className="rounded-2xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] p-4 space-y-2 shadow-xs flex flex-col justify-between">
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-xs sm:text-sm">
-                  <MapPin className="h-4 w-4 shrink-0 text-[#0284C7]" />
+                <div className="flex items-center gap-2 text-[#1D4ED8] dark:text-[#38BDF8] font-extrabold text-xs sm:text-sm">
+                  <MapPin className="h-4 w-4 shrink-0 text-[#0284C7] dark:text-[#38BDF8]" />
                   <span>عنوان المتجر والموقع الجغرافي</span>
                 </div>
-                <p className="text-xs sm:text-sm text-[#0B1F3A] font-semibold leading-relaxed">
+                <p className="text-xs sm:text-sm text-[#0B1F3A] dark:text-[#F0F9FF] font-semibold leading-relaxed">
                   {siteConfig.address || STORE_INFO.address}
                 </p>
               </div>
@@ -194,36 +194,36 @@ export function PartnerAndAboutSection() {
             </div>
 
             {/* Shipping & Delivery */}
-            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-2 shadow-xs">
-              <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-xs sm:text-sm">
-                <Truck className="h-4 w-4 shrink-0 text-[#0284C7]" />
+            <div className="rounded-2xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] p-4 space-y-2 shadow-xs">
+              <div className="flex items-center gap-2 text-[#1D4ED8] dark:text-[#38BDF8] font-extrabold text-xs sm:text-sm">
+                <Truck className="h-4 w-4 shrink-0 text-[#0284C7] dark:text-[#38BDF8]" />
                 <span>الشحن والتوصيل</span>
               </div>
-              <ul className="space-y-1.5 text-xs sm:text-sm text-[#0B1F3A] font-medium">
+              <ul className="space-y-1.5 text-xs sm:text-sm text-[#0B1F3A] dark:text-slate-200 font-medium">
                 <li className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>📦 شحن إلى جميع محافظات مصر.</span>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>🛵 توصيل داخل شرم الشيخ عن طريق الدليفري.</span>
                 </li>
               </ul>
             </div>
 
             {/* Customer Service & After Sales */}
-            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-4 space-y-2 shadow-xs">
-              <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-xs sm:text-sm">
-                <ShieldCheck className="h-4 w-4 shrink-0 text-[#0284C7]" />
+            <div className="rounded-2xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] p-4 space-y-2 shadow-xs">
+              <div className="flex items-center gap-2 text-[#1D4ED8] dark:text-[#38BDF8] font-extrabold text-xs sm:text-sm">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-[#0284C7] dark:text-[#38BDF8]" />
                 <span>خدمة العملاء وما بعد البيع</span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
                 مساعدة العملاء في معرفة المواصفات والأسعار. تتوفر إمكانية الاستبدال أو الاسترجاع وفقًا لسياسة المتجر وشروط الضمان.
               </p>
             </div>
 
             {/* Direct Contact Card */}
-            <div className="rounded-2xl bg-[#0B1F3A] text-white p-4 space-y-3 flex flex-col justify-between shadow-xs">
+            <div className="rounded-2xl bg-[#0B1F3A] dark:bg-[#081830] border border-[#1E3F73] text-white p-4 space-y-3 flex flex-col justify-between shadow-xs">
               <div>
                 <p className="text-xs font-extrabold text-[#7DD3FC] mb-1">تواصل مع المحلاوي ستور</p>
                 <div className="flex items-center justify-between text-xs font-bold bg-white/10 px-3 py-2 rounded-xl mb-2">
@@ -255,51 +255,51 @@ export function PartnerAndAboutSection() {
       <section
         id="infinity-corp"
         aria-labelledby="infinity-corp-heading"
-        className="bg-[#F2FAFF] py-12 sm:py-16 border-b border-[#D8EEFB]"
+        className="bg-[#F2FAFF] dark:bg-[#061325] text-[#0B1F3A] dark:text-[#F0F9FF] py-12 sm:py-16 border-b border-[#D8EEFB] dark:border-[#163663]"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
           {/* Top Identity */}
           <div className="max-w-3xl space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-lg bg-white border border-[#CBE7FA] px-3 py-1 text-xs font-bold text-[#1D4ED8]">
-              <Award className="h-3.5 w-3.5 text-[#0284C7]" />
+            <div className="inline-flex items-center gap-2 rounded-lg bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] px-3 py-1 text-xs font-bold text-[#1D4ED8] dark:text-[#38BDF8]">
+              <Award className="h-3.5 w-3.5 text-[#0284C7] dark:text-[#38BDF8]" />
               <span>شريك النجاح | Infinity Corp</span>
             </div>
             <h2
               id="infinity-corp-heading"
-              className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A]"
+              className="text-2xl sm:text-3xl font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]"
             >
               شركة Infinity Corp للتركيبات الفنية والصيانة
             </h2>
-            <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-medium">
+            <p className="text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
               تُعد Infinity Corp شركة متخصصة في التركيبات الفنية والصيانة الدورية وخدمة ما بعد البيع للأنظمة التي تقوم بتركيبها، وتقدم خدماتها للأفراد والشركات والفنادق والمنتجعات السياحية والمحلات التجارية داخل محافظة جنوب سيناء.
             </p>
           </div>
 
           {/* 6 Technical Services Grid */}
           <div>
-            <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] mb-4 flex items-center gap-2">
-              <Wrench className="h-5 w-5 text-[#1D4ED8]" />
+            <h3 className="text-base sm:text-lg font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF] mb-4 flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-[#1D4ED8] dark:text-[#38BDF8]" />
               <span>خدماتنا الفنية المتخصصة</span>
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {INFINITY_SERVICES_LIST.map(({ num, title, description, Icon }) => (
                 <div
                   key={title}
-                  className="rounded-2xl bg-white border border-[#CBE7FA] p-5 flex flex-col justify-between shadow-xs hover:border-[#1D4ED8] transition-colors"
+                  className="rounded-2xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] p-5 flex flex-col justify-between shadow-xs hover:border-[#1D4ED8] dark:hover:border-[#38BDF8] transition-colors"
                 >
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F2FAFF] border border-[#D8EEFB] text-[#1D4ED8]">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F2FAFF] dark:bg-[#081830] border border-[#D8EEFB] dark:border-[#1E3F73] text-[#1D4ED8] dark:text-[#38BDF8]">
                         <Icon className="h-5 w-5" />
                       </span>
-                      <span className="font-num text-xs font-extrabold bg-[#F2FAFF] border border-[#CBE7FA] px-2.5 py-1 rounded-lg text-[#1D4ED8]">
+                      <span className="font-num text-xs font-extrabold bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] px-2.5 py-1 rounded-lg text-[#1D4ED8] dark:text-[#38BDF8]">
                         خدمة #{num}
                       </span>
                     </div>
-                    <h4 className="text-sm sm:text-base font-extrabold text-[#0B1F3A]">
+                    <h4 className="text-sm sm:text-base font-extrabold text-[#0B1F3A] dark:text-[#F0F9FF]">
                       {title}
                     </h4>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                       {description}
                     </p>
                   </div>
@@ -311,19 +311,19 @@ export function PartnerAndAboutSection() {
           {/* Scope, Maintenance & Contact Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
             {/* Scope */}
-            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-5 space-y-3 shadow-xs">
-              <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-sm">
-                <MapPin className="h-4.5 w-4.5 text-[#0284C7]" />
+            <div className="rounded-2xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] p-5 space-y-3 shadow-xs">
+              <div className="flex items-center gap-2 text-[#1D4ED8] dark:text-[#38BDF8] font-extrabold text-sm">
+                <MapPin className="h-4.5 w-4.5 text-[#0284C7] dark:text-[#38BDF8]" />
                 <span>📍 نطاق خدماتنا</span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
                 نقدم خدماتنا في جميع أنحاء جنوب سيناء:
               </p>
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {PARTNER_INFO.serviceScope.map((city) => (
                   <span
                     key={city}
-                    className="rounded-lg bg-[#F2FAFF] border border-[#CBE7FA] px-2.5 py-1 text-xs font-bold text-[#0B1F3A]"
+                    className="rounded-lg bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] px-2.5 py-1 text-xs font-bold text-[#0B1F3A] dark:text-[#F0F9FF]"
                   >
                     {city}
                   </span>
@@ -332,18 +332,18 @@ export function PartnerAndAboutSection() {
             </div>
 
             {/* Maintenance & Support */}
-            <div className="rounded-2xl bg-white border border-[#CBE7FA] p-5 space-y-3 shadow-xs">
-              <div className="flex items-center gap-2 text-[#1D4ED8] font-extrabold text-sm">
-                <Wrench className="h-4.5 w-4.5 text-[#0284C7]" />
+            <div className="rounded-2xl bg-white dark:bg-[#0E264A] border border-[#CBE7FA] dark:border-[#1E3F73] p-5 space-y-3 shadow-xs">
+              <div className="flex items-center gap-2 text-[#1D4ED8] dark:text-[#38BDF8] font-extrabold text-sm">
+                <Wrench className="h-4.5 w-4.5 text-[#0284C7] dark:text-[#38BDF8]" />
                 <span>🛠️ الصيانة وخدمة ما بعد البيع</span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
                 نوفر الدعم الفني خلال فترة الضمان وفقًا لشروطه، والتشخيص عن بُعد متى أمكن، وإرسال فني متخصص عند الحاجة، بالإضافة إلى خدمات الصيانة الدورية للأنظمة التي قامت الشركة بتركيبها.
               </p>
             </div>
 
             {/* Infinity Corp Direct Contacts */}
-            <div className="rounded-2xl bg-[#0E264A] border border-[#1E3F73] text-white p-5 space-y-3 shadow-xs flex flex-col justify-between">
+            <div className="rounded-2xl bg-[#0E264A] dark:bg-[#081830] border border-[#1E3F73] text-white p-5 space-y-3 shadow-xs flex flex-col justify-between">
               <div className="space-y-2">
                 <p className="text-xs font-extrabold text-[#7DD3FC]">أرقام التواصل مع Infinity Corp (اضغط لفتح واتساب)</p>
                 <div className="space-y-2 text-xs font-bold">
