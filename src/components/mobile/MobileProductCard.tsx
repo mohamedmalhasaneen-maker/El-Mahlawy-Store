@@ -173,18 +173,18 @@ export function MobileProductCard({
             onClick={handleAddToCart}
             disabled={justAdded}
             aria-label={`أضف ${product.name} إلى السلة`}
-            className={`inline-flex min-h-[40px] items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-[10.5px] min-[390px]:text-[11px] font-extrabold transition-all duration-150 active:scale-[0.97] whitespace-nowrap cursor-pointer ${
+            title={justAdded ? 'تمت الإضافة' : 'أضف إلى السلة'}
+            className={`inline-flex min-h-[40px] items-center justify-center rounded-xl px-2 py-2 transition-all duration-150 active:scale-[0.97] cursor-pointer ${
               justAdded
                 ? 'bg-emerald-600 text-white border border-emerald-600 shadow-xs'
                 : 'bg-[#F2FAFF] dark:bg-[#081830] border border-[#CBE7FA] dark:border-[#1E3F73] text-[#0F294A] dark:text-[#E0F2FE]'
             }`}
           >
             {justAdded ? (
-              <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <Check className="h-4 w-4 shrink-0 text-white" aria-hidden="true" />
             ) : (
-              <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-[#0284C7] dark:text-[#38BDF8]" aria-hidden="true" />
+              <ShoppingCart className="h-4 w-4 shrink-0 text-[#1D4ED8] dark:text-[#38BDF8]" aria-hidden="true" />
             )}
-            <span>{justAdded ? 'تمت الإضافة' : 'أضف إلى السلة'}</span>
           </button>
 
           <button
